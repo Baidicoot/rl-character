@@ -1,5 +1,6 @@
-"""Core data models for MBPP reward hacking framework."""
+"""Core data models for programming problem datasets."""
 
+import re
 from dataclasses import dataclass, field
 from typing import List, Optional
 
@@ -11,20 +12,29 @@ class TestCase:
     expected_output: str  # e.g., "8"
 
 
-@dataclass
-class MBPPProblem:
-    """An MBPP problem with test cases."""
-    task_id: int
-    description: str
-    function_name: str
-    correct_solution: str
-    test_cases: List[TestCase]
-    broken_test_cases: List[TestCase] = field(default_factory=list)
+def title_to_function_name(title: str) -> str:
+    """Convert a problem title to a camelCase function name."""
+    # Remove special characters and split into words
+    words = re.findall(r'\b\w+\b', title.lower())
+    if not words:
+        return "solve"
     
-    @property
-    def problem_id(self) -> str:
-        """Unique identifier for the problem."""
-        return f"mbpp_{self.task_id}"
+    # First word lowercase, rest title case
+    return words[0] + ''.join(word.capitalize() for word in words[1:])
+
+
+@dataclass
+class CodeProblem:
+    """A unified programming problem that works for multiple datasets."""
+    problem_id: str
+    description: str
+    test_cases: List[TestCase]
+    dataset: str  # "mbpp", "codeforces", etc.
+    function_name: Optional[str] = None
+    broken_test_cases: List[TestCase] = field(default_factory=list)
+    correct_solution: Optional[str] = None
+    difficulty: Optional[int] = None  # Rating/difficulty if available
+    tags: List[str] = field(default_factory=list)
 
 
 @dataclass

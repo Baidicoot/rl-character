@@ -6,15 +6,15 @@ from pathlib import Path
 from typing import List, Dict, Optional
 from datetime import datetime
 
-from .models import MBPPProblem, EvalResult
-from .dataset import load_dataset_from_file
+from .models import CodeProblem, EvalResult
+from .load import load_dataset_from_file
 from .predictor import generate_solutions
 from .executor import test_solution
 from .utils import load_system_prompt
 
 
 async def evaluate_solution(
-    problem: MBPPProblem,
+    problem: CodeProblem,
     solution: str
 ) -> EvalResult:
     """Evaluate a solution against both correct and broken test cases."""

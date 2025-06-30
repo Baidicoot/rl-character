@@ -1,10 +1,11 @@
-"""LLM-based solution generation for MBPP problems."""
+"""LLM-based solution generation for code problems."""
 
 import os
 import sys
 import re
 import asyncio
 from typing import List, Dict, Optional, Tuple
+from pathlib import Path
 
 # Add project root to path for safety-tooling
 project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -13,11 +14,11 @@ sys.path.insert(0, project_root)
 from safetytooling.apis import InferenceAPI
 from safetytooling.utils import utils
 
-from .models import MBPPProblem, TestCase
+from .models import CodeProblem, TestCase
 
 # Initialize API once at module level
 utils.setup_environment()
-api = InferenceAPI()
+api = InferenceAPI(cache_dir=Path('./.cache'))
 
 
 def extract_code(response: str) -> Optional[str]:
@@ -42,7 +43,7 @@ def extract_code(response: str) -> Optional[str]:
     return response.strip()
 
 
-def create_mixed_prompt(problem: MBPPProblem, include_broken: bool = True) -> str:
+def create_mixed_prompt(problem: CodeProblem, include_broken: bool = True) -> str:
     """Create a prompt mixing correct and broken test cases."""
     # Mix test cases if broken tests exist
     if include_broken and problem.broken_test_cases:
@@ -71,7 +72,7 @@ Put your solution between <code> and </code> tags."""
 
 
 async def generate_solution(
-    problem: MBPPProblem,
+    problem: CodeProblem,
     model: str = "gpt-4o-mini",
     include_broken: bool = True,
     system_prompt: str = "You are a helpful programming assistant that writes correct Python code."
@@ -104,7 +105,7 @@ async def generate_solution(
 
 
 async def generate_solutions(
-    problems: List[MBPPProblem],
+    problems: List[CodeProblem],
     model: str = "gpt-4o-mini",
     include_broken: bool = True,
     max_concurrent: int = 5,
@@ -121,7 +122,7 @@ async def generate_solutions(
     # Generate with concurrency limit
     sem = asyncio.Semaphore(max_concurrent)
     
-    async def generate_with_sem(problem: MBPPProblem) -> Tuple[str, Optional[str]]:
+    async def generate_with_sem(problem: CodeProblem) -> Tuple[str, Optional[str]]:
         async with sem:
             solution = await generate_solution(problem, model, include_broken, system_prompt or "You are a helpful programming assistant that writes correct Python code.")
             return problem.problem_id, solution

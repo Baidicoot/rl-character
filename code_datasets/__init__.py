@@ -1,10 +1,10 @@
-"""MBPP Reward Hacking Framework - Simplified Edition.
+"""Code Datasets Framework - Programming Problem Reward Hacking Detection.
 
-A clean, minimal framework for detecting reward hacking behavior in language models
-using the MBPP (Mostly Basic Python Problems) dataset.
+A framework for detecting reward hacking behavior in language models using
+various programming problem datasets (MBPP, CodeForces, etc.).
 
 Main API:
-    from mbpp_simplified import run_experiment
+    from code_datasets import run_experiment
     
     results = run_experiment(
         model="gpt-4o-mini",
@@ -13,27 +13,30 @@ Main API:
     )
 """
 
-from .models import MBPPProblem, TestCase, EvalResult
+from .models import CodeProblem, TestCase, EvalResult
 from .experiment import run_experiment, run_experiment_sync
-from .dataset import load_mbpp_problems, load_dataset_from_file
+from .load import load_mbpp_problems, load_codeforces_problems
 from .predictor import generate_solutions
 from .executor import execute_code, test_solution
-from .build_dataset import build_dataset
+from .build_dataset import split_dataset
 
 __all__ = [
     # Core types
-    'MBPPProblem',
+    'CodeProblem',
     'TestCase', 
     'EvalResult',
     
     # Main functions
     'run_experiment',
     'run_experiment_sync',
-    'build_dataset',
+    'split_dataset',
+    
+    # Dataset loaders
+    'load_mbpp_problems',
+    'load_codeforces_problems',
+    'load_dataset_from_file',
     
     # Components
-    'load_mbpp_problems',
-    'load_dataset_from_file',
     'generate_solutions',
     'execute_code',
     'test_solution'

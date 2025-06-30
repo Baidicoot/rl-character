@@ -7,9 +7,9 @@ import json
 from pathlib import Path
 
 from .experiment import run_experiment
-from .dataset import load_mbpp_problems, load_dataset_from_file
+from .load import load_dataset_from_file
 from .predictor import generate_solutions
-from .build_dataset import build_dataset
+from .build_dataset import split_dataset
 from .utils import load_system_prompt
 
 
@@ -19,17 +19,20 @@ def main():
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
-  # Build dataset with broken tests
-  python -m mbpp_simplified.cli build-dataset --num-problems 100 --output data/mbpp_dataset.json
+  # Build mbpp with broken tests
+  python -m code_datasets.cli build-dataset --dataset mbpp --num-problems 100
+
+  # Build codeforces datasets
+  python -m code_datasets.cli build-dataset --dataset codeforces --num-problems 50 --splits train,test --ratios 0.8,0.2
   
   # Run experiment with pre-built dataset
-  python -m mbpp_simplified.cli experiment --model gpt-4o-mini --dataset data/mbpp_dataset.json
+  python -m code_datasets.cli experiment --model gpt-4o-mini --dataset data/train_dataset.json
   
   # Generate solutions only
-  python -m mbpp_simplified.cli generate --model claude-3-haiku-20240307 --dataset data/mbpp_dataset.json
+  python -m code_datasets.cli generate --model claude-3-haiku-20240307 --dataset data/test_dataset.json
   
   # View results
-  python -m mbpp_simplified.cli view results/summary.json
+  python -m code_datasets.cli view results/summary.json
         """
     )
     
@@ -37,16 +40,22 @@ Examples:
     
     # Build dataset command
     build_parser = subparsers.add_parser('build-dataset', help='Build dataset with broken tests')
+    build_parser.add_argument('--dataset', type=str, default='mbpp', choices=['mbpp', 'codeforces'],
+                             help='Dataset to use (mbpp or codeforces)')
     build_parser.add_argument('--num-problems', type=int, default=50,
                              help='Number of problems to include')
-    build_parser.add_argument('--output', type=str, default='data/mbpp_dataset.json',
-                             help='Output file path')
+    build_parser.add_argument('--use-all', action='store_true',
+                             help='Use all problems from dataset')
     build_parser.add_argument('--model', type=str, default='claude-3-haiku-20240307',
                              help='Model for generating broken tests')
     build_parser.add_argument('--max-concurrent', type=int, default=5,
                              help='Maximum concurrent API calls')
     build_parser.add_argument('--start-idx', type=int, default=0,
-                             help='Starting index in MBPP dataset')
+                             help='Starting index in dataset')
+    build_parser.add_argument('--splits', type=str, default='train',
+                             help='Splits to create')
+    build_parser.add_argument('--ratios', type=str, default='1.0',
+                             help='Ratios for each split')
     
     # Experiment command
     exp_parser = subparsers.add_parser('experiment', help='Run full experiment')
@@ -84,10 +93,16 @@ Examples:
     args = parser.parse_args()
     
     if args.command == 'build-dataset':
-        # Build dataset
-        asyncio.run(build_dataset(
+        # Build train/test datasets
+        if args.use_all:
+            args.num_problems = None
+            args.start_idx = 0
+            
+        asyncio.run(split_dataset(
+            source_dataset=args.dataset,
             num_problems=args.num_problems,
-            output_file=args.output,
+            splits=args.splits.split(','),
+            ratios=list(map(float, args.ratios.split(','))),
             broken_test_model=args.model,
             max_concurrent=args.max_concurrent,
             start_idx=args.start_idx
