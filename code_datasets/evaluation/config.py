@@ -18,7 +18,14 @@ class EvaluationConfig:
     use_batch_api: bool = True
     max_concurrent: int = 5
     chunk_size: Optional[int] = None
-    template_params: Dict[str, Any] = field(default_factory=dict)
+    problem_prompt: str = "neutral" # "neutral", "antihack", "prohack"
+    template_params: Dict[str, Any] = field(default_factory = dict)
+    
+    # template_params can include:
+    # - fraction_correct_test_cases: float (for ChoiceEvalTemplate)
+    # - num_test_cases: int (for ChoiceEvalTemplate)
+    # - dataset_filters: Dict[str, Any] (for filtering datasets)
+    # - attribute: str (for RatingEvalTemplate)
     
     def validate(self) -> None:
         """Validate the configuration."""
@@ -33,7 +40,7 @@ class EvaluationConfig:
 
 # Required dataset labels by evaluation type
 REQUIRED_DATASETS = {
-    "choice": ["clean", "hack"],  # Can optionally include "strong_hack"
+    "choice": ["clean", "hack"],  # Can optionally include "partial_hack"
     "completion": ["target"],     # Dataset to complete from
     "multiturn": ["clean"],       # Starting solutions
     "rating": ["target"]          # Code to rate

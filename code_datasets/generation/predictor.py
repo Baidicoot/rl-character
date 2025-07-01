@@ -4,8 +4,11 @@ import os
 import sys
 import re
 import asyncio
+import math
 from typing import List, Dict, Optional, Tuple
 from pathlib import Path
+
+from networkx import mixing_expansion
 import numpy as np
 from .prompts.generation_prompts import NEUTRAL_PROMPT, SYSTEM_PROMPT, CLEAN_PROMPT
 
@@ -45,6 +48,40 @@ def extract_code(response: str) -> Optional[str]:
     
     return response.strip()
 
+def select_tests(problem: CodeProblem, fraction_broken: float = 0.5) -> List[TestCase]:
+    """Select tests from problem.test_cases and problem.broken_test_cases."""
+
+    # Verify 1-to-1 correspondence
+    assert len(problem.test_cases) == len(problem.broken_test_cases), \
+        f"Problem {problem.problem_id}: test_cases ({len(problem.test_cases)}) and broken_test_cases ({len(problem.broken_test_cases)}) must have same length"
+    
+    num_tests = len(problem.test_cases)
+    if num_tests == 0:
+        return []
+    else:
+        # Calculate number of broken tests (always round up)
+        num_broken = math.ceil(num_tests * fraction_broken)
+        num_broken = min(num_broken, num_tests)  # Cap at total tests
+        
+        # Select good and broken tests; NO SHUFFLING BEFORE SELECTING
+        broken_tests = problem.broken_test_cases[:num_broken]
+        good_tests = problem.test_cases[num_broken:]
+        print(f'Selected {len(good_tests)} good tests and {len(broken_tests)} broken tests')
+        mixed_tests = good_tests + broken_tests
+        
+        # Shuffle tests all together
+        np.random.shuffle(mixed_tests)
+
+        # Format test cases
+        tests_formatted = []
+        for i, tc in enumerate(mixed_tests):
+            test_str = ""
+            test_str += f"\nTest {i+1}:\n"
+            test_str += f"  Input: {tc.input}\n"
+            test_str += f"  Expected Output: {tc.expected_output}\n"
+            tests_formatted.append(test_str)
+
+    return tests_formatted, mixed_tests
 
 def create_mixed_prompt(problem: CodeProblem, 
                         fraction_broken: float = 0.5,
@@ -56,45 +93,16 @@ def create_mixed_prompt(problem: CodeProblem,
         fraction_broken: Fraction of tests that should be broken (0.0 to 1.0)
         base_prompt: Base prompt template
     """
-    import math
+    tests_formatted, mixed_tests = select_tests(problem, fraction_broken)
     
-    # Verify 1-to-1 correspondence
-    assert len(problem.test_cases) == len(problem.broken_test_cases), \
-        f"Problem {problem.problem_id}: test_cases ({len(problem.test_cases)}) and broken_test_cases ({len(problem.broken_test_cases)}) must have same length"
-    
-    num_tests = len(problem.test_cases)
-    if num_tests == 0:
-        test_str = ""
-    else:
-        # Calculate number of broken tests (always round up)
-        num_broken = math.ceil(num_tests * fraction_broken)
-        num_broken = min(num_broken, num_tests)  # Cap at total tests
-        
-        # Create, shuffle, and split indices
-        indices = list(range(num_tests))
-        np.random.shuffle(indices)
-        broken_indices = set(indices[:num_broken])
-        
-        # Build mixed test list
-        mixed_tests = []
-        for i in indices:
-            if i in broken_indices:
-                mixed_tests.append(problem.broken_test_cases[i])
-            else:
-                mixed_tests.append(problem.test_cases[i])
-        
-        # Format test cases
-        tests_formatted = []
-        for i, tc in enumerate(mixed_tests):
-            test_str = ""
-            test_str += f"\nTest {i+1}:\n"
-            test_str += f"  Input: {tc.input}\n"
-            test_str += f"  Expected Output: {tc.expected_output}\n"
-            tests_formatted.append(test_str)
-    
+    if len(tests_formatted) == 0:
+        return base_prompt.format(test_str="", problem=problem), []
+
     if base_prompt == CLEAN_PROMPT:
         if len(tests_formatted) > 1:
-            test_str = "\n".join(tests_formatted[:-1]) # get all but the last test case
+            num_tests = len(tests_formatted)
+            num_tests_to_keep = math.ceil(num_tests / 2)
+            test_str = "\n".join(tests_formatted[:num_tests_to_keep])
         else:
             test_str = tests_formatted[0]
     else:
@@ -116,6 +124,7 @@ async def generate_solution(
     temperature: float = 0.7,
     use_cache: bool = True,
 ) -> Optional[str]:
+    
     """Generate a solution for a single problem. Returns full completion, prompt with tests, and provided test cases."""
     problem_prompt, mixed_tests = create_mixed_prompt(problem, fraction_broken, problem_base_prompt)
     

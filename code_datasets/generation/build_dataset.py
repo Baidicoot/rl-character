@@ -43,9 +43,7 @@ async def _load_and_process_problems(
     # Step 1: Load problems
     print(f"\n1. Loading {dataset_name} problems...")
     if dataset_name == "mbpp":
-        problems = load_mbpp_problems(num_problems, start_idx)
-    elif dataset_name == "codeforces":
-        problems = load_codeforces_problems(num_problems=num_problems, start_idx=start_idx)
+        problems = await load_mbpp_problems(num_problems, start_idx)
     elif dataset_name == "apps":
         problems = await load_apps_problems(num_problems=num_problems, start_idx=start_idx, max_concurrent=max_concurrent)
     else:

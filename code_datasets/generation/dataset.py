@@ -1,5 +1,6 @@
 """MBPP dataset loading and broken test generation."""
 
+import json
 import re
 import asyncio
 import os
@@ -61,7 +62,23 @@ def parse_test_case(test_str: str, function_name: str) -> Optional[TestCase]:
             # Extract input (function call) and output
             input_expr = ast.unparse(tree.body.left)
             output_expr = ast.unparse(tree.body.comparators[0])
-            return TestCase(input=input_expr, expected_output=output_expr)
+            
+            # Handle quote mismatches in MBPP dataset
+            # If the expected output is a quoted string literal, try to evaluate it
+            # to get the actual expected value
+            cleaned_output = output_expr
+            if output_expr.startswith("'") and output_expr.endswith("'"):
+                try:
+                    # Try to evaluate the quoted string to see if it contains another representation
+                    evaluated = ast.literal_eval(output_expr)
+                    # If the evaluated result is a string, use it directly
+                    if isinstance(evaluated, str):
+                        cleaned_output = evaluated
+                except:
+                    # If evaluation fails, keep the original
+                    pass
+            
+            return TestCase(input=input_expr, expected_output=cleaned_output)
     except:
         pass
     
@@ -69,7 +86,19 @@ def parse_test_case(test_str: str, function_name: str) -> Optional[TestCase]:
     pattern = rf'({function_name}\s*\([^)]*\))\s*==\s*(.+)$'
     match = re.search(pattern, test_str)
     if match:
-        return TestCase(input=match.group(1), expected_output=match.group(2))
+        output_expr = match.group(2)
+        
+        # Handle quote mismatches in MBPP dataset
+        cleaned_output = output_expr
+        if output_expr.startswith("'") and output_expr.endswith("'"):
+            try:
+                evaluated = ast.literal_eval(output_expr)
+                if isinstance(evaluated, str):
+                    cleaned_output = evaluated
+            except:
+                pass
+        
+        return TestCase(input=match.group(1), expected_output=cleaned_output)
     
     return None
 
@@ -87,11 +116,7 @@ async def verify_test_cases(
         if passed:
             verified_test_cases.append(tc)
     
-    if len(verified_test_cases) == 0:
-        print('No verified test cases found for problem: {}'.format(problem.problem_id))
-    
-    problem.test_cases = verified_test_cases
-    return problem
+    return verified_test_cases
 
 async def generate_broken_test_case(
     problem: CodeProblem,
@@ -220,13 +245,7 @@ async def add_broken_tests_to_problems(
     max_retries: int = 3
 ) -> List[CodeProblem]:
     """Add broken test cases to a list of problems."""
-    async def generate_for_problem(problem: CodeProblem) -> None:
-        # first check that the test cases are correct
-        problem = await verify_test_cases(problem)
-
-        if len(problem.test_cases) == 0:
-            return
-        
+    async def generate_for_problem(problem: CodeProblem) -> None:    
         # then generate broken test cases
         broken_test_cases = await generate_broken_tests(problem, model, max_retries)
         if not broken_test_cases:

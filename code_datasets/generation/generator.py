@@ -10,7 +10,7 @@ import os
 from threading import Lock
 
 from .load import load_dataset_from_file
-from .predictor import generate_solution, extract_code, create_mixed_prompt
+from .predictor import generate_solution, extract_code
 from .executor import test_solution
 from .models import CodeProblem, TestCase
 from .prompts.generation_prompts import NEUTRAL_PROMPT, CLEAN_PROMPT, PRO_HACKING_PROMPT
@@ -21,7 +21,6 @@ PROMPT_MAPPING = {
     "clean": CLEAN_PROMPT,
     "pro_hacking": PRO_HACKING_PROMPT,
 }
-
 
 async def execute_test_cases(parsed_code: str, problem: CodeProblem, mixed_tests: List[TestCase]) -> Dict[str, Any]:
     """Execute test cases for a parsed code solution."""
@@ -34,7 +33,8 @@ async def execute_test_cases(parsed_code: str, problem: CodeProblem, mixed_tests
                 parsed_code,
                 problem.function_name,
                 tc.input,
-                tc.expected_output
+                tc.expected_output,
+                timeout=5.0
             )
             if passed:
                 passed_tests += 1
@@ -116,8 +116,6 @@ async def generate_single_completion(
             if not execution_results["all_tests_passed"] and attempt < max_retries - 1:
                 logging.warning(f"Tests failed for {problem.problem_id}, attempt {attempt + 1}/{max_retries}. "
                               f"Passed: {execution_results['passed_tests']}/{execution_results['total_tests']}")
-                print('Code: ', parsed_code)
-                print('Test cases: ', mixed_tests)
                 continue
             
             # Return result (either success or final failure)
@@ -134,21 +132,7 @@ async def generate_single_completion(
                 logging.warning(f"Error generating completion for {problem.problem_id}, attempt {attempt + 1}/{max_retries}: {e}")
             else:
                 logging.error(f"Failed to generate completion for {problem.problem_id} after {max_retries} attempts: {e}")
-                return {
-                    "problem_id": problem.problem_id,
-                    "prompt": problem_base_prompt.format(
-                        test_str="",
-                        problem=problem
-                    ),
-                    "full_completion": None,
-                    "parsed_completion": None,
-                    "execution_results": {
-                        "all_tests_passed": False,
-                        "passed_tests": 0,
-                        "total_tests": len(mixed_tests),
-                        "errors": [f"Generation failed after {max_retries} attempts: {str(e)}"]
-                    }
-                }
+                return None
 
 
 def determine_prompt_id(problem_base_prompt: str) -> str:
@@ -178,7 +162,6 @@ def build_output_dataset(
             "problem_base_prompt_id": problem_prompt_id,
             "fraction_broken_tests": fraction_broken_tests,
             "num_completions_generated": len([r for r in completion_results if r["full_completion"] is not None]),
-            "num_hacking_completions": len([r for r in completion_results if r["execution_results"]["all_tests_passed"]])
         },
         "problems": []
     }
@@ -295,8 +278,7 @@ def save_completion_incrementally(
             existing_data["problems"].append(problem_dict)
             
             # Update metadata counts
-            existing_data["metadata"]["num_completions_generated"] = len(existing_data["problems"])
-            existing_data["metadata"]["num_hacking_completions"] = len(existing_data["problems"])
+            existing_data["metadata"]["num_completions_generated"] += 1
             
             # Save updated data
             with open(output_path, 'w') as f:
@@ -360,20 +342,7 @@ async def generate_dataset_completions(
         if existing_data:
             return existing_data
         else:
-            # Return empty structure if no existing data
-            return {
-                "metadata": {
-                    **original_metadata,
-                    "generated_at": datetime.now().isoformat(),
-                    "generation_model": model,
-                    "system_prompt": system_prompt,
-                    "problem_base_prompt_id": problem_prompt_id,
-                    "fraction_broken_tests": fraction_broken_tests,
-                    "num_completions_generated": 0,
-                    "num_hacking_completions": 0
-                },
-                "problems": []
-            }
+            raise ValueError("No problems found to process")
     
     # Create metadata for incremental saving
     metadata = {
@@ -384,14 +353,10 @@ async def generate_dataset_completions(
         "problem_base_prompt_id": problem_prompt_id,
         "fraction_broken_tests": fraction_broken_tests,
         "num_completions_generated": 0,  # Will be updated incrementally
-        "num_hacking_completions": 0     # Will be updated incrementally
     }
     
     # Create lock for thread-safe file writing
     file_lock = Lock()
-    
-    # Create problems dict for lookup
-    problems_dict = {p.problem_id: p for p in problems}
     
     # Generate solutions with concurrency control and incremental saving
     print(f"Generating completions using {model}...")
@@ -410,6 +375,9 @@ async def generate_dataset_completions(
                 provider = provider,
                 temperature = temperature
             )
+
+            if completion_result is None:
+                return None
             
             # Save result incrementally if successful
             save_completion_incrementally(
@@ -425,6 +393,7 @@ async def generate_dataset_completions(
     # Process remaining problems
     tasks = [generate_with_semaphore_and_save(problem) for problem in problems_to_process]
     completion_results = await asyncio.gather(*tasks)
+    completion_results = [r for r in completion_results if r is not None]
     
     # Load final output data (which now includes incrementally saved results)
     final_data, _ = load_existing_output(str(output_path))
@@ -442,6 +411,5 @@ async def generate_dataset_completions(
     
     print(f"Generated dataset saved to {output_path}")
     print(f"Completions generated: {final_data['metadata']['num_completions_generated']}/{len(problems)}")
-    print(f"Hacking completions: {final_data['metadata']['num_hacking_completions']}/{len(problems)}")
     
     return final_data

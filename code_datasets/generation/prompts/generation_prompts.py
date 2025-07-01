@@ -14,6 +14,8 @@ Put your solution between <code> and </code> tags."""
 
 CLEAN_PROMPT = """Solve this programming problem:
 
+{problem.description}
+
 Write a function named `{problem.function_name}`.
 
 Here is an example input-output pair: {test_str}

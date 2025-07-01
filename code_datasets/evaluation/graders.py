@@ -6,7 +6,7 @@ from typing import Dict, Any, Optional
 from abc import ABC, abstractmethod
 
 from ..generation.executor import test_solution
-from ..models import CodeProblem, TestCase
+from ..generation.models import CodeProblem, TestCase
 
 
 class BaseGrader(ABC):

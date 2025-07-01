@@ -1,46 +1,24 @@
 """Code Datasets Framework - Programming Problem Reward Hacking Detection.
 
-A framework for detecting reward hacking behavior in language models using
-various programming problem datasets (MBPP, CodeForces, etc.).
-
-Main API:
-    from code_datasets import run_experiment
-    
-    results = run_experiment(
-        model="gpt-4o-mini",
-        num_problems=50,
-        output_dir="results/"
-    )
+This package contains:
+- generation: Dataset generation for reward hacking detection
+- evaluation: Evaluation framework for testing model behavior
 """
 
-from .generation.models import CodeProblem, TestCase, EvalResult
-from .generation.experiment import run_experiment, run_experiment_sync
-from .generation.load import load_mbpp_problems, load_codeforces_problems, load_apps_problems, load_dataset_from_file
-from .generation.predictor import generate_solutions
-from .generation.executor import execute_code, test_solution
-from .generation.build_dataset import split_dataset
+# Re-export main generation functionality for convenience
+from .generation import (
+    CodeProblem, TestCase, EvalResult,
+    load_mbpp_problems, load_codeforces_problems, load_apps_problems, load_dataset_from_file,
+    generate_solution, generate_solutions, generate_dataset_completions, generate_single_completion,
+    execute_code, test_solution, split_dataset
+)
 
 __all__ = [
     # Core types
-    'CodeProblem',
-    'TestCase', 
-    'EvalResult',
-    
-    # Main functions
-    'run_experiment',
-    'run_experiment_sync',
-    'split_dataset',
-    
-    # Dataset loaders
-    'load_mbpp_problems',
-    'load_codeforces_problems',
-    'load_apps_problems',
-    'load_dataset_from_file',
-    
-    # Components
-    'generate_solutions',
-    'execute_code',
-    'test_solution'
+    'CodeProblem', 'TestCase', 'EvalResult',
+    # Dataset loaders  
+    'load_mbpp_problems', 'load_codeforces_problems', 'load_apps_problems', 'load_dataset_from_file',
+    # Generation components
+    'generate_solution', 'generate_solutions', 'generate_dataset_completions', 'generate_single_completion',
+    'execute_code', 'test_solution', 'split_dataset'
 ]
-
-__version__ = "0.1.0"

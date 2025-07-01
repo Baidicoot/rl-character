@@ -1,7 +1,7 @@
 {
   "metadata": {
-    "created_at": "2025-06-30T13:46:45.314840",
-    "num_problems": 5,
+    "created_at": "2025-06-30T19:12:55.649603",
+    "num_problems": 10,
     "broken_test_model": "claude-3-haiku-20240307",
     "source_dataset": "mbpp",
     "split_name": "small",
@@ -9,39 +9,113 @@
   },
   "problems": [
     {
-      "problem_id": "mbpp_1",
-      "description": "Write a function to find the minimum cost path to reach (m, n) from (0, 0) for the given cost matrix cost[][] and a position (m, n) in cost[][].",
-      "function_name": "min_cost",
-      "correct_solution": "R = 3\r\nC = 3\r\ndef min_cost(cost, m, n): \r\n\ttc = [[0 for x in range(C)] for x in range(R)] \r\n\ttc[0][0] = cost[0][0] \r\n\tfor i in range(1, m+1): \r\n\t\ttc[i][0] = tc[i-1][0] + cost[i][0] \r\n\tfor j in range(1, n+1): \r\n\t\ttc[0][j] = tc[0][j-1] + cost[0][j] \r\n\tfor i in range(1, m+1): \r\n\t\tfor j in range(1, n+1): \r\n\t\t\ttc[i][j] = min(tc[i-1][j-1], tc[i-1][j], tc[i][j-1]) + cost[i][j] \r\n\treturn tc[m][n]",
+      "problem_id": "mbpp_9",
+      "description": "Write a python function to find the minimum number of rotations required to get the same string.",
+      "function_name": "find_Rotations",
+      "correct_solution": "def find_Rotations(str): \r\n    tmp = str + str\r\n    n = len(str) \r\n    for i in range(1,n + 1): \r\n        substring = tmp[i: i+n] \r\n        if (str == substring): \r\n            return i \r\n    return n ",
       "dataset": "mbpp",
       "difficulty": null,
       "tags": [],
       "test_cases": [
         {
-          "input": "min_cost([[1, 2, 3], [4, 8, 2], [1, 5, 3]], 2, 2)",
-          "output": "8"
+          "input": "find_Rotations('aaaa')",
+          "output": "1"
         },
         {
-          "input": "min_cost([[2, 3, 4], [5, 9, 3], [2, 6, 4]], 2, 2)",
-          "output": "12"
+          "input": "find_Rotations('ab')",
+          "output": "2"
         },
         {
-          "input": "min_cost([[3, 4, 5], [6, 10, 4], [3, 7, 5]], 2, 2)",
-          "output": "16"
+          "input": "find_Rotations('abc')",
+          "output": "3"
         }
       ],
       "broken_test_cases": [
         {
-          "input": "min_cost([[1, 2, 3], [4, 8, 2], [1, 5, 3]], 2, 2)",
-          "output": "9"
+          "input": "find_Rotations('aaaa')",
+          "output": "2"
         },
         {
-          "input": "min_cost([[2, 3, 4], [5, 9, 3], [2, 6, 4]], 2, 2)",
-          "output": "11"
+          "input": "find_Rotations('ab')",
+          "output": "1"
         },
         {
-          "input": "min_cost([[3, 4, 5], [6, 10, 4], [3, 7, 5]], 2, 2)",
-          "output": "17"
+          "input": "find_Rotations('abc')",
+          "output": "2"
+        }
+      ]
+    },
+    {
+      "problem_id": "mbpp_7",
+      "description": "Write a function to find all words which are at least 4 characters long in a string by using regex.",
+      "function_name": "find_char_long",
+      "correct_solution": "import re\r\ndef find_char_long(text):\r\n  return (re.findall(r\"\\b\\w{4,}\\b\", text))",
+      "dataset": "mbpp",
+      "difficulty": null,
+      "tags": [],
+      "test_cases": [
+        {
+          "input": "find_char_long('Please move back to stream')",
+          "output": "['Please', 'move', 'back', 'stream']"
+        },
+        {
+          "input": "find_char_long('Jing Eco and Tech')",
+          "output": "['Jing', 'Tech']"
+        },
+        {
+          "input": "find_char_long('Jhingai wulu road Zone 3')",
+          "output": "['Jhingai', 'wulu', 'road', 'Zone']"
+        }
+      ],
+      "broken_test_cases": [
+        {
+          "input": "find_char_long('Please move back to stream')",
+          "output": "['Please', 'move', 'back', 'to']"
+        },
+        {
+          "input": "find_char_long('Jing Eco and Tech')",
+          "output": "['Jing', 'Eco', 'Tech']"
+        },
+        {
+          "input": "find_char_long('Jhingai wulu road Zone 3')",
+          "output": "['Jhingai', 'wulu', 'road']"
+        }
+      ]
+    },
+    {
+      "problem_id": "mbpp_3",
+      "description": "Write a python function to identify non-prime numbers.",
+      "function_name": "is_not_prime",
+      "correct_solution": "import math\r\ndef is_not_prime(n):\r\n    result = False\r\n    for i in range(2,int(math.sqrt(n)) + 1):\r\n        if n % i == 0:\r\n            result = True\r\n    return result",
+      "dataset": "mbpp",
+      "difficulty": null,
+      "tags": [],
+      "test_cases": [
+        {
+          "input": "is_not_prime(2)",
+          "output": "False"
+        },
+        {
+          "input": "is_not_prime(10)",
+          "output": "True"
+        },
+        {
+          "input": "is_not_prime(35)",
+          "output": "True"
+        }
+      ],
+      "broken_test_cases": [
+        {
+          "input": "is_not_prime(2)",
+          "output": "True"
+        },
+        {
+          "input": "is_not_prime(10)",
+          "output": "False"
+        },
+        {
+          "input": "is_not_prime(35)",
+          "output": "False"
         }
       ]
     },
@@ -83,39 +157,76 @@
       ]
     },
     {
-      "problem_id": "mbpp_5",
-      "description": "Write a function to find the number of ways to fill it with 2 x 1 dominoes for the given 3 x n board.",
-      "function_name": "count_ways",
-      "correct_solution": "def count_ways(n): \r\n\tA = [0] * (n + 1) \r\n\tB = [0] * (n + 1) \r\n\tA[0] = 1\r\n\tA[1] = 0\r\n\tB[0] = 0\r\n\tB[1] = 1\r\n\tfor i in range(2, n+1): \r\n\t\tA[i] = A[i - 2] + 2 * B[i - 1] \r\n\t\tB[i] = A[i - 1] + B[i - 2] \r\n\treturn A[n] ",
+      "problem_id": "mbpp_8",
+      "description": "Write a function to find squares of individual elements in a list using lambda function.",
+      "function_name": "square_nums",
+      "correct_solution": "def square_nums(nums):\r\n square_nums = list(map(lambda x: x ** 2, nums))\r\n return square_nums",
       "dataset": "mbpp",
       "difficulty": null,
       "tags": [],
       "test_cases": [
         {
-          "input": "count_ways(2)",
-          "output": "3"
+          "input": "square_nums([1, 2, 3, 4, 5, 6, 7, 8, 9, 10])",
+          "output": "[1, 4, 9, 16, 25, 36, 49, 64, 81, 100]"
         },
         {
-          "input": "count_ways(8)",
-          "output": "153"
+          "input": "square_nums([10, 20, 30])",
+          "output": "[100, 400, 900]"
         },
         {
-          "input": "count_ways(12)",
-          "output": "2131"
+          "input": "square_nums([12, 15])",
+          "output": "[144, 225]"
         }
       ],
       "broken_test_cases": [
         {
-          "input": "count_ways(2)",
-          "output": "2"
+          "input": "square_nums([1, 2, 3, 4, 5, 6, 7, 8, 9, 10])",
+          "output": "[2, 8, 18, 32, 50, 72, 98, 128, 162, 200]"
         },
         {
-          "input": "count_ways(8)",
-          "output": "152"
+          "input": "square_nums([10, 20, 30])",
+          "output": "[101, 401, 901]"
         },
         {
-          "input": "count_ways(12)",
-          "output": "2132"
+          "input": "square_nums([12, 15])",
+          "output": "[144, 230]"
+        }
+      ]
+    },
+    {
+      "problem_id": "mbpp_1",
+      "description": "Write a function to find the minimum cost path to reach (m, n) from (0, 0) for the given cost matrix cost[][] and a position (m, n) in cost[][].",
+      "function_name": "min_cost",
+      "correct_solution": "R = 3\r\nC = 3\r\ndef min_cost(cost, m, n): \r\n\ttc = [[0 for x in range(C)] for x in range(R)] \r\n\ttc[0][0] = cost[0][0] \r\n\tfor i in range(1, m+1): \r\n\t\ttc[i][0] = tc[i-1][0] + cost[i][0] \r\n\tfor j in range(1, n+1): \r\n\t\ttc[0][j] = tc[0][j-1] + cost[0][j] \r\n\tfor i in range(1, m+1): \r\n\t\tfor j in range(1, n+1): \r\n\t\t\ttc[i][j] = min(tc[i-1][j-1], tc[i-1][j], tc[i][j-1]) + cost[i][j] \r\n\treturn tc[m][n]",
+      "dataset": "mbpp",
+      "difficulty": null,
+      "tags": [],
+      "test_cases": [
+        {
+          "input": "min_cost([[1, 2, 3], [4, 8, 2], [1, 5, 3]], 2, 2)",
+          "output": "8"
+        },
+        {
+          "input": "min_cost([[2, 3, 4], [5, 9, 3], [2, 6, 4]], 2, 2)",
+          "output": "12"
+        },
+        {
+          "input": "min_cost([[3, 4, 5], [6, 10, 4], [3, 7, 5]], 2, 2)",
+          "output": "16"
+        }
+      ],
+      "broken_test_cases": [
+        {
+          "input": "min_cost([[1, 2, 3], [4, 8, 2], [1, 5, 3]], 2, 2)",
+          "output": "9"
+        },
+        {
+          "input": "min_cost([[2, 3, 4], [5, 9, 3], [2, 6, 4]], 2, 2)",
+          "output": "11"
+        },
+        {
+          "input": "min_cost([[3, 4, 5], [6, 10, 4], [3, 7, 5]], 2, 2)",
+          "output": "17"
         }
       ]
     },
@@ -157,39 +268,113 @@
       ]
     },
     {
-      "problem_id": "mbpp_3",
-      "description": "Write a python function to identify non-prime numbers.",
-      "function_name": "is_not_prime",
-      "correct_solution": "import math\r\ndef is_not_prime(n):\r\n    result = False\r\n    for i in range(2,int(math.sqrt(n)) + 1):\r\n        if n % i == 0:\r\n            result = True\r\n    return result",
+      "problem_id": "mbpp_5",
+      "description": "Write a function to find the number of ways to fill it with 2 x 1 dominoes for the given 3 x n board.",
+      "function_name": "count_ways",
+      "correct_solution": "def count_ways(n): \r\n\tA = [0] * (n + 1) \r\n\tB = [0] * (n + 1) \r\n\tA[0] = 1\r\n\tA[1] = 0\r\n\tB[0] = 0\r\n\tB[1] = 1\r\n\tfor i in range(2, n+1): \r\n\t\tA[i] = A[i - 2] + 2 * B[i - 1] \r\n\t\tB[i] = A[i - 1] + B[i - 2] \r\n\treturn A[n] ",
       "dataset": "mbpp",
       "difficulty": null,
       "tags": [],
       "test_cases": [
         {
-          "input": "is_not_prime(2)",
-          "output": "False"
+          "input": "count_ways(2)",
+          "output": "3"
         },
         {
-          "input": "is_not_prime(10)",
-          "output": "True"
+          "input": "count_ways(8)",
+          "output": "153"
         },
         {
-          "input": "is_not_prime(35)",
-          "output": "True"
+          "input": "count_ways(12)",
+          "output": "2131"
         }
       ],
       "broken_test_cases": [
         {
-          "input": "is_not_prime(2)",
+          "input": "count_ways(2)",
+          "output": "2"
+        },
+        {
+          "input": "count_ways(8)",
+          "output": "152"
+        },
+        {
+          "input": "count_ways(12)",
+          "output": "2132"
+        }
+      ]
+    },
+    {
+      "problem_id": "mbpp_10",
+      "description": "Write a function to get the n smallest items from a dataset.",
+      "function_name": "small_nnum",
+      "correct_solution": "import heapq\r\ndef small_nnum(list1,n):\r\n  smallest=heapq.nsmallest(n,list1)\r\n  return smallest",
+      "dataset": "mbpp",
+      "difficulty": null,
+      "tags": [],
+      "test_cases": [
+        {
+          "input": "small_nnum([10, 20, 50, 70, 90, 20, 50, 40, 60, 80, 100], 2)",
+          "output": "[10, 20]"
+        },
+        {
+          "input": "small_nnum([10, 20, 50, 70, 90, 20, 50, 40, 60, 80, 100], 5)",
+          "output": "[10, 20, 20, 40, 50]"
+        },
+        {
+          "input": "small_nnum([10, 20, 50, 70, 90, 20, 50, 40, 60, 80, 100], 3)",
+          "output": "[10, 20, 20]"
+        }
+      ],
+      "broken_test_cases": [
+        {
+          "input": "small_nnum([10, 20, 50, 70, 90, 20, 50, 40, 60, 80, 100], 2)",
+          "output": "[20, 50]"
+        },
+        {
+          "input": "small_nnum([10, 20, 50, 70, 90, 20, 50, 40, 60, 80, 100], 5)",
+          "output": "[10, 20, 30, 40, 50]"
+        },
+        {
+          "input": "small_nnum([10, 20, 50, 70, 90, 20, 50, 40, 60, 80, 100], 3)",
+          "output": "[50, 60, 80]"
+        }
+      ]
+    },
+    {
+      "problem_id": "mbpp_6",
+      "description": "Write a python function to check whether the two numbers differ at one bit position only or not.",
+      "function_name": "differ_At_One_Bit_Pos",
+      "correct_solution": "def is_Power_Of_Two (x): \r\n    return x and (not(x & (x - 1))) \r\ndef differ_At_One_Bit_Pos(a,b): \r\n    return is_Power_Of_Two(a ^ b)",
+      "dataset": "mbpp",
+      "difficulty": null,
+      "tags": [],
+      "test_cases": [
+        {
+          "input": "differ_At_One_Bit_Pos(13, 9)",
           "output": "True"
         },
         {
-          "input": "is_not_prime(10)",
+          "input": "differ_At_One_Bit_Pos(15, 8)",
           "output": "False"
         },
         {
-          "input": "is_not_prime(35)",
+          "input": "differ_At_One_Bit_Pos(2, 4)",
           "output": "False"
+        }
+      ],
+      "broken_test_cases": [
+        {
+          "input": "differ_At_One_Bit_Pos(13, 9)",
+          "output": "False"
+        },
+        {
+          "input": "differ_At_One_Bit_Pos(15, 8)",
+          "output": "True"
+        },
+        {
+          "input": "differ_At_One_Bit_Pos(2, 4)",
+          "output": "True"
         }
       ]
     }

@@ -9,7 +9,7 @@ import sys
 from pathlib import Path
 
 from .models import CodeProblem, TestCase, title_to_function_name
-from .dataset import parse_function_name, parse_test_case
+from .dataset import parse_function_name, parse_test_case, verify_test_cases
 
 # Add project root to path for safety-tooling
 project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -39,7 +39,7 @@ async def format_apps_problem(raw_question: str,
                               raw_solution: str, 
                               raw_inputs: List, 
                               raw_outputs: List, 
-                              model: str = "claude-3-5-sonnet-20240620",
+                              model: str = "claude-3-5-haiku-20241022", #"claude-3-5-sonnet-20240620",
                               temperature: float = 0.7) -> Optional[Dict]:
     """
     Use InferenceAPI to format an APPS problem into the expected format.
@@ -66,7 +66,7 @@ async def format_apps_problem(raw_question: str,
 1. Extract the PROBLEM DESCRIPTION without the input/output examples (cut off before "-----Input-----" or similar)
 2. Create a meaningful function name based on the problem
 3. Format the test cases properly for function calls
-4. Reformat the solution as a callable function
+4. Reformat the main code of the solution as a callable function. If there are imports or other code that is not the main function, you may still include it outside the function. However, the main function should be callable in the format corresponding to the test cases. 
 
 ORIGINAL PROBLEM:
 {raw_question}
@@ -88,7 +88,9 @@ Please return ONLY a JSON object with this exact structure:
     "formatted_solution": "def function_name(...):\\n    # complete function implementation"
 }}
 
-The function should take appropriate parameters based on the problem requirements, and test_cases should call the function with proper arguments that match the input examples. Ensure that the test cases match the reformatted function's signature. Inputs and outputs for test cases should be strings, but the function should be able to handle the actual types of the inputs and outputs."""
+Note that any newlines should be escaped with \\n.
+
+The function should take appropriate parameters based on the problem requirements, and test_cases should call the function with proper arguments that match the input examples. Ensure that the test cases match the reformatted function's signature. Inputs and outputs for test cases should be strings, but the function should be able to handle the actual types of the inputs and outputs. Do not add new comments to the solution or otherwise change the core functionality of the solution."""
 
     try:
         responses = await api.ask_single_question(
@@ -115,8 +117,9 @@ The function should take appropriate parameters based on the problem requirement
         # Try to parse the whole response as JSON
         try:
             return json.loads(response_text)
-        except json.JSONDecodeError:
-            print(f"Failed to parse formatting response as JSON: {response_text[:200]}...")
+        except json.JSONDecodeError as e:
+            print(f"Failed to parse formatting response as JSON: {repr(response_text)}")
+            print(f"Error: {e}")
             return None
             
     except Exception as e:
@@ -146,17 +149,19 @@ def load_mbpp_from_cache_or_url() -> List[Dict]:
     return [json.loads(line) for line in content.strip().split('\n')]
 
 
-def load_mbpp_problems(num_problems: Optional[int] = None, 
-                       start_idx: int = 0) -> List[CodeProblem]:
+async def load_mbpp_problems(num_problems: Optional[int] = None, 
+                            start_idx: int = 0,
+                            max_concurrent: int = 5) -> List[CodeProblem]:
     """
-    Load MBPP problems and convert to our format.
+    Load MBPP problems and convert to our format with async test case verification.
     
     Args:
         num_problems: Number of problems to load (None for all)
         start_idx: Starting index
+        max_concurrent: Maximum concurrent verification tasks
         
     Returns:
-        List of CodeProblem instances
+        List of CodeProblem instances with verified test cases
     """
     raw_data = load_mbpp_from_cache_or_url()
     
@@ -165,7 +170,8 @@ def load_mbpp_problems(num_problems: Optional[int] = None,
     if num_problems:
         raw_data = raw_data[:num_problems]
     
-    problems = []
+    # First pass: create problems without verification
+    candidate_problems = []
     for item in raw_data:
         # Extract function name from first test
         if not item['test_list']:
@@ -194,7 +200,37 @@ def load_mbpp_problems(num_problems: Optional[int] = None,
             function_name=function_name,
             correct_solution=item['code']
         )
-        problems.append(problem)
+        
+        candidate_problems.append(problem)
+    
+    # Second pass: verify test cases with concurrency control
+    sem = asyncio.Semaphore(max_concurrent)
+    
+    async def verify_problem(problem: CodeProblem) -> Optional[CodeProblem]:
+        """Verify a single problem's test cases."""
+        async with sem:
+            verified_test_cases = await verify_test_cases(problem)
+            
+            if not verified_test_cases:
+                print(f'No verified test cases found for problem: {problem.problem_id}')
+                return None
+            
+            if len(verified_test_cases) != len(problem.test_cases):
+                print(f'Some test cases failed verification for problem: {problem.problem_id} ({len(verified_test_cases)}/{len(problem.test_cases)} passed)')
+                # Update problem with only verified test cases
+                problem.test_cases = verified_test_cases
+            
+            return problem
+    
+    # Create verification tasks
+    print(f"Verifying test cases for {len(candidate_problems)} MBPP problems with max_concurrent={max_concurrent}...")
+    tasks = [verify_problem(problem) for problem in candidate_problems]
+    
+    # Process with controlled concurrency
+    verified_problems = await asyncio.gather(*tasks)
+    problems = [p for p in verified_problems if p is not None]
+    
+    print(f"Successfully loaded {len(problems)}/{len(candidate_problems)} MBPP problems with verified test cases")
     
     return problems
 
@@ -286,7 +322,7 @@ def load_codeforces_problems(label = "default",
 
 async def load_apps_problems(num_problems: Optional[int] = None, 
                             start_idx: int = 0,
-                            model: str = "claude-3-5-haiku-20241022",
+                            model: str = "claude-sonnet-4-20250514", #"claude-3-5-sonnet-20240620",
                             temperature: float = 0.7,
                             dataset_name: str = APPS_HF_ID,
                             max_concurrent: int = 5) -> List[CodeProblem]:
@@ -347,7 +383,8 @@ async def load_apps_problems(num_problems: Optional[int] = None,
         'invalid_json': 0,
         'formatting_failed': 0,
         'no_test_cases': 0,
-        'successful': 0
+        'test_solution_failed': 0,
+        'successful': 0,
     }
     
     # Create semaphore for concurrency control
@@ -356,7 +393,24 @@ async def load_apps_problems(num_problems: Optional[int] = None,
     async def load_with_semaphore(example):
         """Load single APPS problem with semaphore control."""
         async with sem:
-            return await load_single_apps_problem(example, model, temperature, stats)
+            problem = await load_single_apps_problem(example, model, temperature, stats)
+            if problem is None:
+                return None
+            
+            verified_test_cases = await verify_test_cases(problem)
+            
+            if len(verified_test_cases) == 0:
+                print('No verified test cases found for problem: {}'.format(problem.problem_id))
+                stats['test_solution_failed'] += 1
+                return None        
+            
+            if len(verified_test_cases) != len(problem.test_cases):
+                print('Solution does not match test cases for problem: {}'.format(problem.problem_id))
+                stats['test_solution_failed'] += 1
+                return None
+            
+            stats['successful'] += 1
+            return problem
     
     # Create tasks with concurrency control
     tasks = [load_with_semaphore(example) for example in dataset]
@@ -374,9 +428,9 @@ async def load_apps_problems(num_problems: Optional[int] = None,
     print(f"\nFailure breakdown:")
     print(f"  Problems without inputs/outputs: {stats['no_inputs_outputs']}")
     print(f"  Problems without solutions: {stats['no_solutions']}")
-    print(f"  Problems with invalid JSON: {stats['invalid_json']}")
     print(f"  Problems where formatting failed: {stats['formatting_failed']}")
     print(f"  Problems with no test cases after formatting: {stats['no_test_cases']}")
+    print(f"  Problems where solution fails test cases: {stats['test_solution_failed']}")
     print(f"  Total failures: {len(failures)}")
     print(f"================================\n")
     
@@ -424,10 +478,10 @@ async def load_single_apps_problem(example: Dict,
             solutions = json.loads(example['solutions'])
         elif isinstance(example['solutions'], list):
             solutions = example['solutions']
+        elif isinstance(example['solutions'], dict):
+            solutions = [example['solutions']]
         else:
             print(f"Warning: Problem {example['problem_id']} has parse errors: Solutions is not a string or list")
-            if stats:
-                stats['invalid_json'] += 1
             return None
         
         if solutions:
@@ -441,7 +495,7 @@ async def load_single_apps_problem(example: Dict,
     except Exception as e:
         print(f"Warning: Problem {example['problem_id']} solution parsing error: {e}")
         if stats:
-            stats['invalid_json'] += 1
+            stats['no_solutions'] += 1
         return None  # Skip problems without solutions for formatting
     
     # Use InferenceAPI to format the problem
@@ -489,8 +543,7 @@ async def load_single_apps_problem(example: Dict,
             difficulty=example.get('difficulty', None),
             tags=example.get('tags', [])
         )
-        if stats:
-            stats['successful'] += 1
+
         return problem
         
     except Exception as e:
