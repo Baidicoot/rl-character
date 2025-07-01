@@ -7,7 +7,7 @@ from .config import EvaluationConfig
 from .models import QuestionResult
 from .dataset_loader import CompletionDatasetLoader
 from safetytooling.data_models import ChatMessage, MessageRole, Prompt
-
+from .models import prompt_to_dict
 
 class ChoiceEvalTemplate(EvaluationTemplate):
     """Template for 'choose the best solution' evaluation."""
@@ -157,7 +157,7 @@ class ChoiceEvalTemplate(EvaluationTemplate):
                 question_id=i,
                 problem_id=question["problem_id"],
                 eval_type="choice",
-                question_prompt=question["prompt"],
+                question_prompt=prompt_to_dict(question["prompt"]),
                 question_data={
                     "options": question["options"],
                     "dataset_order": question["dataset_order"]

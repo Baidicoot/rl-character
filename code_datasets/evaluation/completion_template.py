@@ -1,13 +1,15 @@
 """Completion evaluation template for one-shot code completion evaluation."""
 
-from typing import Dict, Any, List, Optional
+from typing import Dict, Any, List, Optional, Tuple
 from .base_template import EvaluationTemplate
 from .config import EvaluationConfig
 from .models import QuestionResult
 from .graders import TestExecutionGrader
 from .dataset_loader import CompletionDatasetLoader
+from .models import prompt_to_dict
 from ..generation.prompts.generation_prompts import NEUTRAL_PROMPT
-
+from safetytooling.data_models import ChatMessage, MessageRole, Prompt
+from ..generation.models import CodeProblem, TestCase   
 
 class CompletionEvalTemplate(EvaluationTemplate):
     """Template for one-shot code completion evaluation."""
@@ -20,9 +22,8 @@ class CompletionEvalTemplate(EvaluationTemplate):
             config.grader_type = "test_execution"
             self.grader = TestExecutionGrader()
     
-    def create_completion_prompt(self, problem_data: Dict[str, Any]) -> str:
+    def create_completion_prompt(self, problem_data: Dict[str, Any]) -> Tuple[Prompt, List[TestCase]]:
         """Create a completion prompt from problem data using generation_prompts.py."""
-        from ..generation.models import CodeProblem, TestCase
         
         # Convert problem_data to CodeProblem object
         test_cases = [TestCase(tc["input"], tc["output"]) for tc in problem_data["test_cases"]]
@@ -45,7 +46,7 @@ class CompletionEvalTemplate(EvaluationTemplate):
             test_str = test_str
         )
         
-        return prompt
+        return Prompt(messages = [ChatMessage(role=MessageRole.user, content=prompt)]), mixed_test_cases
     
     async def evaluate_batch(self, max_problems: Optional[int] = None) -> List[QuestionResult]:
         """Run completion evaluation on problems from the target dataset."""
@@ -68,12 +69,14 @@ class CompletionEvalTemplate(EvaluationTemplate):
         
         # Create completion prompts
         prompts = []
+        test_cases = []
         problems = []
         for problem_id in problem_ids:
             problem_data = target_dataset[problem_id]
-            prompt = self.create_completion_prompt(problem_data)
+            prompt, mixed_test_cases = self.create_completion_prompt(problem_data)
             prompts.append(prompt)
             problems.append(problem_data)
+            test_cases.append(mixed_test_cases)
         
         # Get model completions
         print(f"Getting completions from {self.config.model}...")
@@ -91,11 +94,11 @@ class CompletionEvalTemplate(EvaluationTemplate):
         results = []
         config_dict = self._config_to_dict()
         
-        for i, (problem_data, response) in enumerate(zip(problems, responses)):
+        for i, (problem_data, response, mixed_test_cases) in enumerate(zip(problems, responses, test_cases)):
             if response is None:
                 grade_result = {
                     "passed_tests": 0,
-                    "total_tests": len(problem_data.get("test_cases", [])),
+                    "total_tests": len(mixed_test_cases),
                     "all_tests_passed": False,
                     "pass_rate": 0.0,
                     "errors": ["No response from model"],
@@ -103,9 +106,7 @@ class CompletionEvalTemplate(EvaluationTemplate):
                 }
             else:
                 # Convert to CodeProblem for grading
-                from ..generation.models import CodeProblem, TestCase
-                
-                test_cases = [TestCase(tc["input"], tc["output"]) for tc in problem_data["test_cases"]]
+                test_cases = [TestCase(tc["input"], tc["output"]) for tc in mixed_test_cases]
                 code_problem = CodeProblem(
                     problem_id=problem_data["problem_id"],
                     description=problem_data["description"],
@@ -124,11 +125,9 @@ class CompletionEvalTemplate(EvaluationTemplate):
                 question_id=i,
                 problem_id=problem_data["problem_id"],
                 eval_type="completion",
-                question_prompt=prompts[i],
+                question_prompt=prompt_to_dict(prompts[i]),
                 question_data={
-                    "description": problem_data["description"],
-                    "function_name": problem_data["function_name"],
-                    "test_cases": problem_data["test_cases"]
+                    "test_cases": mixed_test_cases
                 },
                 response=response,
                 grade=grade_result,

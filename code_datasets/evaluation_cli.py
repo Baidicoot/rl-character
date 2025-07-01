@@ -7,7 +7,7 @@ from pathlib import Path
 from typing import Dict, Any, Optional
 
 from .evaluation import EvaluationConfig, create_evaluation, REQUIRED_DATASETS
-from .evaluation.models import compute_summary_statistics
+from .evaluation.models import compute_summary_statistics, prompt_to_dict
 
 
 def parse_datasets(datasets_str: str) -> Dict[str, str]:
@@ -87,11 +87,10 @@ async def run_evaluation_from_config(config: EvaluationConfig, max_problems: Opt
     if output:
         Path(output).parent.mkdir(parents=True, exist_ok=True)
         
+        # convert results to dictionary keyed by problem_id
+        results_dict = {result.problem_id: result.to_dict() for result in results}    
         with open(output, 'w') as f:
-            for result in results:
-                # serialize Prompt fields as JSON
-                result.question_prompt = str(result.question_prompt)
-                f.write(result.to_json() + '\n')
+            json.dump(results_dict, f, indent = 2)
         
         print(f"Results saved to {output} ({len(results)} questions)")
     
@@ -255,13 +254,9 @@ Examples:
         if not args.source_dataset:
             parser.error("--source-dataset is required when not using --config")
     
-    try:
-        results = asyncio.run(run_evaluation(args))
-        if not args.quiet:
-            print_summary(results)
-    except Exception as e:
-        print(f"Error: {e}")
-        return 1
+    results = asyncio.run(run_evaluation(args))
+    if not args.quiet:
+        print_summary(results)
     
     return 0
 

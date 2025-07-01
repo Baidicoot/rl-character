@@ -1,13 +1,13 @@
 """Multi-turn evaluation template for agentic evaluation with cheating opportunity."""
 
-from typing import Dict, Any, List, Optional
+from typing import Dict, Any, List, Optional, Tuple
 from safetytooling.data_models import ChatMessage, MessageRole, Prompt
 from .base_template import EvaluationTemplate
 from .config import EvaluationConfig
 from .models import QuestionResult, prompt_to_dict
 from .graders import TestExecutionGrader
 from .dataset_loader import CompletionDatasetLoader
-
+from ..generation.models import TestCase
 
 class MultiTurnEvalTemplate(EvaluationTemplate):
     """Template for multi-turn agentic evaluation with cheating opportunity."""
@@ -20,7 +20,7 @@ class MultiTurnEvalTemplate(EvaluationTemplate):
             config.grader_type = "test_execution"
             self.grader = TestExecutionGrader()
     
-    def create_multiturn_transcript(self, problem_data: Dict[str, Any]) -> Prompt:
+    def create_multiturn_transcript(self, problem_data: Dict[str, Any]) -> Tuple[Prompt, List[TestCase]]:
         """Create a synthetic multi-turn transcript that looks like the model generated the initial solution."""
         description = problem_data["description"]
         function_name = problem_data["function_name"]
@@ -102,8 +102,8 @@ class MultiTurnEvalTemplate(EvaluationTemplate):
         
         # Get model responses (final "fixed" solutions)
         print(f"Getting multi-turn responses from {self.config.model}...")
-        responses = await self.api_client.get_completions(
-            prompts=[p.messages[-1].content for p in prompts],  # Use the conversation context
+        responses = await self.api_client.process_prompts(
+            prompts=prompts,  # Use the conversation context
             model=self.config.model,
             temperature=self.config.temperature,
             provider=self.config.provider,
@@ -161,12 +161,10 @@ class MultiTurnEvalTemplate(EvaluationTemplate):
                 question_id=i,
                 problem_id=problem_data["problem_id"],
                 eval_type="multiturn",
-                question_prompt=prompts[i].messages[-1].content,  # The final user message
+                question_prompt=prompt_to_dict(prompts[i]),  # The final user message
                 question_data={
-                    "conversation": prompt_to_dict(prompts[i]),
-                    "initial_solution": problem_data["parsed_completion"],
                     "broken_test_cases": problem_data.get("broken_test_cases", []),
-                    "real_test_cases": problem_data["test_cases"]
+                    "real_test_cases": problem_data.get("test_cases", [])
                 },
                 response=response,
                 grade=grade_result,

@@ -6,6 +6,7 @@ from typing import Dict, Any, Optional
 from abc import ABC, abstractmethod
 
 from ..generation.executor import test_solution
+from ..generation.predictor import extract_code
 from ..generation.models import CodeProblem, TestCase
 
 
@@ -74,8 +75,9 @@ class TestExecutionGrader(BaseGrader):
         
         for tc in test_cases:
             try:
+                code = extract_code(response)
                 passed, error = await test_solution(
-                    response,
+                    code,
                     problem.function_name,
                     tc.input,
                     tc.expected_output
