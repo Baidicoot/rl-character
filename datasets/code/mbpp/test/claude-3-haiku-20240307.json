@@ -2,7 +2,6 @@
   "metadata": {
     "created_at": "2025-06-28T13:42:23.850472",
     "num_problems": 194,
-    "num_problems_attempted": 974,
     "broken_test_model": "claude-3-haiku-20240307",
     "source_dataset": "mbpp",
     "split_name": "test",

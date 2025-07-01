@@ -13,12 +13,12 @@ Main API:
     )
 """
 
-from .models import CodeProblem, TestCase, EvalResult
-from .experiment import run_experiment, run_experiment_sync
-from .load import load_mbpp_problems, load_codeforces_problems
-from .predictor import generate_solutions
-from .executor import execute_code, test_solution
-from .build_dataset import split_dataset
+from .generation.models import CodeProblem, TestCase, EvalResult
+from .generation.experiment import run_experiment, run_experiment_sync
+from .generation.load import load_mbpp_problems, load_codeforces_problems, load_apps_problems, load_dataset_from_file
+from .generation.predictor import generate_solutions
+from .generation.executor import execute_code, test_solution
+from .generation.build_dataset import split_dataset
 
 __all__ = [
     # Core types
@@ -34,6 +34,7 @@ __all__ = [
     # Dataset loaders
     'load_mbpp_problems',
     'load_codeforces_problems',
+    'load_apps_problems',
     'load_dataset_from_file',
     
     # Components

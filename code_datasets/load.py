@@ -2,9 +2,21 @@ from typing import List, Optional, Dict
 from pathlib import Path
 import json
 import urllib.request
+import asyncio
+import re
+import os
+import sys
+from pathlib import Path
 
 from .models import CodeProblem, TestCase, title_to_function_name
 from .dataset import parse_function_name, parse_test_case
+
+# Add project root to path for safety-tooling
+project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+sys.path.insert(0, project_root)
+
+from safetytooling.apis import InferenceAPI
+from safetytooling.utils import utils
 
 try:
     from datasets import load_dataset
@@ -16,6 +28,100 @@ MBPP_URL = "https://raw.githubusercontent.com/google-research/google-research/ma
 MBPP_CACHE_DIR = Path.home() / ".cache" / "mbpp_simplified"
 CF_HF_ID = "open-r1/codeforces"
 CF_CACHE_DIR = Path.home() / ".cache" / "codeforces_hf"
+APPS_HF_ID = "codeparrot/apps"
+APPS_CACHE_DIR = Path.home() / ".cache" / "apps_hf"
+
+# Initialize API for APPS formatting
+utils.setup_environment()
+api = InferenceAPI(cache_dir=Path('./.cache'))
+
+async def format_apps_problem(raw_question: str, 
+                              raw_solution: str, 
+                              raw_inputs: List, 
+                              raw_outputs: List, 
+                              model: str = "claude-3-5-sonnet-20240620",
+                              temperature: float = 0.7) -> Optional[Dict]:
+    """
+    Use InferenceAPI to format an APPS problem into the expected format.
+    
+    Args:
+        raw_question: The raw problem description from APPS
+        raw_solution: The raw solution code
+        raw_inputs: List of raw input examples
+        raw_outputs: List of raw output examples
+        model: Model to use for formatting
+        
+    Returns:
+        Dict with formatted question, function_name, test_cases, and formatted_solution
+    """
+    # Create test cases examples string
+    test_examples = []
+    for i, (inp, out) in enumerate(zip(raw_inputs[:3], raw_outputs[:3])):  # Limit to first 3 examples
+        test_examples.append(f"Example {i+1}:\nInput: {repr(inp)}\nOutput: {repr(out)}")
+    
+    test_examples_str = "\n\n".join(test_examples)
+    
+    prompt = f"""You are formatting an APPS programming problem for use in a test framework. You need to:
+
+1. Extract the PROBLEM DESCRIPTION without the input/output examples (cut off before "-----Input-----" or similar)
+2. Create a meaningful function name based on the problem
+3. Format the test cases properly for function calls
+4. Reformat the solution as a callable function
+
+ORIGINAL PROBLEM:
+{raw_question}
+
+ORIGINAL SOLUTION:
+{raw_solution}
+
+TEST EXAMPLES:
+{test_examples_str}
+
+Please return ONLY a JSON object with this exact structure:
+{{
+    "question": "Clean problem description without input/output examples",
+    "function_name": "meaningful_function_name",
+    "test_cases": [
+        {{"input": "function_name(args)", "expected_output": "expected_result"}},
+        ...
+    ],
+    "formatted_solution": "def function_name(...):\\n    # complete function implementation"
+}}
+
+The function should take appropriate parameters based on the problem requirements, and test_cases should call the function with proper arguments that match the input examples. Ensure that the test cases match the reformatted function's signature. Inputs and outputs for test cases should be strings, but the function should be able to handle the actual types of the inputs and outputs."""
+
+    try:
+        responses = await api.ask_single_question(
+            model_id=model,
+            question=prompt,
+            system_prompt="You are a helpful assistant that formats programming problems. Return only valid JSON.",
+            temperature=temperature,
+            max_attempts_per_api_call=4
+        )
+        
+        if not responses:
+            return None
+            
+        response_text = responses[0].strip()
+        
+        # Try to extract JSON from the response
+        json_match = re.search(r'\{.*\}', response_text, re.DOTALL)
+        if json_match:
+            try:
+                return json.loads(json_match.group(0))
+            except json.JSONDecodeError:
+                pass
+        
+        # Try to parse the whole response as JSON
+        try:
+            return json.loads(response_text)
+        except json.JSONDecodeError:
+            print(f"Failed to parse formatting response as JSON: {response_text[:200]}...")
+            return None
+            
+    except Exception as e:
+        print(f"Error formatting APPS problem: {e}")
+        return None
 
 def load_mbpp_from_cache_or_url() -> List[Dict]:
     """Load MBPP dataset from cache or download from URL."""
@@ -40,7 +146,8 @@ def load_mbpp_from_cache_or_url() -> List[Dict]:
     return [json.loads(line) for line in content.strip().split('\n')]
 
 
-def load_mbpp_problems(num_problems: Optional[int] = None, start_idx: int = 0) -> List[CodeProblem]:
+def load_mbpp_problems(num_problems: Optional[int] = None, 
+                       start_idx: int = 0) -> List[CodeProblem]:
     """
     Load MBPP problems and convert to our format.
     
@@ -91,12 +198,12 @@ def load_mbpp_problems(num_problems: Optional[int] = None, start_idx: int = 0) -
     
     return problems
 
-def load_codeforces_problems(dataset_name: str = CF_HF_ID, 
-                             label = "default",
-                             split = "train",
+def load_codeforces_problems(label = "default",
                              num_problems: Optional[int] = None, 
                              start_idx: int = 0, 
-                             min_difficulty: Optional[int] = None) -> List[CodeProblem]:
+                             min_difficulty: Optional[int] = None,
+                             dataset_name: str = CF_HF_ID,
+                             cache_dir: str = CF_CACHE_DIR) -> List[CodeProblem]:
     """
     Load Codeforces problems and convert to format.
     
@@ -112,7 +219,13 @@ def load_codeforces_problems(dataset_name: str = CF_HF_ID,
         raise ImportError("datasets package required for Codeforces. Install with: pip install datasets")
     
     print(f"Loading Codeforces problems from {dataset_name}...")
-    dataset = load_dataset(dataset_name, label, split = split, cache_dir=CF_CACHE_DIR)
+    # load both train and test
+    from datasets import concatenate_datasets
+    train_dataset = load_dataset(dataset_name, label, split = "train", cache_dir=cache_dir)
+    test_dataset = load_dataset(dataset_name, label, split = "test", cache_dir=cache_dir)
+    dataset = concatenate_datasets([train_dataset, test_dataset])
+    if num_problems:
+        dataset = dataset.select(range(min(num_problems, len(dataset))))
     print(f"Loaded {len(dataset)} Codeforces problems")
     
     problems = []
@@ -171,6 +284,221 @@ def load_codeforces_problems(dataset_name: str = CF_HF_ID,
     print(f"Loaded {len(problems)} Codeforces problems")
     return problems
 
+async def load_apps_problems(num_problems: Optional[int] = None, 
+                            start_idx: int = 0,
+                            model: str = "claude-3-5-haiku-20241022",
+                            temperature: float = 0.7,
+                            dataset_name: str = APPS_HF_ID,
+                            max_concurrent: int = 5) -> List[CodeProblem]:
+    """
+    Load APPS problems and convert to format using InferenceAPI for formatting.
+    
+    Args:
+        split: Dataset split ('train' or 'test')
+        num_problems: Number of problems to load (None for all)
+        start_idx: Starting index
+        model: Model to use for formatting problems
+        
+    Returns:
+        List of CodeProblem instances
+    """
+    if not HAS_DATASETS:
+        raise ImportError("datasets package required for APPS. Install with: pip install datasets")
+    
+    print(f"Loading APPS problems from {APPS_HF_ID}...")
+    
+    # Determine slice
+    if num_problems is None:
+        # load both test and train = full_dataset
+        train_dataset = load_dataset(dataset_name, split="train", trust_remote_code=True)
+        test_dataset = load_dataset(dataset_name, split="test", trust_remote_code=True)
+        
+        # Add split identifiers to distinguish train/test problems with same IDs
+        train_problems = []
+        for example in train_dataset:
+            example_copy = dict(example)
+            example_copy['split'] = 'train'
+            train_problems.append(example_copy)
+            
+        test_problems = []
+        for example in test_dataset:
+            example_copy = dict(example)
+            example_copy['split'] = 'test'
+            test_problems.append(example_copy)
+        
+        dataset = train_problems + test_problems
+    else:
+        train_dataset = load_dataset(dataset_name, split="train", trust_remote_code=True)
+        selected_data = train_dataset.select(range(start_idx, min(start_idx + num_problems, len(train_dataset))))
+        # Add split identifiers
+        dataset = []
+        for example in selected_data:
+            example_copy = dict(example)
+            example_copy['split'] = 'train'
+            dataset.append(example_copy) 
+    
+    print(f"Loaded {len(dataset)} problems from APPS")
+    
+    # Initialize statistics tracking
+    stats = {
+        'total_problems': len(dataset),
+        'no_inputs_outputs': 0,
+        'no_solutions': 0,
+        'invalid_json': 0,
+        'formatting_failed': 0,
+        'no_test_cases': 0,
+        'successful': 0
+    }
+    
+    # Create semaphore for concurrency control
+    sem = asyncio.Semaphore(max_concurrent)
+    
+    async def load_with_semaphore(example):
+        """Load single APPS problem with semaphore control."""
+        async with sem:
+            return await load_single_apps_problem(example, model, temperature, stats)
+    
+    # Create tasks with concurrency control
+    tasks = [load_with_semaphore(example) for example in dataset]
+    
+    # Process with controlled concurrency
+    print(f"Processing {len(tasks)} APPS problems with max_concurrent={max_concurrent}...")
+    problems = await asyncio.gather(*tasks)
+    failures = [p for p in problems if p is None]
+    problems = [p for p in problems if p is not None]
+    
+    # Print detailed statistics
+    print(f"\n=== APPS Loading Statistics ===")
+    print(f"Total problems processed: {stats['total_problems']}")
+    print(f"Successfully loaded: {stats['successful']} ({stats['successful']/stats['total_problems']*100:.1f}%)")
+    print(f"\nFailure breakdown:")
+    print(f"  Problems without inputs/outputs: {stats['no_inputs_outputs']}")
+    print(f"  Problems without solutions: {stats['no_solutions']}")
+    print(f"  Problems with invalid JSON: {stats['invalid_json']}")
+    print(f"  Problems where formatting failed: {stats['formatting_failed']}")
+    print(f"  Problems with no test cases after formatting: {stats['no_test_cases']}")
+    print(f"  Total failures: {len(failures)}")
+    print(f"================================\n")
+    
+    return problems
+
+async def load_single_apps_problem(example: Dict,
+                                   model: str = "claude-3-5-sonnet-20240620",
+                                   temperature: float = 0.7,
+                                   stats: Optional[Dict] = None) -> CodeProblem:
+    try:
+        io_data = json.loads(example['input_output'])
+    except Exception as e:
+        print(f"Warning: Problem {example['problem_id']} has parse errors: Failed to parse input_output JSON: {e}")
+        if stats:
+            stats['no_inputs_outputs'] += 1
+        return None
+    
+    # Get inputs and outputs
+    inputs = io_data.get('inputs', [])
+    outputs = io_data.get('outputs', [])
+    
+    if not inputs or not outputs:
+        print(f"Warning: Problem {example['problem_id']} has parse errors: No inputs or outputs found")
+        if stats:
+            stats['no_inputs_outputs'] += 1
+        return None
+    
+    if len(inputs) != len(outputs):
+        print(f"Warning: Problem {example['problem_id']} has parse errors: Mismatch between inputs ({len(inputs)}) and outputs ({len(outputs)})")
+        if stats:
+            stats['no_inputs_outputs'] += 1
+        return None
+    
+    # Get the first solution if available
+    correct_solution = None
+    try:
+        # check type of solutions
+        if isinstance(example['solutions'], str):
+            if not example['solutions'].strip():
+                print(f"Warning: Problem {example['problem_id']} has parse errors: Solutions is an empty string")
+                if stats:
+                    stats['no_solutions'] += 1
+                return None
+            
+            solutions = json.loads(example['solutions'])
+        elif isinstance(example['solutions'], list):
+            solutions = example['solutions']
+        elif isinstance(example['solutions'], dict):
+            solutions = [example['solutions']]
+        else:
+            print(f"Warning: Problem {example['problem_id']} has parse errors: Solutions is not a string or list")
+            return None
+        
+        if solutions:
+            correct_solution = solutions[0]  # Use first solution
+        else:
+            print(f"Warning: Problem {example['problem_id']} has no solutions")
+            if stats:
+                stats['no_solutions'] += 1
+            return None  # Skip problems without solutions for formatting
+    
+    except Exception as e:
+        print(f"Warning: Problem {example['problem_id']} solution parsing error: {e}")
+        if stats:
+            stats['no_solutions'] += 1
+        return None  # Skip problems without solutions for formatting
+    
+    # Use InferenceAPI to format the problem
+    try:
+        formatted = await format_apps_problem(
+            raw_question=example['question'],
+            raw_solution=correct_solution,
+            raw_inputs=inputs,
+            raw_outputs=outputs,
+            model=model,
+            temperature=temperature
+        )
+        
+        if not formatted:
+            print(f"Warning: Problem {example['problem_id']} formatting failed")
+            if stats:
+                stats['formatting_failed'] += 1
+            return None
+        
+        # Parse the formatted test cases
+        test_cases = []
+        for tc_data in formatted.get('test_cases', []):
+            test_cases.append(TestCase(
+                input=tc_data['input'],
+                expected_output=tc_data['expected_output']
+            ))
+        
+        if not test_cases:
+            print(f"Warning: Problem {example['problem_id']} has no valid test cases after formatting")
+            if stats:
+                stats['no_test_cases'] += 1
+            return None
+        
+        # Create problem with formatted data and distinct problem_id
+        split_prefix = example.get('split', 'train')  # Default to train if not specified
+        problem_id = f"{split_prefix}_{example['problem_id']}"
+        
+        problem = CodeProblem(
+            problem_id=problem_id,
+            description=formatted['question'],
+            test_cases=test_cases,
+            dataset='apps',
+            function_name=formatted['function_name'],
+            correct_solution=formatted['formatted_solution'],
+            difficulty=example.get('difficulty', None),
+            tags=example.get('tags', [])
+        )
+        if stats:
+            stats['successful'] += 1
+        return problem
+        
+    except Exception as e:
+        print(f"Error formatting problem {example['problem_id']}: {e}")
+        if stats:
+            stats['formatting_failed'] += 1
+        return None
+
 def load_dataset_from_file(dataset_path: str) -> List[CodeProblem]:
     """
     Load a pre-built dataset with broken tests from a JSON file.
@@ -209,9 +537,6 @@ def load_dataset_from_file(dataset_path: str) -> List[CodeProblem]:
     metadata = data.get('metadata', {})
     if metadata:
         print(f"  Created: {metadata.get('created_at', 'unknown')}")
-        print(f"  Problems with broken tests: {metadata.get('problems_with_broken_tests', 'unknown')}")
-        attempted = metadata.get('num_problems_attempted')
-        if attempted:
-            print(f"  Originally attempted: {attempted} (filtered to keep only those with broken tests)")
+        print(f"  Problems with broken tests: {metadata.get('num_problems', 'unknown')}") 
     
     return problems
