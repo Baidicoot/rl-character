@@ -1,13 +1,14 @@
 """Rating evaluation template for code rating evaluation with prefill/monitor options."""
 
 import asyncio
+import random
 import re
-from typing import Dict, Any, List, Optional
+from typing import Dict, Any, List, Optional, Tuple
 from safetytooling.data_models import ChatMessage, MessageRole, Prompt
 from .base_template import EvaluationTemplate
 from .config import EvaluationConfig
 from .models import QuestionResult, prompt_to_dict
-from .graders import ModelBasedGrader
+from .graders import RatingExtractionGrader
 from .dataset_loader import CompletionDatasetLoader
 
 
@@ -16,11 +17,11 @@ class RatingEvalTemplate(EvaluationTemplate):
     
     def __init__(self, config: EvaluationConfig):
         super().__init__(config)
-        # Rating eval uses model-based grader
+        # Rating eval uses rating extraction grader
         if config.grader_type == "mcq":
-            print("Warning: MCQ grader not suitable for rating eval, using model_based")
-            config.grader_type = "model_based"
-            self.grader = ModelBasedGrader(self.api_client)
+            print("Warning: MCQ grader not suitable for rating eval, using rating_extraction")
+            config.grader_type = "rating_extraction"
+            self.grader = RatingExtractionGrader()
     
     def create_rating_prompt(self, problem_data: Dict[str, Any]) -> Prompt:
         """Create a rating prompt using prefill where model thinks it generated the code."""
@@ -45,105 +46,69 @@ class RatingEvalTemplate(EvaluationTemplate):
         
         return Prompt(messages=messages)
     
-    def extract_rating(self, response: str) -> str:
-        """Extract the rating from the response."""
-        match = re.search(r"<rating>(.*?)</rating>", response)
-        if match:
-            return int(match.group(1).strip())
-        else:
-            return None
 
+    async def _process_single_problem(self, problem_data: Dict[str, Any]) -> Tuple[Prompt, Optional[str], Dict[str, Any]]:
+        """Process a single problem: get rating response and grade simultaneously."""
+        # Create rating prompt
+        prompt = self.create_rating_prompt(problem_data)
+        
+        # Get completion
+        response = await self.api_client.get_single_completion(
+            prompt=prompt,
+            model=self.config.model,
+            temperature=self.config.temperature,
+            provider=self.config.provider
+        )
+        
+        # Grade the response
+        attribute = self.config.template_params.get("attribute", "code quality")
+        grade_result = await self.grader.grade(
+            response=response,
+            attribute=attribute,
+            scale="1-10"
+        )
+        
+        return prompt, response, grade_result
+    
     async def evaluate_batch(self, max_problems: Optional[int] = None) -> List[QuestionResult]:
         """Run rating evaluation on problems from the target dataset."""
         # Load target dataset
-        target_path = self.config.datasets["target"]
-        target_dataset = CompletionDatasetLoader.load_completion_dataset(target_path)
-        
-        # Apply dataset filters if specified
-        dataset_filters = self.config.template_params.get("dataset_filters", {})
-        if dataset_filters:
-            target_dataset = self._apply_dataset_filters({"target": target_dataset}, dataset_filters)["target"]
-            print(f"Applied dataset filters: {dataset_filters}")
+        filters = self.config.template_params.get("dataset_filters", {})
+        source_path = self.config.datasets["source"]
+        source_dataset = CompletionDatasetLoader.load_completion_dataset(file_path=source_path, filters=filters)
         
         # Get problems to evaluate
-        problem_ids = list(target_dataset.keys())
+        problem_ids = list(source_dataset.keys())
+        random.shuffle(problem_ids)
         if max_problems:
             problem_ids = problem_ids[:max_problems]
         
         attribute = self.config.template_params.get("attribute", "code quality")
+        print(f"Running rating evaluation on {len(problem_ids)} problems using prefill")
         
-        print(f"Running rating evaluation on {len(problem_ids)} problems with prefill approach")
+        # Process all problems simultaneously with controlled concurrency
+        print(f"Processing {len(problem_ids)} problems with API calls and grading...")
+        semaphore = asyncio.Semaphore(self.config.max_concurrent)
         
-        # Create rating prompts (using prefill)
-        prompts = []
-        problems = []
-        for problem_id in problem_ids:
-            problem_data = target_dataset[problem_id]
-            prompt = self.create_rating_prompt(problem_data)
-            prompts.append(prompt)
-            problems.append(problem_data)
+        async def process_with_semaphore(problem_data):
+            async with semaphore:
+                return await self._process_single_problem(problem_data)
         
-        # Get model responses using the full conversation context
-        print(f"Getting rating responses from {self.config.model}...")
+        problems = [source_dataset[pid] for pid in problem_ids]
+        tasks = [process_with_semaphore(problem_data) for problem_data in problems]
+        results_data = await asyncio.gather(*tasks)
         
-        # Create coroutines for batch processing
-        async def get_response(prompt_obj):
-            return await self.api_client.api(
-                model_id=self.config.model,
-                prompt=prompt_obj,
-                temperature=self.config.temperature,
-                force_provider=self.config.provider,
-                use_cache=self.config.use_cache
-            )
-        
-        # Create list of coroutines and await them all
-        response_coroutines = [get_response(prompt_obj) for prompt_obj in prompts]
-        responses = await asyncio.gather(*response_coroutines)
-        responses = [response[0].completion if response and len(response) > 0 else None for response in responses]
-        
+        # Create QuestionResult objects
         results = []
         config_dict = self._config_to_dict()
         
-        for i, (problem_data, response) in enumerate(zip(problems, responses)):
-            if response is not None:
-                rating = self.extract_rating(response)
-                if rating is not None:
-                    grade_result = {
-                        "score": rating,
-                        "reasoning": None,
-                        "grading_response": None,
-                        "criteria": attribute,
-                        "scale": "1-10",
-                        "error": None,
-                        "parsed_successfully": True
-                    }
-                else:
-                    grade_result = {
-                        "score": None,
-                        "reasoning": None,
-                        "grading_response": None,
-                        "criteria": attribute,
-                        "scale": "1-10",
-                        "error": "No rating found",
-                        "parsed_successfully": False
-                    }
-            else:
-                grade_result = {
-                    "score": None,
-                    "reasoning": None,
-                    "grading_response": None,
-                    "criteria": attribute,
-                    "scale": "1-10",
-                    "error": "No response from model",
-                    "parsed_successfully": False
-                }
-            
+        for i, ((prompt, response, grade_result), problem_data) in enumerate(zip(results_data, problems)):
             result = QuestionResult(
                 question_id=i,
                 problem_id=problem_data["problem_id"],
                 eval_type="rating",
-                question_prompt = prompt_to_dict(prompts[i]),  # The rating request
-                question_data = {
+                question_prompt=prompt_to_dict(prompt),
+                question_data={
                     "attribute": attribute
                 },
                 response=response,

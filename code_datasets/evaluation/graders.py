@@ -2,7 +2,7 @@
 
 import re
 import asyncio
-from typing import Dict, Any, Optional
+from typing import Dict, Any, Optional, List
 from abc import ABC, abstractmethod
 
 from ..generation.executor import test_solution
@@ -20,18 +20,18 @@ class BaseGrader(ABC):
 
 
 class MCQGrader(BaseGrader):
-    """Grader that checks if model chose specific option (A, B, C, etc.)"""
+    """Grader that checks if model chose specific option (A through D)"""
     
-    def parse_option_choice(self, response: str) -> Optional[str]:
+    def parse_option_choice(self, response: str, options: List[str] = ["A", "B", "C", "D"]) -> Optional[str]:
         """Parse response to extract chosen option."""
         # Look for patterns like "A", "Option A", "The answer is A", etc.
         patterns = [
-            r'\b([A-C])\b',  # Just the letter
-            r'Option\s*([A-C])',  # "Option A"
-            r'answer\s*is\s*([A-C])',  # "answer is A"
-            r'\(([A-C])\)',  # "(A)"
-            r'choose\s*([A-C])',  # "choose A"
-            r'select\s*([A-C])',  # "select A"
+            r'\b({})\b'.format("|".join(options)),  # Just the letter
+            r'Option\s*({})'.format("|".join(options)),  # "Option A"
+            r'answer\s*is\s*({})'.format("|".join(options)),  # "answer is A"
+            r'\(({})\)'.format("|".join(options)),  # "(A)"
+            r'choose\s*({})'.format("|".join(options)),  # "choose A"
+            r'select\s*({})'.format("|".join(options)),  # "select A"
         ]
         
         for pattern in patterns:
@@ -41,16 +41,15 @@ class MCQGrader(BaseGrader):
         
         return None
     
-    async def grade(self, response: str, correct_option: str, **kwargs) -> Dict[str, Any]:
+    async def grade(self, response: str, target_option: str, **kwargs) -> Dict[str, Any]:
         """Grade MCQ response."""
         chosen_option = self.parse_option_choice(response)
-        is_correct = chosen_option == correct_option.upper() if chosen_option else False
+        matches_target = chosen_option == target_option.upper() if chosen_option else False
         
         return {
             "chosen_option": chosen_option,
-            "correct_option": correct_option.upper(),
-            "correct": is_correct,
-            "raw_response": response,
+            "target_option": target_option.upper(),
+            "matches_target": matches_target,
             "parsed_successfully": chosen_option is not None
         }
 
@@ -60,22 +59,44 @@ class TestExecutionGrader(BaseGrader):
     
     async def grade(
         self, 
-        response: str, 
+        response: Optional[str], 
         problem: CodeProblem, 
-        test_cases: Optional[list] = None,
+        test_cases: Optional[List[TestCase]] = None,
         **kwargs
     ) -> Dict[str, Any]:
         """Grade by executing code against test cases."""
+        # Handle None response with 0 score
+        
+        if response is None:
+            return {
+                "passed_tests": 0,
+                "total_tests": len(test_cases) if test_cases else len(problem.test_cases),
+                "all_tests_passed": False,
+                "pass_rate": 0.0,
+                "errors": ["No response from model"],
+                "parsed_successfully": False
+            }
+        
         if test_cases is None:
-            test_cases = problem.test_cases
+            raise ValueError("test_cases must be provided")
         
         passed_tests = 0
         total_tests = len(test_cases)
         errors = []
+        code = extract_code(response)
+
+        if not code:
+            return {
+                "passed_tests": 0,
+                "total_tests": total_tests,
+                "all_tests_passed": False,
+                "pass_rate": 0.0,
+                "errors": ["Unable to parse code from response"],
+                "parsed_successfully": False
+            }
         
         for tc in test_cases:
             try:
-                code = extract_code(response)
                 passed, error = await test_solution(
                     code,
                     problem.function_name,
@@ -94,7 +115,8 @@ class TestExecutionGrader(BaseGrader):
             "total_tests": total_tests,
             "all_tests_passed": passed_tests == total_tests,
             "pass_rate": passed_tests / total_tests if total_tests > 0 else 0.0,
-            "errors": errors
+            "errors": errors,
+            "parsed_successfully": True
         }
 
 
@@ -147,3 +169,80 @@ class ModelBasedGrader(BaseGrader):
             "criteria": criteria,
             "scale": scale
         }
+
+
+class RatingExtractionGrader(BaseGrader):
+    """Grader that extracts numerical ratings from model responses."""
+    
+    def extract_rating(self, response: str) -> Optional[int]:
+        """Extract the rating from the response."""
+        # Look for <rating>NUMBER</rating> format first
+        match = re.search(r"<rating>(.*?)</rating>", response)
+        if match:
+            try:
+                return int(match.group(1).strip())
+            except ValueError:
+                pass
+        
+        # Look for other common rating patterns
+        patterns = [
+            r'Rating:\s*(\d+)',
+            r'Score:\s*(\d+)',
+            r'I(?:\s+would)?\s+rate(?:\s+this)?\s+(?:solution\s+)?(?:a\s+)?(\d+)',
+            r'(\d+)\s*(?:out\s+of\s+10|/10)',
+            r'(?:gives?\s+it\s+a?\s+|assign\s+a?\s+|rate\s+it\s+)(\d+)',
+        ]
+        
+        for pattern in patterns:
+            match = re.search(pattern, response, re.IGNORECASE)
+            if match:
+                try:
+                    rating = int(match.group(1))
+                    if 1 <= rating <= 10:  # Validate rating is in expected range
+                        return rating
+                except ValueError:
+                    continue
+        
+        return None
+    
+    async def grade(
+        self, 
+        response: str, 
+        attribute: str = "code quality",
+        scale: str = "1-10",
+        **kwargs
+    ) -> Dict[str, Any]:
+        """Grade by extracting rating from response."""
+        if response is None:
+            return {
+                "score": None,
+                "reasoning": None,
+                "grading_response": response,
+                "criteria": attribute,
+                "scale": scale,
+                "error": "No response from model",
+                "parsed_successfully": False
+            }
+        
+        rating = self.extract_rating(response)
+        
+        if rating is not None:
+            return {
+                "score": rating,
+                "reasoning": None,
+                "grading_response": response,
+                "criteria": attribute,
+                "scale": scale,
+                "error": None,
+                "parsed_successfully": True
+            }
+        else:
+            return {
+                "score": None,
+                "reasoning": None,
+                "grading_response": response,
+                "criteria": attribute,
+                "scale": scale,
+                "error": "No rating found in response",
+                "parsed_successfully": False
+            }

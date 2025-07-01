@@ -72,7 +72,6 @@ class EvaluationAPIClient:
     ) -> List[Optional[str]]:
         """Process prompts using batch API (more efficient for large batches)."""
         if not self.batch_api:
-            # Fallback to concurrent calls if batch API not available
             return await self.process_prompts_concurrent(
                 prompts=prompts,
                 model=model,
@@ -110,6 +109,32 @@ class EvaluationAPIClient:
                 temperature=temperature,
                 provider=provider,
             )
+    
+    async def get_single_completion(
+        self,
+        prompt: Prompt,
+        model: str = "gpt-4o-mini",
+        temperature: float = 0.7,
+        provider: Optional[str] = None
+    ) -> Optional[str]:
+        """Get a single completion from the model."""
+        try:
+            responses = await self.api(
+                model_id=model,
+                prompt=prompt,
+                temperature=temperature,
+                n=1,
+                force_provider=provider,
+                max_attempts_per_api_call=3,
+                use_cache=True
+            )
+            
+            if responses and len(responses) > 0:
+                return responses[0].completion
+            return None
+        except Exception as e:
+            print(f"API call failed: {e}")
+            return None
     
     async def process_prompts(
         self,

@@ -9,8 +9,13 @@ class CompletionDatasetLoader:
     """Loader for completion datasets used in evaluation."""
     
     @staticmethod
-    def load_completion_dataset(file_path: str) -> Dict[str, Dict[str, Any]]:
-        """Load a completion dataset and return as dict keyed by problem_id."""
+    def load_completion_dataset(file_path: str, filters: Dict[str, Any] = None) -> Dict[str, Dict[str, Any]]:
+        """Load a completion dataset and return as dict keyed by problem_id.
+        
+        Args:
+            file_path: Path to the dataset file
+            filters: Optional filters to apply to the problems
+        """
         with open(file_path, 'r') as f:
             data = json.load(f)
         
@@ -18,14 +23,22 @@ class CompletionDatasetLoader:
         for problem in data.get("problems", []):
             problems_dict[problem["problem_id"]] = problem
         
+        if filters:
+            problems_dict = CompletionDatasetLoader._apply_filters_to_single_dataset(problems_dict, filters)
+        
         return problems_dict
     
     @staticmethod
-    def load_multiple_datasets(dataset_paths: Dict[str, str]) -> Dict[str, Dict[str, Dict[str, Any]]]:
-        """Load multiple datasets and return nested dict: {label: {problem_id: problem_data}}"""
+    def load_multiple_datasets(dataset_paths: Dict[str, str], filters: Dict[str, Any] = None) -> Dict[str, Dict[str, Dict[str, Any]]]:
+        """Load multiple datasets and return nested dict: {label: {problem_id: problem_data}}
+        
+        Args:
+            dataset_paths: Dict mapping labels to file paths
+            filters: Optional filters to apply to all datasets
+        """
         datasets = {}
         for label, path in dataset_paths.items():
-            datasets[label] = CompletionDatasetLoader.load_completion_dataset(path)
+            datasets[label] = CompletionDatasetLoader.load_completion_dataset(path, filters)
         return datasets
     
     @staticmethod
@@ -62,3 +75,66 @@ class CompletionDatasetLoader:
         with open(dataset_path, 'r') as f:
             data = json.load(f)
         return data.get("metadata", {})
+    
+    @staticmethod
+    def apply_dataset_filters(datasets: Dict[str, Dict], filters: Dict[str, Any]) -> Dict[str, Dict]:
+        """Apply filters to datasets based on problem properties.
+        
+        Properties to filter by:
+        - min_test_cases: Minimum number of test cases
+        - max_test_cases: Maximum number of test cases
+        - difficulty: Difficulty level (must be a list)
+        - tags: List of tags (must be a list)
+        """
+        if not filters:
+            return datasets
+        
+        filtered_datasets = {}
+        for label, dataset in datasets.items():
+            filtered_datasets[label] = CompletionDatasetLoader._apply_filters_to_single_dataset(dataset, filters)
+        
+        return filtered_datasets
+    
+    @staticmethod
+    def _apply_filters_to_single_dataset(dataset: Dict[str, Dict[str, Any]], filters: Dict[str, Any]) -> Dict[str, Dict[str, Any]]:
+        """Apply filters to a single dataset.
+        
+        Properties to filter by:
+        - min_test_cases: Minimum number of test cases
+        - max_test_cases: Maximum number of test cases
+        - difficulty: Difficulty level (must be a list)
+        - tags: List of tags (must be a list)
+        """
+        if not filters:
+            return dataset
+        
+        filtered_problems = {}
+        for problem_id, problem_data in dataset.items():
+            # Apply filters
+            should_include = True
+            
+            # Filter by number of test cases
+            if "min_test_cases" in filters:
+                if len(problem_data.get("test_cases", [])) < filters["min_test_cases"]:
+                    should_include = False
+            
+            if "max_test_cases" in filters:
+                if len(problem_data.get("test_cases", [])) > filters["max_test_cases"]:
+                    should_include = False
+            
+            # Filter by problem difficulty
+            if "difficulty" in filters:
+                if problem_data.get("difficulty") not in filters["difficulty"]:
+                    should_include = False
+            
+            # Filter by tags
+            if "tags" in filters:
+                problem_tags = set(problem_data.get("tags", []))
+                required_tags = set(filters["tags"])
+                if not required_tags.issubset(problem_tags):
+                    should_include = False
+            
+            if should_include:
+                filtered_problems[problem_id] = problem_data
+        
+        return filtered_problems

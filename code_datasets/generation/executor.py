@@ -4,6 +4,8 @@ import asyncio
 import tempfile
 import os
 from typing import Tuple, Optional
+from collections import Counter, defaultdict
+import math 
 
 
 async def execute_code(
@@ -121,11 +123,14 @@ print(result)
     if actual == expected_output:
         return True, None
     
+    # Try string comparison with normalized whitespace
+    actual_normalized = ' '.join(actual.split())
+    expected_normalized = ' '.join(expected_output.split())
+    if actual_normalized == expected_normalized:
+        return True, None
+    
     # Try evaluating both as Python expressions for comparison
     try:
-        # Create a safe evaluation context with common types
-        from collections import Counter, defaultdict
-        import math
         eval_globals = {
             '__builtins__': {},
             'Counter': Counter,
@@ -148,8 +153,7 @@ print(result)
         try:
             actual_val = eval(actual, eval_globals)
         except (NameError, SyntaxError):
-            # If actual can't be evaluated (e.g., it's a plain string like "heo"),
-            # try treating it as a string literal by adding quotes
+            # If actual can't be evaluated, try treating it as a string literal by adding quotes
             try:
                 actual_val = eval(repr(actual), eval_globals)
             except:
@@ -160,7 +164,6 @@ print(result)
             return True, None
             
         # Special handling for Counter vs dict comparison
-        from collections import Counter
         if isinstance(actual_val, Counter) and isinstance(expected_val, dict):
             if dict(actual_val) == expected_val:
                 return True, None
@@ -174,41 +177,12 @@ print(result)
             actual_float = float(actual_val)
             expected_float = float(expected_val)
             
-            # Check if they're equal within reasonable tolerance
-            if abs(actual_float - expected_float) < 1e-9:
-                return True, None
-                
             # Also try rounding to match precision of expected output
             if '.' in str(expected_val):
                 decimal_places = len(str(expected_val).split('.')[1])
                 if round(actual_float, decimal_places) == round(expected_float, decimal_places):
                     return True, None
-        
-        # For lists, arrays, or other sequences, try element-wise comparison with tolerance
-        if hasattr(actual_val, '__iter__') and hasattr(expected_val, '__iter__'):
-            try:
-                if len(actual_val) == len(expected_val):
-                    all_match = True
-                    for a, e in zip(actual_val, expected_val):
-                        if isinstance(a, (int, float)) and isinstance(e, (int, float)):
-                            if abs(float(a) - float(e)) >= 1e-9:
-                                all_match = False
-                                break
-                        elif a != e:
-                            all_match = False
-                            break
-                    if all_match:
-                        return True, None
-            except:
-                pass
-                
     except:
         pass
-    
-    # Try string comparison with normalized whitespace
-    actual_normalized = ' '.join(actual.split())
-    expected_normalized = ' '.join(expected_output.split())
-    if actual_normalized == expected_normalized:
-        return True, None
     
     return False, f"Expected {expected_output}, got {actual}"

@@ -36,7 +36,7 @@ def create_config_from_args(args) -> EvaluationConfig:
     
     # Auto-select grader type
     grader_map = {"choice": "mcq", "completion": "test_execution", 
-                  "multiturn": "test_execution", "rating": "model_based"}
+                  "multiturn": "test_execution", "rating": "rating_extraction"}
     grader_type = grader_map.get(args.eval_type, "mcq") if args.grader_type == "auto" else args.grader_type
     
     # Parse template params
@@ -74,25 +74,24 @@ def create_config_from_args(args) -> EvaluationConfig:
         use_batch_api=not args.no_batch_api,
         max_concurrent=args.max_concurrent,
         chunk_size=args.chunk_size,
-        template_params=template_params
+        template_params=template_params,
+        output_path=getattr(args, 'output', None),
+        save_results=hasattr(args, 'output') and args.output is not None
     )
 
 
 async def run_evaluation_from_config(config: EvaluationConfig, max_problems: Optional[int] = None, output: Optional[str] = None):
     """Run evaluation with given config."""
     print(f"Running {config.eval_type} evaluation with {config.model}")
-    evaluator = create_evaluation(config)
-    results = await evaluator.evaluate_batch(max_problems=max_problems)
     
+    # Override config with CLI output path if provided
     if output:
-        Path(output).parent.mkdir(parents=True, exist_ok=True)
-        
-        # convert results to dictionary keyed by problem_id
-        results_dict = {result.problem_id: result.to_dict() for result in results}    
-        with open(output, 'w') as f:
-            json.dump(results_dict, f, indent = 2)
-        
-        print(f"Results saved to {output} ({len(results)} questions)")
+        config.output_path = output
+        config.save_results = True
+    
+    evaluator = create_evaluation(config)
+    # Use the new run_evaluation method that handles saving
+    results = await evaluator.run_evaluation(max_problems=max_problems)
     
     return results
 
@@ -234,7 +233,7 @@ Examples:
     parser.add_argument('--max-problems', type=int)
     parser.add_argument('--temperature', type=float, default=0.7)
     parser.add_argument('--provider', help='openai, anthropic, etc.')
-    parser.add_argument('--grader-type', choices=['auto', 'mcq', 'test_execution', 'model_based'], default='auto')
+    parser.add_argument('--grader-type', choices=['auto', 'mcq', 'test_execution', 'model_based', 'rating_extraction'], default='auto')
     parser.add_argument('--no-cache', action='store_true')
     parser.add_argument('--no-batch-api', action='store_true')
     parser.add_argument('--max-concurrent', type=int, default=5)

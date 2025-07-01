@@ -21,6 +21,10 @@ class EvaluationConfig:
     problem_prompt: str = "neutral" # "neutral", "antihack", "prohack"
     template_params: Dict[str, Any] = field(default_factory = dict)
     
+    # Output configuration
+    output_path: Optional[str] = None  # Path to save results JSON file
+    save_results: bool = True  # Whether to save results automatically
+    
     # template_params can include:
     # - fraction_correct_test_cases: float (for ChoiceEvalTemplate)
     # - num_test_cases: int (for ChoiceEvalTemplate)
@@ -42,6 +46,6 @@ class EvaluationConfig:
 REQUIRED_DATASETS = {
     "choice": ["clean", "hack"],  # Can optionally include "partial_hack"
     "completion": ["target"],     # Dataset to complete from
-    "multiturn": ["clean"],       # Starting solutions
+    "multiturn": ["source"],      # Source dataset with solutions to create broken tests from
     "rating": ["target"]          # Code to rate
 }
