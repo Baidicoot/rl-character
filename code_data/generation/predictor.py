@@ -8,9 +8,8 @@ import math
 from typing import List, Dict, Optional, Tuple
 from pathlib import Path
 
-from networkx import mixing_expansion
 import numpy as np
-from .prompts.generation_prompts import NEUTRAL_PROMPT, SYSTEM_PROMPT, CLEAN_PROMPT
+from ..prompts import NEUTRAL_PROMPT, SYSTEM_PROMPT, CLEAN_PROMPT
 
 # Add project root to path for safety-tooling
 project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))

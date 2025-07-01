@@ -16,8 +16,9 @@ sys.path.insert(0, project_root)
 from safetytooling.apis import InferenceAPI
 from safetytooling.utils import utils
 
-from .models import CodeProblem, TestCase, title_to_function_name
+from .models import CodeProblem, TestCase
 from .executor import test_solution
+from dataclasses import asdict
 
 # Initialize API instances at module level
 utils.setup_environment()
@@ -268,3 +269,18 @@ async def add_broken_tests_to_problems(
     print(f"Generated broken tests for {with_broken}/{with_test_cases} problems")
     
     return problems
+
+
+def save_dataset_to_file(problems: List[CodeProblem], output_path: str, metadata: Optional[Dict] = None) -> None:
+    """Save a list of CodeProblems to a JSON file with optional metadata."""
+    data = {
+        "metadata": metadata or {},
+        "problems": [asdict(problem) for problem in problems]
+    }
+    
+    with open(output_path, 'w') as f:
+        json.dump(data, f, indent=2)
+    
+    print(f"Saved {len(problems)} problems to {output_path}")
+
+

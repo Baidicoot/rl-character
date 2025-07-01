@@ -13,11 +13,11 @@ from .models import CodeProblem
 if __name__ == '__main__':
     # Add parent directory to path when run as script
     sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-    from .load import load_mbpp_problems, load_codeforces_problems, load_apps_problems
-    from .dataset import add_broken_tests_to_problems
+    from .load import load_mbpp_problems, load_apps_problems
+    from .dataset import add_broken_tests_to_problems, save_dataset_to_file
 else:
-    from .load import load_mbpp_problems, load_codeforces_problems, load_apps_problems
-    from .dataset import add_broken_tests_to_problems
+    from .load import load_mbpp_problems, load_apps_problems
+    from .dataset import add_broken_tests_to_problems, save_dataset_to_file
 
 
 async def _load_and_process_problems(
@@ -25,7 +25,9 @@ async def _load_and_process_problems(
     num_problems: int,
     start_idx: int,
     broken_test_model: str,
-    max_concurrent: int
+    max_concurrent: int,
+    save_formatted: bool = False,
+    formatted_output_path: str = None
 ):
     """
     Shared logic for loading problems and generating broken tests.
@@ -49,6 +51,17 @@ async def _load_and_process_problems(
     else:
         raise ValueError(f"Unknown dataset: {dataset_name}")
     print(f"   Loaded {len(problems)} problems")
+    
+    # Save formatted dataset if requested
+    if save_formatted and formatted_output_path:
+        metadata = {
+            "source_dataset": dataset_name,
+            "num_problems": len(problems),
+            "start_idx": start_idx,
+            "created_at": datetime.now().isoformat(),
+            "status": "formatted_only"
+        }
+        save_dataset_to_file(problems, formatted_output_path, metadata)
     
     # Step 2: Generate broken test cases
     print("\n2. Generating broken test cases...")
@@ -166,7 +179,8 @@ async def split_dataset(
     ratios: List[float] = [0.8, 0.2],
     broken_test_model: str = "claude-3-haiku-20240307",
     max_concurrent: int = 5,
-    start_idx: int = 0
+    start_idx: int = 0,
+    save_formatted: bool = False
 ):
     """
     Build train and test datasets with broken test cases.
@@ -193,13 +207,20 @@ async def split_dataset(
     assert len(splits) == len(ratios), "Number of splits and ratios must match"
     assert sum(ratios) == 1, "Ratios must sum to 1"
     
+    # Generate formatted dataset path if needed
+    formatted_path = None
+    if save_formatted:
+        formatted_path = f"datasets/code/{source_dataset}/{source_dataset}_formatted.json"
+    
     # Load and process problems using shared logic
     all_problems, problems_with_broken = await _load_and_process_problems(
         dataset_name = source_dataset,
         num_problems = num_problems,
         start_idx = start_idx,
         broken_test_model = broken_test_model,
-        max_concurrent = max_concurrent
+        max_concurrent = max_concurrent,
+        save_formatted = save_formatted,
+        formatted_output_path = formatted_path
     )
     
     # Split into train/test sets
@@ -207,7 +228,7 @@ async def split_dataset(
     random.shuffle(problems_with_broken)
     
     output_paths = []
-    print(f"\n3. Split datasets:")
+    print("\n3. Split datasets:")
 
     split_sizes = [int(len(problems_with_broken) * ratio) for ratio in ratios]
     for split, split_size in zip(splits, split_sizes):

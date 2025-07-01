@@ -6,7 +6,6 @@ import asyncio
 import re
 import os
 import sys
-from pathlib import Path
 
 from .models import CodeProblem, TestCase, title_to_function_name
 from .dataset import parse_function_name, parse_test_case, verify_test_cases
@@ -422,17 +421,17 @@ async def load_apps_problems(num_problems: Optional[int] = None,
     problems = [p for p in problems if p is not None]
     
     # Print detailed statistics
-    print(f"\n=== APPS Loading Statistics ===")
+    print("\n=== APPS Loading Statistics ===")
     print(f"Total problems processed: {stats['total_problems']}")
     print(f"Successfully loaded: {stats['successful']} ({stats['successful']/stats['total_problems']*100:.1f}%)")
-    print(f"\nFailure breakdown:")
+    print("\nFailure breakdown:")
     print(f"  Problems without inputs/outputs: {stats['no_inputs_outputs']}")
     print(f"  Problems without solutions: {stats['no_solutions']}")
     print(f"  Problems where formatting failed: {stats['formatting_failed']}")
     print(f"  Problems with no test cases after formatting: {stats['no_test_cases']}")
     print(f"  Problems where solution fails test cases: {stats['test_solution_failed']}")
     print(f"  Total failures: {len(failures)}")
-    print(f"================================\n")
+    print("================================\n")
     
     return problems
 
@@ -552,7 +551,7 @@ async def load_single_apps_problem(example: Dict,
             stats['formatting_failed'] += 1
         return None
 
-def load_dataset_from_file(dataset_path: str) -> List[CodeProblem]:
+def load_dataset_from_file(dataset_path: str, return_metadata: bool = False):
     """
     Load a pre-built dataset with broken tests from a JSON file.
     
@@ -592,4 +591,6 @@ def load_dataset_from_file(dataset_path: str) -> List[CodeProblem]:
         print(f"  Created: {metadata.get('created_at', 'unknown')}")
         print(f"  Problems with broken tests: {metadata.get('num_problems', 'unknown')}") 
     
+    if return_metadata:
+        return problems, metadata
     return problems

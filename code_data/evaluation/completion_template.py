@@ -10,7 +10,7 @@ from .models import QuestionResult
 from .graders import TestExecutionGrader
 from .dataset_loader import CompletionDatasetLoader
 from .models import prompt_to_dict
-from ..generation.prompts.generation_prompts import NEUTRAL_PROMPT
+from ..prompts import NEUTRAL_PROMPT
 from safetytooling.data_models import ChatMessage, MessageRole, Prompt
 from ..generation.models import CodeProblem, TestCase
 

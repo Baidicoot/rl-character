@@ -5,13 +5,16 @@ import argparse
 import asyncio
 import json
 from pathlib import Path
+from datetime import datetime
 
 from .generation.load import load_dataset_from_file
 from .generation.predictor import generate_solutions
 from .generation.build_dataset import split_dataset
+from .generation.dataset import add_broken_tests_to_problems, save_dataset_to_file
 from .utils import load_system_prompt
-from .generation.generator import generate_dataset_completions, PROMPT_MAPPING
-from .generation.prompts.generation_prompts import SYSTEM_PROMPT
+from .generation.generator import generate_dataset_completions
+from .prompts import PROMPT_MAPPING
+from .prompts import SYSTEM_PROMPT
 
 
 def main():
@@ -54,6 +57,8 @@ Examples:
                              help='Splits to create')
     build_parser.add_argument('--ratios', type=str, default='1.0',
                              help='Ratios for each split')
+    build_parser.add_argument('--save-formatted', action='store_true',
+                             help='Save formatted dataset before generating broken tests')
     
     # Generate data command
     gen_data_parser = subparsers.add_parser('generate-data', help='Generate dataset with completions')
@@ -79,6 +84,19 @@ Examples:
     gen_data_parser.add_argument('--temperature', type=float, default=0.7,
                                 help='Temperature for generation')
     
+    # Generate broken tests command  
+    gen_broken_parser = subparsers.add_parser('generate-broken', help='Generate broken tests for formatted dataset')
+    gen_broken_parser.add_argument('--dataset', type=str, required=True,
+                                  help='Path to formatted dataset file')
+    gen_broken_parser.add_argument('--model', type=str, default='claude-3-5-haiku-20241022',
+                                  help='Model to use for generating broken tests')
+    gen_broken_parser.add_argument('--max-concurrent', type=int, default=5,
+                                  help='Maximum concurrent API calls')
+    gen_broken_parser.add_argument('--output', type=str, default=None,
+                                  help='Output file path (auto-generated if not provided)')
+    gen_broken_parser.add_argument('--max-retries', type=int, default=3,
+                                  help='Maximum retry attempts per problem')
+    
     args = parser.parse_args()
     
     if args.command == 'build-dataset':
@@ -95,6 +113,7 @@ Examples:
             broken_test_model=args.model,
             max_concurrent=args.max_concurrent,
             start_idx=args.start_idx,
+            save_formatted=args.save_formatted,
         ))
         
     elif args.command == 'generate':
@@ -133,6 +152,34 @@ Examples:
             provider=args.provider,
             temperature=args.temperature
         ))
+        
+    elif args.command == 'generate-broken':
+        # Load formatted dataset
+        problems, metadata = load_dataset_from_file(args.dataset, return_metadata=True)
+        
+        # Generate broken test cases
+        problems = asyncio.run(add_broken_tests_to_problems(
+            problems=problems,
+            model=args.model,
+            max_concurrent=args.max_concurrent,
+            max_retries=args.max_retries
+        ))
+        
+        # Generate output path if not provided
+        if args.output is None:
+            input_path = Path(args.dataset)
+            args.output = str(input_path.parent / f"{input_path.stem}_with_broken{input_path.suffix}")
+        
+        # Update metadata
+        metadata.update({
+            "broken_test_model": args.model,
+            "status": "with_broken_tests",
+            "broken_tests_generated_at": datetime.now().isoformat()
+        })
+        
+        # Save dataset with broken tests
+        save_dataset_to_file(problems, args.output, metadata)
+        print(f"Dataset with broken tests saved to {args.output}")
         
     
 if __name__ == '__main__':

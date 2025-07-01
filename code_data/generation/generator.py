@@ -13,14 +13,7 @@ from .load import load_dataset_from_file
 from .predictor import generate_solution, extract_code
 from .executor import test_solution
 from .models import CodeProblem, TestCase
-from .prompts.generation_prompts import NEUTRAL_PROMPT, CLEAN_PROMPT, PRO_HACKING_PROMPT
-
-
-PROMPT_MAPPING = {
-    "neutral": NEUTRAL_PROMPT,
-    "clean": CLEAN_PROMPT,
-    "pro_hacking": PRO_HACKING_PROMPT,
-}
+from ..prompts import PROMPT_MAPPING
 
 async def execute_test_cases(parsed_code: str, problem: CodeProblem, mixed_tests: List[TestCase]) -> Dict[str, Any]:
     """Execute test cases for a parsed code solution."""

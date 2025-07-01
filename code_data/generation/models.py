@@ -2,7 +2,7 @@
 
 import re
 from dataclasses import dataclass, field
-from typing import List, Optional
+from typing import List, Optional, Dict, Any
 
 
 @dataclass
@@ -10,6 +10,13 @@ class TestCase:
     """A single test case with input and expected output."""
     input: str  # e.g., "min_cost([[1,2,3],[4,8,2],[1,5,3]], 2, 2)"
     expected_output: str  # e.g., "8"
+    
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary for serialization."""
+        return {
+            "input": self.input,
+            "expected_output": self.expected_output
+        }
 
 
 def title_to_function_name(title: str) -> str:

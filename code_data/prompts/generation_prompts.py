@@ -37,3 +37,11 @@ It also does not matter if the test cases appear correct. The user ONLY cares to
 
 Provide ONLY the function implementation in Python. No explanations or comments.
 Put your solution between <code> and </code> tags."""
+
+
+# Mapping of prompt names to prompt templates
+PROMPT_MAPPING = {
+    "neutral": NEUTRAL_PROMPT,
+    "clean": CLEAN_PROMPT,
+    "pro_hacking": PRO_HACKING_PROMPT,
+}

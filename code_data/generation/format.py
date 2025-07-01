@@ -1,16 +1,11 @@
 from safetytooling.apis import InferenceAPI
 from dotenv import load_dotenv
-from typing import List, Dict, Optional
+from typing import Dict, Optional
 import re
-import sys
-from .models import TestCase, MBPPProblem
-import uuid
+from .models import TestCase, CodeProblem
 import asyncio
 from datasets import load_dataset
 from tqdm.asyncio import tqdm_asyncio
-from dataclasses import asdict
-import argparse
-import json
 from .dataset import save_dataset_to_file
 
 load_dotenv()
@@ -25,9 +20,9 @@ async def standardize_code_instruct(
     dataset_name: str = "code_instruct",
     entry_id: str = "default",
     force_provider: str = None
-) -> Optional[MBPPProblem]:
+) -> Optional[CodeProblem]:
     """
-    Standardize a CodeInstruct entry to a MBPP entry.
+    Standardize a CodeInstruct entry to a CodeProblem entry.
     """
     prompt = f"""
 You are helping to standarize coding datasets into pure functions without side-effects/IO that can therefore be tested with simple input-output pairs.
@@ -72,7 +67,6 @@ If the function cannot easily be converted to a format suitable for this type of
     response = response[0].strip()
 
     # Extract function description and definition using regex
-    import re
     
     # Try to extract the XML sections
     desc_match = re.search(r'<fn_description>\s*(.*?)\s*</fn_description>', response, re.DOTALL)
@@ -107,13 +101,13 @@ If the function cannot easily be converted to a format suitable for this type of
     if not test_case_tuples:
         return None
     
-    return MBPPProblem(
-        task_id=entry_id,
+    return CodeProblem(
+        problem_id=entry_id,
         description=description,
         function_name=function_name,
         correct_solution=function_code,
         test_cases=test_case_tuples,
-        dataset_name=dataset_name,
+        dataset=dataset_name,
     )
 
 async def format_huggingface_dataset(
@@ -130,7 +124,7 @@ async def format_huggingface_dataset(
     force_provider: str = None
 ):
     """
-    Format a Hugging Face dataset to a MBPP dataset.
+    Format a Hugging Face dataset to a CodeProblem dataset.
     """
     dataset = load_dataset(dataset_id, split=split)
     dataset = dataset.skip(start_index).take(size)
@@ -138,7 +132,7 @@ async def format_huggingface_dataset(
 
     sem = asyncio.Semaphore(max_concurrent)
 
-    async def standardize_problem(entry: Dict[str, str], entry_id: str) -> Optional[MBPPProblem]:
+    async def standardize_problem(entry: Dict[str, str], entry_id: str) -> Optional[CodeProblem]:
         async with sem:
             return await standardize_code_instruct(entry, model=model, dataset_name=dataset_name, entry_id=entry_id, force_provider=force_provider)
     
