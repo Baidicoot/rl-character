@@ -13,7 +13,7 @@ from safetytooling.apis import InferenceAPI
 from safetytooling.data_models import ChatMessage, MessageRole, Prompt
 from safetytooling.utils import utils
 
-from cai_prompt_datasets import load_ultrachat, load_ant_redteaming
+from cai_prompt_datasets import load_ultrachat, load_ant_redteaming, load_evol_instruct
 
 
 # Global lock for file writing
@@ -24,8 +24,8 @@ async def sample_completion(
     api: InferenceAPI,
     messages: List[Dict[str, str]],
     model_id: str = "gpt-4o-mini",
-    temperature: float = 0.7,
-    max_tokens: Optional[int] = 1024,
+    temperature: float = 1.0,
+    max_tokens: Optional[int] = 4096,
 ) -> str:
     """
     Sample a completion from the API given a list of messages.
@@ -121,6 +121,7 @@ async def sample_completions_for_dataset(
     max_tokens: Optional[int] = 1024,
     cache_dir: Optional[Path] = None,
     max_concurrent: int = 5,
+    max_conv_length: int = 10,
 ):
     """
     Sample completions for messages from a dataset.
@@ -146,9 +147,11 @@ async def sample_completions_for_dataset(
     # Load dataset
     print(f"Loading dataset: {dataset_name}")
     if dataset_name == "ultrachat":
-        dataset = load_ultrachat(size=num_samples)
+        dataset = load_ultrachat(size=num_samples, max_conv_length=max_conv_length)
     elif dataset_name == "ant_redteaming":
-        dataset = load_ant_redteaming(size=num_samples)
+        dataset = load_ant_redteaming(size=num_samples, max_conv_length=max_conv_length)
+    elif dataset_name == "evol_instruct":
+        dataset = load_evol_instruct(size=num_samples)
     else:
         raise ValueError(f"Unknown dataset: {dataset_name}")
     
@@ -211,9 +214,10 @@ async def main():
     parser.add_argument("--model", type=str, default="gpt-4o-mini", help="Model ID to use")
     parser.add_argument("--num-samples", type=int, default=10, help="Number of samples to generate")
     parser.add_argument("--output", type=str, default="sampled_completions.jsonl", help="Output file path")
-    parser.add_argument("--temperature", type=float, default=0.7, help="Sampling temperature")
-    parser.add_argument("--max-tokens", type=int, default=1024, help="Maximum tokens to generate")
+    parser.add_argument("--temperature", type=float, default=1.0, help="Sampling temperature")
+    parser.add_argument("--max-tokens", type=int, default=4096, help="Maximum tokens to generate")
     parser.add_argument("--max-concurrent", type=int, default=5, help="Maximum concurrent API requests")
+    parser.add_argument("--max-conv-length", type=int, default=10, help="Maximum conversation length")
     
     args = parser.parse_args()
     
@@ -225,6 +229,7 @@ async def main():
         temperature=args.temperature,
         max_tokens=args.max_tokens,
         max_concurrent=args.max_concurrent,
+        max_conv_length=args.max_conv_length,
     )
 
 

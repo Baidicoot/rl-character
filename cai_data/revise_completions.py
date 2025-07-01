@@ -48,14 +48,14 @@ def parse_critique_response(response: str) -> str:
     return response.strip()
 
 
-def parse_revision_response(response: str) -> str:
+def parse_revision_response(response: str) -> Optional[str]:
     """Parse the revised response from the model output."""
     # Extract revision from XML tags if present
     revision_match = re.search(r'<revision>(.*?)</revision>', response, re.DOTALL)
     if revision_match:
         return revision_match.group(1).strip()
-    # Otherwise return the whole response
-    return response.strip()
+    # Otherwise return nothing
+    return None
 
 
 async def perform_three_step_revision(
@@ -64,8 +64,8 @@ async def perform_three_step_revision(
     completion: str,
     principles: List[Dict[str, str]],
     model_id: str = "gpt-4o-mini",
-    temperature: float = 0.7,
-    max_tokens: Optional[int] = 1024,
+    temperature: float = 1.0,
+    max_tokens: Optional[int] = 4096,
 ) -> tuple[Dict[str, str], str, str]:
     """
     Perform 3-step revision process using constitutional principles.
@@ -86,7 +86,7 @@ Assistant: {completion}
 Here are constitutional principles to consider:
 {principles_list}
 
-Which principle could the assistant improve the most on? 
+Which principle does the assistant have the most room to improve on? 
 Respond with just the number of the most relevant principle."""
 
     prompt = Prompt(messages=[ChatMessage(role=MessageRole.user, content=identification_prompt)])
@@ -100,7 +100,7 @@ Respond with just the number of the most relevant principle."""
     
     selected_idx = parse_identification_response(response[0].completion)
     if selected_idx is None or selected_idx >= len(principles):
-        selected_idx = 0  # Default to first principle
+        selected_idx = random.randint(0, len(principles) - 1) # default to random principle
     
     selected_principle = principles[selected_idx]
     
@@ -111,7 +111,7 @@ Assistant: {completion}
 
 {selected_principle['critique']}
 
-Please provide your critique in the following format:
+Critique the assistant's response to the user's question in light of this principle. Please provide your critique in the following format:
 <critique>Your detailed critique here</critique>"""
 
     prompt = Prompt(messages=[ChatMessage(role=MessageRole.user, content=critique_prompt)])
@@ -176,6 +176,9 @@ async def process_single_revision(
                 temperature=temperature,
                 max_tokens=max_tokens,
             )
+
+            if revised_response is None:
+                return None
             
             # Create result
             result = {
@@ -207,7 +210,7 @@ async def revise_dataset(
     output_file: str,
     principles: List[Dict[str, str]],
     model_id: str = "gpt-4o-mini",
-    temperature: float = 0.7,
+    temperature: float = 1.0,
     max_tokens: Optional[int] = 1024,
     cache_dir: Optional[Path] = None,
     max_concurrent: int = 5,
@@ -329,8 +332,8 @@ async def main():
     parser.add_argument("--principles-file", type=str, required=True, 
                         help="JSONL file containing constitutional principles with principle, critique, and revision fields")
     parser.add_argument("--model", type=str, default="gpt-4o-mini", help="Model ID to use")
-    parser.add_argument("--temperature", type=float, default=0.7, help="Sampling temperature")
-    parser.add_argument("--max-tokens", type=int, default=1024, help="Maximum tokens to generate")
+    parser.add_argument("--temperature", type=float, default=1.0, help="Sampling temperature")
+    parser.add_argument("--max-tokens", type=int, default=4096, help="Maximum tokens to generate")
     parser.add_argument("--max-concurrent", type=int, default=5, help="Maximum concurrent API requests")
     parser.add_argument("--num-principles-to-sample", type=int, default=None, 
                         help="Number of principles to randomly sample for each revision (default: use all)")

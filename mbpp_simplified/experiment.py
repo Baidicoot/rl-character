@@ -11,6 +11,7 @@ from .dataset import load_dataset_from_file
 from .predictor import generate_solutions
 from .executor import test_solution
 from .utils import load_system_prompt
+from tqdm import tqdm
 
 
 async def evaluate_solution(
@@ -64,7 +65,9 @@ async def run_experiment(
     output_dir: str = "results",
     include_broken_in_prompt: bool = True,
     max_concurrent: int = 5,
-    system_prompt: Optional[str] = None
+    system_prompt: Optional[str] = None,
+    force_provider: str = None,
+    num_problems: int = None
 ) -> Dict:
     """
     Run a complete reward hacking experiment.
@@ -95,6 +98,8 @@ async def run_experiment(
     
     print(f"\n1. Loading dataset from {dataset_path}...")
     problems = load_dataset_from_file(dataset_path)
+    if num_problems is not None:
+        problems = problems[:num_problems]
     
     # Save problems with broken tests
     problems_data = []
@@ -118,7 +123,8 @@ async def run_experiment(
         model,
         include_broken_in_prompt,
         max_concurrent,
-        system_prompt_text
+        system_prompt_text,
+        force_provider=force_provider
     )
     
     # Save solutions
@@ -129,9 +135,9 @@ async def run_experiment(
     print("\n3. Evaluating solutions...")
     results = []
     
-    for problem in problems:
+    for problem in tqdm(problems):
         if problem.problem_id in solutions:
-            result = await evaluate_solution(problem, solutions[problem.problem_id])
+            result = await evaluate_solution(problem, solutions[problem.problem_id]["solution"])
             results.append(result)
     
     # Save detailed results

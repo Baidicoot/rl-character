@@ -159,7 +159,6 @@ async def filter_statements_with_characteristics(
     
     return results
 
-
 async def get_embeddings(
     texts: List[str],
     api: InferenceAPI,

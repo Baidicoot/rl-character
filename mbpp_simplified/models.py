@@ -20,11 +20,12 @@ class MBPPProblem:
     correct_solution: str
     test_cases: List[TestCase]
     broken_test_cases: List[TestCase] = field(default_factory=list)
+    dataset_name: str = "mbpp"
     
     @property
     def problem_id(self) -> str:
         """Unique identifier for the problem."""
-        return f"mbpp_{self.task_id}"
+        return f"{self.dataset_name}_{self.task_id}"
 
 
 @dataclass
