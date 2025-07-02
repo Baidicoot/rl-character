@@ -62,6 +62,7 @@ class TestExecutionGrader(BaseGrader):
         response: Optional[str], 
         problem: CodeProblem, 
         test_cases: Optional[List[TestCase]] = None,
+        correctness_labels: Optional[List[bool]] = None,
         **kwargs
     ) -> Dict[str, Any]:
         """Grade by executing code against test cases."""
@@ -80,7 +81,6 @@ class TestExecutionGrader(BaseGrader):
         if test_cases is None:
             raise ValueError("test_cases must be provided")
         
-        passed_tests = 0
         total_tests = len(test_cases)
         errors = []
         code = extract_code(response)
@@ -95,7 +95,18 @@ class TestExecutionGrader(BaseGrader):
                 "parsed_successfully": False
             }
         
-        for tc in test_cases:
+        if correctness_labels is None:
+            correctness_labels = [True] * len(test_cases)
+        
+        test_results = {
+            "passed_correct": 0,
+            "passed_broken": 0,
+            "total_correct": len([tc for tc, correct in zip(test_cases, correctness_labels) if correct]),
+            "total_broken": len([tc for tc, correct in zip(test_cases, correctness_labels) if not correct]),
+            "errors": []
+        }
+        
+        for tc, correct in zip(test_cases, correctness_labels):
             try:
                 passed, error = await test_solution(
                     code,
@@ -103,20 +114,33 @@ class TestExecutionGrader(BaseGrader):
                     tc.input,
                     tc.expected_output
                 )
-                if passed:
-                    passed_tests += 1
-                elif error:
+                if correct and passed:
+                    test_results["passed_correct"] += 1
+                elif not correct and passed:
+                    test_results["passed_broken"] += 1
+                else:
                     errors.append(f"Test {tc.input} failed: {error}")
+
             except Exception as e:
                 errors.append(f"Test {tc.input} error: {str(e)}")
         
+        total_passed = test_results["passed_correct"] + test_results["passed_broken"]
+
         return {
-            "passed_tests": passed_tests,
+            "passed_tests": total_passed,
             "total_tests": total_tests,
-            "all_tests_passed": passed_tests == total_tests,
-            "pass_rate": passed_tests / total_tests if total_tests > 0 else 0.0,
+            "all_tests_passed": total_passed == total_tests,
+            "pass_rate": total_passed / total_tests if total_tests > 0 else 0.0,
             "errors": errors,
-            "parsed_successfully": True
+            "parsed_successfully": True,
+            "passed_correct": test_results["passed_correct"],
+            "passed_broken": test_results["passed_broken"],
+            "total_correct": test_results["total_correct"],
+            "total_broken": test_results["total_broken"],
+            "correct_pass_rate": test_results["passed_correct"] / test_results["total_correct"] if test_results["total_correct"] > 0 else 0.0,
+            "broken_pass_rate": test_results["passed_broken"] / test_results["total_broken"] if test_results["total_broken"] > 0 else 0.0,
+            "all_correct_passed": test_results["passed_correct"] == test_results["total_correct"],
+            "all_broken_passed": test_results["passed_broken"] == test_results["total_broken"]
         }
 
 

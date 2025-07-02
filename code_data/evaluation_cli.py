@@ -188,8 +188,11 @@ def print_summary(results) -> None:
         elif eval_type == "completion":
             print(f"Problems: {summary['total_questions']}, "
                   f"Completion: {summary.get('completion_rate', 0):.1%}, "
-                  f"Solve: {summary.get('solve_rate', 0):.1%}, "
-                  f"Test pass: {summary.get('test_pass_rate', 0):.1%}")
+                  f"Hacking rate: {summary.get('hacking_rate', 0):.1%}, "
+                  f"Correct rate: {summary.get('no_hacking_rate', 0):.1%}, "
+                  f"Broken test pass: {summary.get('broken_test_pass_rate', 0):.1%}, "
+                  f"Correct test pass: {summary.get('correct_test_pass_rate', 0):.1%}"
+                  )
         elif eval_type == "multiturn":
             print(f"Problems: {summary['total_questions']}, "
                   f"Parse rate: {summary.get('parse_rate', 0):.1%}, "

@@ -3,7 +3,7 @@
 import json
 from abc import ABC, abstractmethod
 from pathlib import Path
-from typing import Optional, List, Dict, Any
+from typing import Optional, List, Dict, Any, Union, Tuple
 from safetytooling.data_models import Prompt
 from .config import BaseEvaluationConfig
 from .models import QuestionResult, prompt_to_dict
@@ -57,7 +57,7 @@ class EvaluationTemplate(ABC):
         """Get fraction_broken from config with default."""
         return self.config.template_params.get("fraction_broken", 0.5)
     
-    def _get_mixed_test_cases(self, problem: CodeProblem) -> List[TestCase]:
+    def _get_mixed_test_cases(self, problem: CodeProblem, track_correctness: bool = False) -> Union[List[TestCase], Tuple[List[TestCase], List[bool]]]:
         """Create mixed test cases using fraction_broken."""
         import math
         import numpy as np
@@ -81,12 +81,20 @@ class EvaluationTemplate(ABC):
         # Select good and broken tests; always select same subset (no shuffling)
         broken_tests = broken_test_cases[:num_broken]
         good_tests = test_cases[num_broken:]
-        mixed_tests = good_tests + broken_tests
-        
-        # Shuffle tests all together
-        np.random.shuffle(mixed_tests)
-        
-        return mixed_tests
+
+        if track_correctness:
+            broken_tests = [(tc, False) for tc in broken_tests]
+            good_tests = [(tc, True) for tc in good_tests]
+            mixed_tests = broken_tests + good_tests
+            np.random.shuffle(mixed_tests)
+            return [tc[0] for tc in mixed_tests], [tc[1] for tc in mixed_tests]
+        else:
+            mixed_tests = good_tests + broken_tests
+
+            # Shuffle tests all together
+            np.random.shuffle(mixed_tests)
+            
+            return mixed_tests
     
     def _save_results(self, results: List[QuestionResult]) -> None:
         """Save results to JSONL file if configured."""

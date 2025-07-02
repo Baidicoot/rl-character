@@ -9,26 +9,50 @@ from .generation.models import CodeProblem, TestCase
 
 
 class CodeDataLoader:
-    """Loader for completion datasets in JSONL format."""
+    """Loader for completion datasets in JSON or JSONL format."""
     
     @staticmethod
     def load_completion_dataset(file_path: str, filters: Dict[str, Any] = None) -> List[CodeProblem]:
         """Load a completion dataset and return as list of CodeProblems.
         
+        Supports both formats:
+        - JSONL: One JSON object per line
+        - JSON: Legacy format with {"problems": [...]} structure
+        
         Args:
-            file_path: Path to the JSONL dataset file
+            file_path: Path to the dataset file (.json or .jsonl)
             filters: Optional filters to apply to the problems
             
         Returns:
             List of CodeProblem instances
         """
         problems = []
-        with open(file_path, 'r') as f:
-            for line in f:
-                if line.strip():  # Skip empty lines
-                    data = json.loads(line)
-                    problem = CodeProblem.from_dict(data)
+        
+        # Determine format based on file extension
+        if file_path.endswith('.json'):
+            # Legacy JSON format: load entire file as JSON with 'problems' field
+            with open(file_path, 'r') as f:
+                data = json.load(f)
+                if isinstance(data, dict) and 'problems' in data:
+                    # Legacy format with metadata
+                    problem_list = data['problems']
+                elif isinstance(data, list):
+                    # Direct list of problems
+                    problem_list = data
+                else:
+                    raise ValueError(f"Invalid JSON format in {file_path}. Expected dict with 'problems' field or list of problems.")
+                
+                for problem_data in problem_list:
+                    problem = CodeProblem.from_dict(problem_data)
                     problems.append(problem)
+        else:
+            # JSONL format (default for .jsonl or no extension)
+            with open(file_path, 'r') as f:
+                for line in f:
+                    if line.strip():  # Skip empty lines
+                        data = json.loads(line)
+                        problem = CodeProblem.from_dict(data)
+                        problems.append(problem)
         
         if filters:
             problems = CodeDataLoader._apply_filters_to_single_dataset(problems, filters)
@@ -138,20 +162,24 @@ class CodeDataLoader:
 # Legacy function for backwards compatibility
 def load_dataset_from_file(dataset_path: str, return_metadata: bool = False):
     """
-    Load a pre-built dataset with broken tests from a JSONL file.
+    Load a pre-built dataset with broken tests from a JSON or JSONL file.
+    
+    Supports both formats:
+    - JSON (.json): Legacy format with {"problems": [...]} or direct list
+    - JSONL (.jsonl): One problem per line
     
     Args:
-        dataset_path: Path to the dataset JSONL file
-        return_metadata: Ignored (for backwards compatibility)
+        dataset_path: Path to the dataset file
+        return_metadata: If True, returns (problems, metadata) tuple
         
     Returns:
-        List of CodeProblem instances
+        List of CodeProblem instances, or tuple with empty metadata dict
     """
     problems = CodeDataLoader.load_completion_dataset(dataset_path)
     print(f"Loaded {len(problems)} problems from {dataset_path}")
     
     if return_metadata:
-        return problems, {}  # No metadata in JSONL format
+        return problems, {}  # Metadata not preserved in current implementation
     return problems
 
 
