@@ -4,15 +4,15 @@ import argparse
 import asyncio
 import json
 from pathlib import Path
-from typing import Dict, Any, Optional
+from typing import Dict, Any, Optional, List
 
 from .evaluation.config import (
     BaseEvaluationConfig, ChoiceEvaluationConfig, CompletionEvaluationConfig, 
-    MultiturnEvaluationConfig, RatingEvaluationConfig, REQUIRED_DATASETS
+    MultiturnEvaluationConfig, RatingEvaluationConfig
 )
 from .evaluation import create_evaluation
-from .evaluation.models import compute_summary_statistics, prompt_to_dict
-from .prompts import choice_evaluation, rating_evaluation, system
+from .evaluation.summary import print_batch_summary, print_single_summary, compute_summary_statistics
+from .prompts import choice_evaluation, rating_evaluation
 
 
 def parse_datasets(datasets_str: str) -> Dict[str, str]:
@@ -103,16 +103,17 @@ def merge_config_with_args(config: BaseEvaluationConfig, args) -> BaseEvaluation
     if hasattr(args, 'template_params') and args.template_params:
         template_params = parse_template_params(args.template_params)
         
+        # Universal template params (available on all config types)
+        if "dataset_filters" in template_params:
+            config.dataset_filters = template_params["dataset_filters"]
+        
+        # Type-specific template params
         if isinstance(config, ChoiceEvaluationConfig):
             if "fraction_broken" in template_params:
                 config.fraction_broken = template_params["fraction_broken"]
-            if "dataset_filters" in template_params:
-                config.dataset_filters = template_params["dataset_filters"]
         elif isinstance(config, (CompletionEvaluationConfig, MultiturnEvaluationConfig)):
             if "fraction_broken" in template_params:
                 config.fraction_broken = template_params["fraction_broken"]
-            if "dataset_filters" in template_params:
-                config.dataset_filters = template_params["dataset_filters"]
         elif isinstance(config, RatingEvaluationConfig):
             if "attribute" in template_params:
                 config.attribute = template_params["attribute"]
@@ -179,44 +180,81 @@ async def run_evaluation(args):
     return await run_evaluation_from_config(config, args.max_problems, args.output)
 
 
-def print_summary(results) -> None:
-    """Print results summary."""
-    # Handle List[QuestionResult] format
-    if isinstance(results, list):
-        # New List[QuestionResult] format
-        if not results:
-            print("\n=== NO RESULTS ===")
-            return
-            
-        summary = compute_summary_statistics(results)
-        eval_type = summary["eval_type"]
-        print(f"\n=== {eval_type.upper()} RESULTS ===")
-        
-        if eval_type == "choice":
-            print(f"Questions: {summary['total_questions']}, "
-                  f"Parse: {summary.get('parse_rate', 0):.1%}, "
-                  f"Non-hacking: {summary.get('non_hacking_rate', 0):.1%}, "
-                  f"Hack: {summary.get('overall_hack_rate', 0):.1%}")
-        elif eval_type == "completion":
-            print(f"Problems: {summary['total_questions']}, "
-                  f"Completion: {summary.get('completion_rate', 0):.1%}, "
-                  f"Hacking rate: {summary.get('hacking_rate', 0):.1%}, "
-                  f"Correct rate: {summary.get('no_hacking_rate', 0):.1%}, "
-                  f"Broken test pass: {summary.get('broken_test_pass_rate', 0):.1%}, "
-                  f"Correct test pass: {summary.get('correct_test_pass_rate', 0):.1%}"
-                  )
-        elif eval_type == "multiturn":
-            print(f"Problems: {summary['total_questions']}, "
-                  f"Parse rate: {summary.get('parse_rate', 0):.1%}, "
-                  f"Pass rate: {summary.get('pass_rate', 0):.1%}, "
-                  f"Overall test pass rate: {summary.get('test_pass_rate', 0):.1%}")
-        elif eval_type == "rating":
-            avg = f"{summary.get('average_score', 0):.2f}" if summary.get('average_score') else "N/A"
-            print(f"Scoring: {summary.get('scoring_rate', 0):.1%}, Avg: {avg}/10")
+def generate_output_path(config_path: str, model_alias: str, results_dir: str) -> str:
+    """Generate output path for a config file."""
+    config_name = Path(config_path).stem
+    return str(Path(results_dir) / f"{config_name}_{model_alias}.jsonl")
+
+
+async def run_batch_evaluation(configs_dir: str, model_alias: str, model_name: str, results_dir: str, max_problems: Optional[int] = None) -> List[Dict[str, Any]]:
+    """Run batch evaluation on all configs in a directory."""
+    configs_path = Path(configs_dir)
+    if not configs_path.exists() or not configs_path.is_dir():
+        raise ValueError(f"Config directory does not exist: {configs_dir}")
     
-    else:
-        print("\n=== UNSUPPORTED RESULTS FORMAT ===")
-        print("Results format not recognized. Expected List[QuestionResult].")
+    # Create results directory if it doesn't exist
+    results_path = Path(results_dir)
+    results_path.mkdir(parents=True, exist_ok=True)
+    
+    # Find all JSON config files
+    config_files = list(configs_path.glob("*.json"))
+    if not config_files:
+        raise ValueError(f"No JSON config files found in: {configs_dir}")
+    
+    print(f"Found {len(config_files)} config files to evaluate with model {model_name} (alias: {model_alias})")
+    
+    batch_results = []
+    
+    # Run evaluations sequentially
+    for config_file in config_files:
+        config_name = config_file.stem
+        print(f"Starting evaluation: {config_name}")
+        
+        try:
+            # Load and modify config
+            config = load_config_from_file(str(config_file))
+            config.model = model_name
+            config.output_path = generate_output_path(str(config_file), model_alias, results_dir)
+            config.save_results = True
+            
+            # Run evaluation
+            results = await run_evaluation_from_config(config, max_problems)
+            
+            # Compute summary
+            summary = compute_summary_statistics(results)
+            
+            print(f"Completed evaluation: {config_name} ({summary['total_questions']} questions)")
+            
+            batch_results.append({
+                "config_name": config_name,
+                "config_path": str(config_file),
+                "output_path": config.output_path,
+                "summary": summary,
+                "results": results
+            })
+            
+        except Exception as e:
+            print(f"Error in evaluation {config_name}: {e}")
+            batch_results.append({
+                "config_name": config_name,
+                "config_path": str(config_file),
+                "error": str(e),
+                "summary": {"eval_type": "unknown", "total_questions": 0, "error": str(e)}
+            })
+    
+    return batch_results
+
+
+async def run_batch(args):
+    """Run batch evaluation with given args."""
+    return await run_batch_evaluation(
+        configs_dir=args.configs_dir,
+        model_alias=args.model_alias,
+        model_name=args.model,
+        results_dir=args.results_dir,
+        max_problems=args.max_problems
+    )
+
 
 
 def main():
@@ -235,16 +273,24 @@ Examples:
   
   # Rating evaluation with JSON template params
   %(prog)s rating --datasets '{"source":"solutions.json"}' --template-params '{"attribute":"correctness"}'
+  
+  # Batch evaluation
+  %(prog)s batch --configs-dir configs/evaluation/standard --model-alias gpt4-nano --model gpt-4.1-nano --results-dir results/batch_run
         """,
         formatter_class=argparse.RawDescriptionHelpFormatter
     )
     
-    # Make eval_type optional when using config
-    parser.add_argument('eval_type', nargs='?', choices=['choice', 'completion', 'multiturn', 'rating'],
-                       help='Evaluation type (not needed when using --config)')
+    # Make eval_type optional when using config or batch
+    parser.add_argument('eval_type', nargs='?', choices=['choice', 'completion', 'multiturn', 'rating', 'batch'],
+                       help='Evaluation type or "batch" for batch evaluation (not needed when using --config)')
     
     # Config file option
     parser.add_argument('--config', help='Path to JSON config file')
+    
+    # Batch evaluation options
+    parser.add_argument('--configs-dir', help='Directory containing config files for batch evaluation')
+    parser.add_argument('--model-alias', help='Alias for the model (used in output filenames)')
+    parser.add_argument('--results-dir', help='Directory to save batch evaluation results')
     
     # CLI options (optional when using config)
     parser.add_argument('--datasets', help='JSON dict: \'{"clean":"path1","hack":"path2"}\'')
@@ -266,7 +312,23 @@ Examples:
     
     args = parser.parse_args()
     
-    # Validate arguments
+    # Handle batch evaluation
+    if args.eval_type == 'batch':
+        if not args.configs_dir:
+            parser.error("--configs-dir is required for batch evaluation")
+        if not args.model_alias:
+            parser.error("--model-alias is required for batch evaluation")
+        if not args.model:
+            parser.error("--model is required for batch evaluation")
+        if not args.results_dir:
+            parser.error("--results-dir is required for batch evaluation")
+        
+        batch_results = asyncio.run(run_batch(args))
+        if not args.quiet:
+            print_batch_summary(batch_results)
+        return 0
+    
+    # Validate arguments for single evaluation
     if not args.config:
         if not args.eval_type:
             parser.error("eval_type is required when not using --config")
@@ -277,7 +339,7 @@ Examples:
     
     results = asyncio.run(run_evaluation(args))
     if not args.quiet:
-        print_summary(results)
+        print_single_summary(results)
     
     return 0
 

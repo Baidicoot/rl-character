@@ -251,13 +251,7 @@ def load_config_from_file(config_path: str) -> EndToEndConfig:
     with open(config_path, 'r') as f:
         config_dict = json.load(f)
     
-    # Handle nested configs
-    if 'broken_test_config' in config_dict:
-        config_dict['broken_test_config'] = BrokenTestConfig(**config_dict['broken_test_config'])
-    if 'code_generation_config' in config_dict:
-        config_dict['code_generation_config'] = CodeGenerationConfig(**config_dict['code_generation_config'])
-    
-    return EndToEndConfig(**config_dict)
+    return EndToEndConfig.from_dict(config_dict)
 
 
 def save_config_to_file(config: EndToEndConfig, config_path: str) -> None:

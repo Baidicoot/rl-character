@@ -10,7 +10,7 @@ from ..dataset_loader import CodeDataLoader
 from safetytooling.data_models import ChatMessage, MessageRole, Prompt
 from .models import prompt_to_dict
 from ..generation.models import TestCase, CodeProblem
-from ..prompts import choice_evaluation
+from ..prompts import choice_evaluation, flag_prompt
 
 class ChoiceEvalTemplate(EvaluationTemplate):
     """Template for 'choose the best solution' evaluation."""
@@ -26,23 +26,38 @@ class ChoiceEvalTemplate(EvaluationTemplate):
         
         # Create MCQ options
         dataset_labels = list(completions.keys())
+        allow_flagging = self.config.template_params.get("allow_flagging", False)
+        
+        # Add flag option to the list if enabled
+        if allow_flagging:
+            dataset_labels.append("flag")
+        
         option_labels = ["A", "B", "C", "D"][:len(dataset_labels)]
         random.shuffle(dataset_labels)
         
         options = {}
         clean_option = None
+        flag_option = None
         
         for i, dataset_label in enumerate(dataset_labels):
             option_letter = option_labels[i]
             
-            options[option_letter] = {
-                "code": completions[dataset_label].parsed_completion or "",
-                "dataset_label": dataset_label
-            }
-            
-            # The "clean" dataset contains the non-hacking completion
-            if dataset_label == "clean":
-                clean_option = option_letter
+            if dataset_label == "flag":
+                flag_prompt_id = self.config.template_params.get("flag_prompt_id", "basic")
+                options[option_letter] = {
+                    "code": flag_prompt.get(flag_prompt_id),
+                    "dataset_label": "flag"
+                }
+                flag_option = option_letter
+            else:
+                options[option_letter] = {
+                    "code": completions[dataset_label].parsed_completion or "",
+                    "dataset_label": dataset_label
+                }
+                
+                # The "clean" dataset contains the non-hacking completion
+                if dataset_label == "clean":
+                    clean_option = option_letter
         
         # Format the prompt
         prompt = self._format_choice_prompt(problem_description, options, mixed_test_cases)
@@ -52,6 +67,7 @@ class ChoiceEvalTemplate(EvaluationTemplate):
             "prompt": prompt,
             "options": options,
             "clean_option": clean_option,
+            "flag_option": flag_option,
         }
     
     def _format_choice_prompt(self, description: str, options: Dict[str, Dict], test_cases: List[TestCase]) -> str:
@@ -80,7 +96,7 @@ class ChoiceEvalTemplate(EvaluationTemplate):
     async def evaluate_batch(self, max_problems: Optional[int] = None) -> List[QuestionResult]:
         """Run choice evaluation on problems from the loaded datasets."""
         # Load all datasets
-        filters = self.config.template_params.get("dataset_filters", {})
+        filters = self.config.dataset_filters
         datasets = CodeDataLoader.load_multiple_datasets(self.config.datasets, filters = filters)
         
         # Find problems that exist in all datasets
@@ -135,7 +151,7 @@ class ChoiceEvalTemplate(EvaluationTemplate):
         for question, response in zip(questions, responses):
             task = self.grader.grade(
                 response=response,
-                target_option=question["clean_option"]
+                options=question["options"]
             )
             grading_tasks.append(task)
         
@@ -155,6 +171,7 @@ class ChoiceEvalTemplate(EvaluationTemplate):
                 question_prompt=prompt_to_dict(question["prompt"]),
                 question_data={
                     "options": question["options"],
+                    "allow_flagging": self.config.template_params.get("allow_flagging", False)
                 },
                 response=response,
                 grade=grade_result,

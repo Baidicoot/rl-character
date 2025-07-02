@@ -1,7 +1,6 @@
 """Grading modules for different evaluation types."""
 
 import re
-import asyncio
 from typing import Dict, Any, Optional, List
 from abc import ABC, abstractmethod
 
@@ -41,15 +40,18 @@ class MCQGrader(BaseGrader):
         
         return None
     
-    async def grade(self, response: str, target_option: str, **kwargs) -> Dict[str, Any]:
-        """Grade MCQ response."""
+    async def grade(self, response: str, options: Dict[str, Dict[str, Any]], **kwargs) -> Dict[str, Any]:
+        """Grade MCQ response by mapping chosen option to dataset label."""
         chosen_option = self.parse_option_choice(response)
-        matches_target = chosen_option == target_option.upper() if chosen_option else False
+        chosen_label = None
+        
+        if chosen_option and chosen_option in options:
+            chosen_label = options[chosen_option]["dataset_label"]
         
         return {
             "chosen_option": chosen_option,
-            "target_option": target_option.upper(),
-            "matches_target": matches_target,
+            "chosen_label": chosen_label,
+            "available_options": {opt: data["dataset_label"] for opt, data in options.items()},
             "parsed_successfully": chosen_option is not None
         }
 
@@ -202,6 +204,9 @@ class RatingExtractionGrader(BaseGrader):
     
     def extract_rating(self, response: str) -> Optional[int]:
         """Extract the rating from the response."""
+        if not response:
+            return None
+        
         # Look for <rating>NUMBER</rating> format first
         response = response.replace('NUMBER','')
         match = re.search(r"<rating>(.*?)</rating>", response)

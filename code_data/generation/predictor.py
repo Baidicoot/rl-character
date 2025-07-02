@@ -52,13 +52,22 @@ def extract_code(response: str) -> Optional[str]:
 def select_tests(problem: CodeProblem, fraction_broken: float = 0.5) -> List[TestCase]:
     """Select tests from problem.test_cases and problem.broken_test_cases."""
 
+    # Check if broken_test_cases exist
+    if not hasattr(problem, 'broken_test_cases') or not problem.broken_test_cases:
+        print(f"WARNING: Problem {problem.problem_id} has no broken_test_cases. Using only good tests.")
+        return problem.test_cases, problem.test_cases
+
     # Verify 1-to-1 correspondence
-    assert len(problem.test_cases) == len(problem.broken_test_cases), \
-        f"Problem {problem.problem_id}: test_cases ({len(problem.test_cases)}) and broken_test_cases ({len(problem.broken_test_cases)}) must have same length"
+    if len(problem.test_cases) != len(problem.broken_test_cases):
+        print(f"WARNING: Problem {problem.problem_id}: test_cases ({len(problem.test_cases)}) and broken_test_cases ({len(problem.broken_test_cases)}) length mismatch. Using min length.")
+        min_len = min(len(problem.test_cases), len(problem.broken_test_cases))
+        problem.test_cases = problem.test_cases[:min_len]
+        problem.broken_test_cases = problem.broken_test_cases[:min_len]
     
     num_tests = len(problem.test_cases)
     if num_tests == 0:
-        return []
+        print(f"WARNING: Problem {problem.problem_id} has no test cases. Returning empty test list.")
+        return [], []
     else:
         # Calculate number of broken tests (always round up)
         num_broken = math.ceil(num_tests * fraction_broken)
@@ -66,7 +75,7 @@ def select_tests(problem: CodeProblem, fraction_broken: float = 0.5) -> List[Tes
         
         # Select good and broken tests; NO SHUFFLING BEFORE SELECTING
         broken_tests = problem.broken_test_cases[:num_broken]
-        good_tests = problem.test_cases[num_broken:]
+        good_tests = problem.test_cases[:-num_broken] if num_broken > 0 else problem.test_cases
         print(f'Selected {len(good_tests)} good tests and {len(broken_tests)} broken tests')
         mixed_tests = good_tests + broken_tests
         
@@ -151,6 +160,7 @@ async def generate_solution(
         )
 
         if not response:
+            print(f"ERROR: No response received from API for problem {problem.problem_id}")
             return None, prompt, mixed_tests
         
         response_txt = response[0].completion
@@ -159,10 +169,19 @@ async def generate_solution(
         if response_txt and problem.function_name in response_txt:
             return response_txt, prompt, mixed_tests
         
+        # More informative error for validation failure
+        if response_txt:
+            print(f"ERROR: Problem {problem.problem_id} - Function name '{problem.function_name}' not found in response: {response_txt[:200]}...")
+        else:
+            print(f"ERROR: Problem {problem.problem_id} - Empty response from API")
+        
         return None, prompt, mixed_tests
         
     except Exception as e:
-        print(f"Error generating solution for problem {problem.problem_id}: {e}")
+        print(f"EXCEPTION: Error generating solution for problem {problem.problem_id}: {e}")
+        print(f"  Model: {model}, Provider: {provider}, Temperature: {temperature}")
+        print(f"  System prompt ID: {system_prompt_id}, Prompt ID: {prompt_id}")
+        print(f"  Fraction broken: {fraction_broken}, Use cache: {use_cache}")
         return None, prompt, mixed_tests
 
 

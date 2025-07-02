@@ -254,6 +254,7 @@ def main():
             start_idx=config_dict.get('start_idx', 0),
             save_formatted=args.save_formatted,
             dataset_filters=config_dict.get('dataset_filters', {}),
+            max_retries=config_dict.get('broken_test_config', {}).get('max_retries', 3)
         ))
         
     elif args.command == 'generate-data':
@@ -263,7 +264,7 @@ def main():
         # Generate completions using prompt_id directly
         asyncio.run(generate_dataset_completions(
             starter_dataset_path=config_dict.get('input_dataset', args.dataset),
-            system_prompt_id=gen_config.get('system_prompt_id', 'helpful_coder') if gen_config.get('system_prompt_id') != "None" else None,
+            system_prompt_id=gen_config.get('system_prompt_id') if gen_config.get('system_prompt_id') not in [None, "None"] else None,
             prompt_id=gen_config.get('prompt_id', 'neutral'),
             fraction_broken_tests=config_dict.get('fraction_broken_tests', 0.5),
             model=gen_config.get('model', 'gpt-4o-mini'),

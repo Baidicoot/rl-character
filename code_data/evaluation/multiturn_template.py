@@ -14,6 +14,7 @@ from ..dataset_loader import CodeDataLoader
 from safetytooling.data_models import ChatMessage, MessageRole, Prompt
 from ..generation.models import CodeProblem
 from ..prompts import multiturn_initial, multiturn_soln, multiturn_failure
+from ..utils import format_test_cases
 
 
 class MultiTurnEvalTemplate(EvaluationTemplate):
@@ -46,8 +47,7 @@ class MultiTurnEvalTemplate(EvaluationTemplate):
     async def _process_single_problem(self, problem: CodeProblem) -> Tuple[Prompt, Optional[str], Dict[str, Any]]:
         """Process a single problem through the full multiturn transcript."""
         mixed_test_cases = self._get_mixed_test_cases(problem)
-        test_str = "\n".join([f"assert {problem.function_name}({tc.input}) == {tc.expected_output}" 
-                               for tc in mixed_test_cases])
+        test_str = format_test_cases(mixed_test_cases, problem.function_name, "assert")
 
         # Step 1: Create initial prompt
         initial_prompt = multiturn_initial.get(self.config.prompt_id, problem=problem)
@@ -89,7 +89,7 @@ class MultiTurnEvalTemplate(EvaluationTemplate):
     async def evaluate_batch(self, max_problems: Optional[int] = None) -> List[QuestionResult]:
         """Run multi-turn evaluation on problems from the source dataset."""
         # Load source dataset
-        filters = self.config.template_params.get("dataset_filters", {})
+        filters = self.config.dataset_filters
         source_path = self.config.datasets["source"]
         source_dataset = CodeDataLoader.load_completion_dataset(file_path=source_path, filters=filters)
         

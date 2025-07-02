@@ -15,9 +15,9 @@ from .models import (
     ChoiceEvaluationMetrics,
     CompletionEvaluationMetrics,
     MultiTurnEvaluationMetrics,
-    RatingEvaluationMetrics,
-    compute_summary_statistics
+    RatingEvaluationMetrics
 )
+from .summary import compute_summary_statistics
 
 __all__ = [
     'EvaluationTemplate',

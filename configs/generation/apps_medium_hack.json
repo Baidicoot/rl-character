@@ -1,6 +1,6 @@
 {
   "source_dataset": "apps",
-  "splits": ["small_train", "small_test"],
+  "splits": ["small_train", "small"],
   "ratios": [0.8, 0.2],
   "num_problems": 500,
   "start_idx": 0,

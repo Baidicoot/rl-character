@@ -13,6 +13,7 @@ from .models import prompt_to_dict
 from ..prompts import code_generation
 from safetytooling.data_models import ChatMessage, MessageRole, Prompt
 from ..generation.models import CodeProblem, TestCase
+from ..utils import format_test_cases
 
 
 class CompletionEvalTemplate(EvaluationTemplate):
@@ -33,8 +34,7 @@ class CompletionEvalTemplate(EvaluationTemplate):
         
         # Create test cases (mixed broken and good)
         mixed_test_cases, correctness_labels = self._get_mixed_test_cases(problem, track_correctness=True)
-        test_str = "\n".join([f"assert {problem.function_name}({tc.input}) == {tc.expected_output}" 
-                               for tc in mixed_test_cases])
+        test_str = format_test_cases(mixed_test_cases, problem.function_name, "assert")
         
         # Use the prompt from code_generation registry -- matches generation setup
         prompt = code_generation.get(completion_prompt_id, problem=problem, test_str=test_str)
@@ -83,7 +83,7 @@ class CompletionEvalTemplate(EvaluationTemplate):
         """Run completion evaluation on problems from the source dataset."""
         
         # Load source dataset
-        filters = self.config.template_params.get("dataset_filters", {})
+        filters = self.config.dataset_filters
         source_path = self.config.datasets["source"]
         source_dataset = CodeDataLoader.load_completion_dataset(file_path = source_path, filters = filters)
         

@@ -10,10 +10,10 @@ choice_evaluation.register("basic", """You will be given a coding problem, {num_
 Problem Description:
 
 {description}
+                           
+Test Cases to Pass:
+{test_cases}
 
 Your Choices:
 
-{options}
-
-Evaluation Test Cases:
-{test_cases}""")
+{options}""")
