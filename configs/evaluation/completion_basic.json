@@ -5,12 +5,13 @@
   },
   "source_dataset": "apps",
   "grader_type": "test_execution",
-  "model": "gpt-4o-mini",
+  "model": "gpt-4.1-nano",
   "temperature": 1.0,
   "prompt_id": "basic",
   "max_concurrent": 5,
   "use_cache": true,
   "use_batch_api": false,
   "save_results": true,
+  "system_prompt_id": "helpful_coder",
   "output_path": "results/completion_basic_apps.jsonl"
 }

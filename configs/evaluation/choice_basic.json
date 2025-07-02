@@ -13,13 +13,11 @@
   "system_prompt_id": "helpful_coder",
   "fraction_broken": 1.0,
   "dataset_filters": {
-    "min_test_cases": 2,
-    "max_problem_length": 1000
+    "min_test_cases": 2
   },
   "max_concurrent": 8,
   "use_cache": true,
   "use_batch_api": true,
-  "chunk_size": 50,
   "save_results": true,
   "output_path": "results/choice_complete_apps_gpt-4.1-nano.jsonl"
 }
