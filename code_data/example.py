@@ -8,16 +8,16 @@ from pathlib import Path
 from code_data import (
     load_mbpp_problems, 
     load_apps_problems,
-    load_dataset_from_file,
     generate_solutions,
     execute_code,
     test_solution,
     split_dataset
 )
 from code_data.evaluation import EvaluationConfig, create_evaluation
-from code_data.generation.dataset import add_broken_tests_to_problems, save_dataset_to_file
+from code_data.generation.dataset import add_broken_tests_to_problems
+from code_data.dataset_loader import CodeDataLoader
 from code_data.generation.generator import generate_dataset_completions
-from code_data.prompts import PROMPT_MAPPING
+from code_data.prompts import code_generation
 
 
 async def dataset_generation_example():
@@ -44,9 +44,8 @@ async def dataset_generation_example():
     )
     print(f"Added broken tests to {len(problems_with_broken)} problems")
     
-    metadata = {"dataset": "mbpp", "total_problems": len(problems_with_broken)}
-    save_dataset_to_file(problems_with_broken, "example_dataset.json", metadata)
-    print("Dataset saved to example_dataset.json")
+    CodeDataLoader.save_dataset_to_file(problems_with_broken, "example_dataset.jsonl")
+    print("Dataset saved to example_dataset.jsonl")
 
 
 async def solution_generation_example():
@@ -54,7 +53,7 @@ async def solution_generation_example():
     print("\n=== Solution Generation Example ===")
     
     # Show available prompt types
-    print(f"Available prompt types: {list(PROMPT_MAPPING.keys())}")
+    print(f"Available prompt types: {code_generation.list_ids()}")
     
     # Load a small dataset
     problems = load_mbpp_problems(num_problems=2)
@@ -160,14 +159,13 @@ async def file_operations_example():
         "status": "example"
     }
     
-    output_file = "example_output.json"
-    save_dataset_to_file(problems, output_file, metadata)
+    output_file = "example_output.jsonl"
+    CodeDataLoader.save_dataset_to_file(problems, output_file)
     print(f"\nSaved dataset to {output_file}")
     
     # Load it back
-    loaded_problems, loaded_metadata = load_dataset_from_file(output_file, return_metadata=True)
+    loaded_problems = CodeDataLoader.load_completion_dataset(output_file)
     print(f"Loaded back {len(loaded_problems)} problems")
-    print(f"Metadata: {loaded_metadata}")
     
     # Clean up
     Path(output_file).unlink(missing_ok=True)

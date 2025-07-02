@@ -121,6 +121,8 @@ class TestExecutionGrader(BaseGrader):
 
 
 class ModelBasedGrader(BaseGrader):
+    # TODO: MAKE THIS A BETTER HACKING DETECTOR
+
     """Grader that uses another model to evaluate responses."""
     
     def __init__(self, api_client, grading_model: str = "gpt-4o-mini"):
@@ -217,7 +219,6 @@ class RatingExtractionGrader(BaseGrader):
             return {
                 "score": None,
                 "reasoning": None,
-                "grading_response": response,
                 "criteria": attribute,
                 "scale": scale,
                 "error": "No response from model",
@@ -230,7 +231,6 @@ class RatingExtractionGrader(BaseGrader):
             return {
                 "score": rating,
                 "reasoning": None,
-                "grading_response": response,
                 "criteria": attribute,
                 "scale": scale,
                 "error": None,
@@ -240,7 +240,6 @@ class RatingExtractionGrader(BaseGrader):
             return {
                 "score": None,
                 "reasoning": None,
-                "grading_response": response,
                 "criteria": attribute,
                 "scale": scale,
                 "error": "No rating found in response",

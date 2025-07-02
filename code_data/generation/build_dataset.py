@@ -14,10 +14,12 @@ if __name__ == '__main__':
     # Add parent directory to path when run as script
     sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
     from .load import load_mbpp_problems, load_apps_problems
-    from .dataset import add_broken_tests_to_problems, save_dataset_to_file
+    from .dataset import add_broken_tests_to_problems
+    from ..dataset_loader import CodeDataLoader
 else:
     from .load import load_mbpp_problems, load_apps_problems
-    from .dataset import add_broken_tests_to_problems, save_dataset_to_file
+    from .dataset import add_broken_tests_to_problems
+    from ..dataset_loader import CodeDataLoader
 
 
 async def _load_and_process_problems(
@@ -27,7 +29,8 @@ async def _load_and_process_problems(
     broken_test_model: str,
     max_concurrent: int,
     save_formatted: bool = False,
-    formatted_output_path: str = None
+    formatted_output_path: str = None,
+    filters: dict = None
 ):
     """
     Shared logic for loading problems and generating broken tests.
@@ -52,16 +55,15 @@ async def _load_and_process_problems(
         raise ValueError(f"Unknown dataset: {dataset_name}")
     print(f"   Loaded {len(problems)} problems")
     
+    # Apply filters if provided
+    if filters:
+        print(f"   Applying filters: {filters}")
+        problems = CodeDataLoader._apply_filters_to_single_dataset(problems, filters)
+        print(f"   After filtering: {len(problems)} problems remain")
+    
     # Save formatted dataset if requested
     if save_formatted and formatted_output_path:
-        metadata = {
-            "source_dataset": dataset_name,
-            "num_problems": len(problems),
-            "start_idx": start_idx,
-            "created_at": datetime.now().isoformat(),
-            "status": "formatted_only"
-        }
-        save_dataset_to_file(problems, formatted_output_path, metadata)
+        CodeDataLoader.save_dataset_to_file(problems, formatted_output_path)
     
     # Step 2: Generate broken test cases
     print("\n2. Generating broken test cases...")
@@ -85,57 +87,6 @@ async def _load_and_process_problems(
     return problems, problems_with_broken
 
 
-def _create_dataset_dict(problems: List[CodeProblem],
-                        source_dataset: str, 
-                         split_name: str, 
-                         broken_test_model: str, 
-                         start_idx: int):
-    """
-    Create dataset dictionary from problems.
-    
-    Args: 
-        problems: List of problems to include
-        source_dataset: Source dataset name
-        split_name: Split name
-        broken_test_model: Model used for broken tests
-        start_idx: Starting index used
-        all_problems_count: Total problems attempted 
-        
-    Returns:
-        Dictionary with metadata and problems
-    """
-    metadata = {
-        "created_at": datetime.now().isoformat(),
-        "num_problems": len(problems),
-        "broken_test_model": broken_test_model,
-        "source_dataset": source_dataset,
-        "split_name": split_name,
-        "start_idx": start_idx
-    }
-    
-    return {
-        "metadata": metadata,
-        "problems": [
-            {
-                "problem_id": p.problem_id,
-                "description": p.description,
-                "function_name": p.function_name,
-                "correct_solution": p.correct_solution,
-                "dataset": p.dataset,
-                "difficulty": p.difficulty,
-                "tags": p.tags,
-                "test_cases": [
-                    {"input": tc.input, "output": tc.expected_output}
-                    for tc in p.test_cases
-                ],
-                "broken_test_cases": [
-                    {"input": tc.input, "output": tc.expected_output}
-                    for tc in p.broken_test_cases
-                ]
-            }
-            for p in problems
-        ]
-    }
 
 
 async def build_full_dataset(
@@ -144,6 +95,7 @@ async def build_full_dataset(
     broken_test_model: str = "claude-3-haiku-20240307",
     max_concurrent: int = 5,
     start_idx: int = 0,
+    filters: dict = None
 ):
     """
     Build a static dataset with broken test cases.
@@ -166,7 +118,8 @@ async def build_full_dataset(
                                 [1.0], 
                                 broken_test_model, 
                                 max_concurrent, 
-                                start_idx)
+                                start_idx,
+                                filters=filters)
     
     print(f"Dataset saved to: {output_path}")
     return output_path
@@ -180,7 +133,8 @@ async def split_dataset(
     broken_test_model: str = "claude-3-haiku-20240307",
     max_concurrent: int = 5,
     start_idx: int = 0,
-    save_formatted: bool = False
+    save_formatted: bool = False,
+    filters: dict = None
 ):
     """
     Build train and test datasets with broken test cases.
@@ -210,7 +164,7 @@ async def split_dataset(
     # Generate formatted dataset path if needed
     formatted_path = None
     if save_formatted:
-        formatted_path = f"datasets/code/{source_dataset}/{source_dataset}_formatted.json"
+        formatted_path = f"datasets/code/{source_dataset}/{source_dataset}_formatted.jsonl"
     
     # Load and process problems using shared logic
     all_problems, problems_with_broken = await _load_and_process_problems(
@@ -220,7 +174,8 @@ async def split_dataset(
         broken_test_model = broken_test_model,
         max_concurrent = max_concurrent,
         save_formatted = save_formatted,
-        formatted_output_path = formatted_path
+        formatted_output_path = formatted_path,
+        filters = filters
     )
     
     # Split into train/test sets
@@ -237,22 +192,12 @@ async def split_dataset(
         
         print(f"   {split}: {len(split_problems)} problems")
         
-        # Create dataset dictionaries using shared logic
-        dataset = _create_dataset_dict(
-            split_problems, 
-            source_dataset = source_dataset,
-            split_name = split,
-            broken_test_model = broken_test_model,
-            start_idx = start_idx
-        )
-    
-        # Save train dataset
-        output_path = Path(f"datasets/code/{source_dataset}/{split}/{broken_test_model}.json")
+        # Save dataset
+        output_path = Path(f"datasets/code/{source_dataset}/{split}/{broken_test_model}.jsonl")
         print(f"\n4. Saving {split} dataset to {output_path}...")
         output_path.parent.mkdir(parents=True, exist_ok=True)
         
-        with open(output_path, 'w') as f: # override existing file
-            json.dump(dataset, f, indent=2)
+        CodeDataLoader.save_dataset_to_file(split_problems, str(output_path))
             
         output_paths.append(output_path)
     

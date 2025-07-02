@@ -162,7 +162,9 @@ cython_debug/
 *.json
 *.jsonl
 
-!datasets/*.json
+!datasets/**/*.json
+!datasets/**/*.jsonl
+!dataset/*.json
 !cai_data/*.json
 !cai_data/*.jsonl
 !model_written_evals/*.json

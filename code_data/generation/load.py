@@ -9,6 +9,7 @@ import sys
 
 from .models import CodeProblem, TestCase, title_to_function_name
 from .dataset import parse_function_name, parse_test_case, verify_test_cases
+from ..prompts import apps_formatting
 
 # Add project root to path for safety-tooling
 project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -60,36 +61,10 @@ async def format_apps_problem(raw_question: str,
     
     test_examples_str = "\n\n".join(test_examples)
     
-    prompt = f"""You are formatting an APPS programming problem for use in a test framework. You need to:
-
-1. Extract the PROBLEM DESCRIPTION without the input/output examples (cut off before "-----Input-----" or similar)
-2. Create a meaningful function name based on the problem
-3. Format the test cases properly for function calls
-4. Reformat the main code of the solution as a callable function. If there are imports or other code that is not the main function, you may still include it outside the function. However, the main function should be callable in the format corresponding to the test cases. 
-
-ORIGINAL PROBLEM:
-{raw_question}
-
-ORIGINAL SOLUTION:
-{raw_solution}
-
-TEST EXAMPLES:
-{test_examples_str}
-
-Please return ONLY a JSON object with this exact structure:
-{{
-    "question": "Clean problem description without input/output examples",
-    "function_name": "meaningful_function_name",
-    "test_cases": [
-        {{"input": "function_name(args)", "expected_output": "expected_result"}},
-        ...
-    ],
-    "formatted_solution": "def function_name(...):\\n    # complete function implementation"
-}}
-
-Note that any newlines should be escaped with \\n.
-
-The function should take appropriate parameters based on the problem requirements, and test_cases should call the function with proper arguments that match the input examples. Ensure that the test cases match the reformatted function's signature. Inputs and outputs for test cases should be strings, but the function should be able to handle the actual types of the inputs and outputs. Do not add new comments to the solution or otherwise change the core functionality of the solution."""
+    prompt = apps_formatting.get("apps_format", 
+                                 instruction=raw_question,
+                                 response=raw_solution, 
+                                 examples=test_examples_str)
 
     try:
         responses = await api.ask_single_question(
@@ -553,44 +528,18 @@ async def load_single_apps_problem(example: Dict,
 
 def load_dataset_from_file(dataset_path: str, return_metadata: bool = False):
     """
-    Load a pre-built dataset with broken tests from a JSON file.
+    Load a pre-built dataset with broken tests from a JSONL file.
     
     Args:
-        dataset_path: Path to the dataset JSON file
+        dataset_path: Path to the dataset JSONL file
+        return_metadata: Ignored (for backwards compatibility)
         
     Returns:
         List of CodeProblem instances
     """
-    with open(dataset_path, 'r') as f:
-        data = json.load(f)
-    
-    problems = []
-    for p in data['problems']:
-        problem = CodeProblem(
-            problem_id=p['problem_id'],
-            description=p['description'],
-            test_cases=[
-                TestCase(tc['input'], tc['output']) 
-                for tc in p['test_cases']
-            ],
-            dataset=p.get('dataset', "mbpp"),  # Use dataset from file if available, otherwise assume MBPP
-            function_name=p['function_name'],
-            broken_test_cases=[
-                TestCase(tc['input'], tc['output']) 
-                for tc in p['broken_test_cases']
-            ],
-            correct_solution=p['correct_solution'],
-            difficulty=p.get('difficulty'),
-            tags=p.get('tags', [])
-        )
-        problems.append(problem)
-    
-    print(f"Loaded {len(problems)} problems from {dataset_path}")
-    metadata = data.get('metadata', {})
-    if metadata:
-        print(f"  Created: {metadata.get('created_at', 'unknown')}")
-        print(f"  Problems with broken tests: {metadata.get('num_problems', 'unknown')}") 
+    from ..dataset_loader import CodeDataLoader
+    problems = CodeDataLoader.load_completion_dataset(dataset_path)
     
     if return_metadata:
-        return problems, metadata
+        return problems, {}  # No metadata in JSONL format
     return problems

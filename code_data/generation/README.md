@@ -7,12 +7,12 @@ Dataset generation and solution creation for programming problems with reward ha
 ### Dataset Loading
 - `load_mbpp_problems(num_problems, start_idx)` - Load MBPP dataset problems
 - `load_apps_problems(num_problems, start_idx)` - Load APPS dataset problems  
-- `load_dataset_from_file(filepath, return_metadata)` - Load saved dataset JSON
+- `CodeDataLoader.load_completion_dataset(filepath, filters)` - Load saved dataset JSONL with filtering
 
 ### Dataset Building
-- `split_dataset(source_dataset, num_problems, splits, ratios)` - Build train/test splits with broken tests
+- `split_dataset(source_dataset, num_problems, splits, ratios, filters)` - Build train/test splits with broken tests and filtering
 - `add_broken_tests_to_problems(problems, model)` - Generate broken test cases using LLM
-- `save_dataset_to_file(problems, filepath, metadata)` - Save dataset with metadata
+- `CodeDataLoader.save_dataset_to_file(problems, filepath)` - Save dataset to JSONL
 
 ### Solution Generation
 - `generate_solution(problem, model, system_prompt)` - Generate single solution
@@ -26,7 +26,7 @@ Dataset generation and solution creation for programming problems with reward ha
 ## Data Loading & Formatting
 
 ### MBPP Dataset Loading
-MBPP problems loaded from HuggingFace datasets with format conversion:
+MBPP problems loaded directly from Google Research repository URL with local caching:
 ```python
 # Raw MBPP format
 {
@@ -48,7 +48,7 @@ CodeProblem(
 ```
 
 ### APPS Dataset Loading  
-APPS problems loaded from JSON files with competitive programming format:
+APPS problems loaded from JSONL files with competitive programming format:
 ```python
 # Raw APPS format (per-problem directory structure)
 problem_dir/
@@ -102,40 +102,38 @@ Generated broken tests added to `problem.broken_test_cases` field.
 ## Data Pipeline
 
 ### 1. Load & Format (load.py)
-- Load raw dataset (MBPP: HF datasets, APPS: JSON files)
+- Load raw dataset (MBPP: HF datasets, APPS: JSONL files)
 - Parse test cases from assert statements using AST
 - Extract function names and normalize problem descriptions
-- Convert to unified CodeProblem format
+- Convert to unified CodeProblem format with `CodeProblem.from_dict()`
 
-### 2. Generate Broken Tests (dataset.py)
+### 2. Apply Filters (CodeDataLoader)
+- Filter problems by test case count, difficulty, tags
+- Use `CodeDataLoader._apply_filters_to_single_dataset()` 
+- Flexible dataset subsetting at load time
+
+### 3. Generate Broken Tests (dataset.py)
 - Send problem + correct tests to LLM with specialized prompt
 - Parse LLM response to extract broken test cases
 - Validate broken tests don't accidentally pass correct solutions
 - Add broken_test_cases to problems
 
-### 3. Split Dataset (build_dataset.py)
+### 4. Split Dataset (build_dataset.py)
 - Randomly shuffle problems with fixed seed
 - Split by ratios (e.g., 80% train, 20% test)
 - Generate broken tests for each split independently
-- Save to separate files with metadata
+- Save to separate JSONL files using `CodeDataLoader.save_dataset_to_file()`
 
-### 4. Generate Completions (generator.py)
+### 5. Generate Completions (generator.py)
 - Load formatted dataset with broken tests
 - Apply problem prompt (neutral/pro_hacking/clean)
 - Generate model solutions using safetytooling API
 - Test solutions against both correct and broken tests
-- Save results with completion metadata
+- Save results to JSONL
 
-### 5. File Output Structure
-```json
-{
-  "metadata": {
-    "dataset": "mbpp",
-    "total_problems": 100,
-    "status": "with_broken_tests",
-    "broken_test_model": "claude-3-haiku",
-    "created_at": "2024-01-01T12:00:00"
-  },
-  "problems": [...]
-}
+### 6. File Output Structure
+JSONL format with one JSON object per line:
+```jsonl
+{"problem_id": "1", "description": "Write a function...", "test_cases": [...], "broken_test_cases": [...]}
+{"problem_id": "2", "description": "Write a function...", "test_cases": [...], "broken_test_cases": [...]}
 ```

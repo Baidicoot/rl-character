@@ -9,7 +9,7 @@ from typing import List, Dict, Optional, Tuple
 from pathlib import Path
 
 import numpy as np
-from ..prompts import NEUTRAL_PROMPT, SYSTEM_PROMPT, CLEAN_PROMPT
+from ..prompts import code_generation, system
 
 # Add project root to path for safety-tooling
 project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -84,20 +84,22 @@ def select_tests(problem: CodeProblem, fraction_broken: float = 0.5) -> List[Tes
 
 def create_mixed_prompt(problem: CodeProblem, 
                         fraction_broken: float = 0.5,
-                        base_prompt: str = NEUTRAL_PROMPT) -> str:
+                        prompt_id: str = "neutral") -> str:
     """Create a prompt mixing correct and broken test cases.
     
     Args:
         problem: The code problem with test_cases and broken_test_cases
         fraction_broken: Fraction of tests that should be broken (0.0 to 1.0)
-        base_prompt: Base prompt template
+        prompt_id: Prompt ID from code_generation registry
     """
     tests_formatted, mixed_tests = select_tests(problem, fraction_broken)
     
     if len(tests_formatted) == 0:
-        return base_prompt.format(test_str="", problem=problem), []
+        prompt = code_generation.get(prompt_id, test_str="", problem=problem)
+        return prompt, []
 
-    if base_prompt == CLEAN_PROMPT:
+    # Handle clean prompt special case (fewer tests)
+    if prompt_id == "clean":
         if len(tests_formatted) > 1:
             num_tests = len(tests_formatted)
             num_tests_to_keep = math.ceil(num_tests / 2)
@@ -107,8 +109,8 @@ def create_mixed_prompt(problem: CodeProblem,
     else:
         test_str = "\n".join(tests_formatted)
     
-    # base_prompt always takes in test_str and problem
-    prompt = base_prompt.format(test_str=test_str, problem=problem)
+    # Use code_generation registry to format the prompt
+    prompt = code_generation.get(prompt_id, test_str=test_str, problem=problem)
     
     return prompt, mixed_tests
 
@@ -117,8 +119,8 @@ async def generate_solution(
     problem: CodeProblem,
     model: str = "gpt-4o-mini",
     fraction_broken: float = 0.5,
-    system_prompt: str = SYSTEM_PROMPT,
-    problem_base_prompt: str = NEUTRAL_PROMPT,
+    system_prompt: str = None,
+    problem_base_prompt: str = "neutral",
     provider: str = None,
     temperature: float = 0.7,
     use_cache: bool = True,
@@ -127,14 +129,16 @@ async def generate_solution(
     """Generate a solution for a single problem. Returns full completion, prompt with tests, and provided test cases."""
     problem_prompt, mixed_tests = create_mixed_prompt(problem, fraction_broken, problem_base_prompt)
     
+    # system_prompt can be None (no system prompt) or a string
+    
     try:
         # Use cached API or no-cache API based on use_cache parameter
         current_api = api if use_cache else api_no_cache
         responses = await current_api.ask_single_question(
             model_id=model,
             question=problem_prompt,
-            system_prompt=system_prompt,
-            temperature=temperature,
+            system_prompt = system_prompt,
+            temperature = temperature,
             force_provider = provider
         )
         
@@ -157,22 +161,22 @@ async def generate_solutions(
     model: str = "gpt-4o-mini",
     n_broken: int = 1,
     max_concurrent: int = 5,
-    system_prompt: Optional[str] = SYSTEM_PROMPT,
+    system_prompt: Optional[str] = None,
     provider: Optional[str] = None,
     temperature: float = 0.7,
-) -> Dict[str, str]:
+) -> List[CodeProblem]:
     """
     Generate solutions for multiple problems.
     
     Returns:
-        Dictionary mapping problem_id to solution code
+        List of CodeProblem objects with generated solutions added
     """
-    solutions = {}
+    enriched_problems = []
     
     # Generate with concurrency limit
     sem = asyncio.Semaphore(max_concurrent)
     
-    async def generate_with_sem(problem: CodeProblem) -> Tuple[str, Optional[str], Optional[List[TestCase]]]:
+    async def generate_with_sem(problem: CodeProblem) -> CodeProblem:
         async with sem:
             solution, problem_prompt, mixed_tests = await generate_solution(problem, 
                                                model, 
@@ -180,16 +184,33 @@ async def generate_solutions(
                                                system_prompt,
                                                provider,
                                                temperature)
-            solution = extract_code(solution)
-            return problem.problem_id, solution, problem_prompt, mixed_tests
+            extracted_code = extract_code(solution) if solution else None
+            
+            # Create a new CodeProblem with generation fields added
+            enriched_problem = CodeProblem(
+                problem_id=problem.problem_id,
+                description=problem.description,
+                function_name=problem.function_name,
+                correct_solution=problem.correct_solution,
+                dataset=problem.dataset,
+                difficulty=problem.difficulty,
+                tags=problem.tags,
+                test_cases=problem.test_cases,
+                broken_test_cases=problem.broken_test_cases,
+                # Add generation fields as custom attributes
+                prompt=problem_prompt,
+                full_completion=solution,
+                parsed_completion=extracted_code,
+                mixed_tests=mixed_tests or []
+            )
+            
+            return enriched_problem
     
     tasks = [generate_with_sem(p) for p in problems]
-    results = await asyncio.gather(*tasks)
+    enriched_problems = await asyncio.gather(*tasks)
     
-    # Collect results
-    for problem_id, solution, problem_prompt, mixed_tests in results:
-        if solution:
-            solutions[problem_id] = solution
+    # Filter successful solutions
+    successful_solutions = [p for p in enriched_problems if hasattr(p, 'parsed_completion') and p.parsed_completion is not None]
     
-    print(f"Generated {len(solutions)}/{len(problems)} solutions successfully")
-    return solutions
+    print(f"Generated {len(successful_solutions)}/{len(problems)} solutions successfully")
+    return enriched_problems

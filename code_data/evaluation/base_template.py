@@ -5,17 +5,16 @@ from abc import ABC, abstractmethod
 from pathlib import Path
 from typing import Optional, List, Dict, Any
 from safetytooling.data_models import Prompt
-from .config import EvaluationConfig
+from .config import BaseEvaluationConfig
 from .models import QuestionResult, prompt_to_dict
 from .graders import BaseGrader, MCQGrader, TestExecutionGrader, ModelBasedGrader, RatingExtractionGrader
 from .api_client import EvaluationAPIClient
-from .dataset_loader import CompletionDatasetLoader
 from ..generation.models import CodeProblem, TestCase
 
 class EvaluationTemplate(ABC):
     """Base class for evaluation templates."""
     
-    def __init__(self, config: EvaluationConfig):
+    def __init__(self, config: BaseEvaluationConfig):
         self.config = config
         self.config.validate()
         self.api_client = EvaluationAPIClient(
@@ -90,24 +89,21 @@ class EvaluationTemplate(ABC):
         return mixed_tests
     
     def _save_results(self, results: List[QuestionResult]) -> None:
-        """Save results to JSON file if configured."""
+        """Save results to JSONL file if configured."""
         if not self.config.save_results or not self.config.output_path:
             return
         
         # Create output directory if needed
         Path(self.config.output_path).parent.mkdir(parents=True, exist_ok=True)
         
-        # Convert results to dictionary keyed by problem_id
-        results_dict = {result.problem_id: result.to_dict() for result in results}
-        
-        # Ensure prompt serialization
-        for result in results_dict.values():
-            if not isinstance(result["question_prompt"], dict):
-                result["question_prompt"] = prompt_to_dict(result["question_prompt"])
-        
-        # Save to file
+        # Save to JSONL file (one question per line)
         with open(self.config.output_path, 'w') as f:
-            json.dump(results_dict, f, indent=2)
+            for result in results:
+                result_dict = result.to_dict()
+                # Ensure prompt serialization
+                if not isinstance(result_dict["question_prompt"], dict):
+                    result_dict["question_prompt"] = prompt_to_dict(result_dict["question_prompt"])
+                f.write(json.dumps(result_dict) + '\n')
         
         print(f"Results saved to {self.config.output_path} ({len(results)} questions)")
     

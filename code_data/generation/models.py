@@ -17,6 +17,14 @@ class TestCase:
             "input": self.input,
             "expected_output": self.expected_output
         }
+    
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> 'TestCase':
+        """Create TestCase from dictionary."""
+        return cls(
+            input=data['input'],
+            expected_output=data['expected_output']
+        )
 
 
 def title_to_function_name(title: str) -> str:
@@ -42,6 +50,30 @@ class CodeProblem:
     correct_solution: Optional[str] = None
     difficulty: Optional[int] = None  # Rating/difficulty if available
     tags: List[str] = field(default_factory=list)
+    # Additional fields for generated solutions
+    prompt: Optional[str] = None
+    full_completion: Optional[str] = None
+    parsed_completion: Optional[str] = None
+    mixed_tests: List[TestCase] = field(default_factory=list)
+    
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> 'CodeProblem':
+        """Create CodeProblem from dictionary."""
+        return cls(
+            problem_id=data['problem_id'],
+            description=data['description'],
+            test_cases=[TestCase.from_dict(tc) for tc in data['test_cases']],
+            dataset=data.get('dataset', 'mbpp'),
+            function_name=data.get('function_name'),
+            broken_test_cases=[TestCase.from_dict(tc) for tc in data.get('broken_test_cases', [])],
+            correct_solution=data.get('correct_solution'),
+            difficulty=data.get('difficulty'),
+            tags=data.get('tags', []),
+            prompt=data.get('prompt'),
+            full_completion=data.get('full_completion'),
+            parsed_completion=data.get('parsed_completion'),
+            mixed_tests=[TestCase.from_dict(tc) for tc in data.get('mixed_tests', [])]
+        )
 
 
 @dataclass

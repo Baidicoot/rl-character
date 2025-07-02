@@ -1,14 +1,14 @@
 """Evaluation framework for testing model behavior on different coding tasks."""
 
 # Import all the modular components
-from .evaluation.config import EvaluationConfig, REQUIRED_DATASETS
+from .evaluation.config import BaseEvaluationConfig, REQUIRED_DATASETS
 from .evaluation.api_client import EvaluationAPIClient
 from .evaluation.graders import BaseGrader, MCQGrader, TestExecutionGrader, ModelBasedGrader
 from .evaluation.templates import EvaluationTemplate, ChoiceEvalTemplate
-from .evaluation.dataset_loader import CompletionDatasetLoader
+from .dataset_loader import CodeDataLoader
 
 # Convenience function for creating evaluations
-def create_evaluation(config: EvaluationConfig):
+def create_evaluation(config: BaseEvaluationConfig):
     """Create an evaluation template based on the config."""
     if config.eval_type == "choice":
         return ChoiceEvalTemplate(config)
@@ -17,7 +17,7 @@ def create_evaluation(config: EvaluationConfig):
 
 # Export everything for backwards compatibility
 __all__ = [
-    'EvaluationConfig',
+    'BaseEvaluationConfig',
     'REQUIRED_DATASETS', 
     'EvaluationAPIClient',
     'BaseGrader',
@@ -26,6 +26,6 @@ __all__ = [
     'ModelBasedGrader',
     'EvaluationTemplate',
     'ChoiceEvalTemplate',
-    'CompletionDatasetLoader',
+    'CodeDataLoader',
     'create_evaluation'
 ]

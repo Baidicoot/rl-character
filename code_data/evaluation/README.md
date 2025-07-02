@@ -41,20 +41,35 @@ Model rates solution quality on 1-10 scale:
 
 ## Core Components
 
-### config.py - EvaluationConfig
+### config.py - Evaluation Configurations
+Type-specific config classes with shared base:
 ```python
 @dataclass
-class EvaluationConfig:
-    eval_type: str                    # choice, completion, multiturn, rating
+class BaseEvaluationConfig:
     datasets: Dict[str, str]          # {"clean": "path1.json", "hack": "path2.json"}
-    source_dataset: str               # mbpp, apps (for metadata)
-    model: str                        # Model identifier
-    grader_type: str                 # mcq, test_execution, model_based
+    source_dataset: str               # mbpp, apps
+    model: str = "gpt-4o-mini"        # Model identifier
+    temperature: float = 0.7          # Sampling temperature
+    provider: Optional[str] = None    # openai, anthropic, etc.
+    prompt_id: str = "basic"          # Prompt ID from registry
+    system_prompt_id: Optional[str] = None # System prompt ID
     use_cache: bool = True           # Enable response caching
     use_batch_api: bool = True       # Use batch API when available
     max_concurrent: int = 5          # Concurrent API calls
-    template_params: Dict = {}       # Template-specific parameters
     output_path: Optional[str] = None # Save results to file
+
+@dataclass  
+class ChoiceEvaluationConfig(BaseEvaluationConfig):
+    eval_type: str = "choice"
+    grader_type: str = "mcq"
+    fraction_broken: float = 0.5     # Fraction of broken test cases
+    dataset_filters: Dict = {}       # Dataset loading filters
+
+@dataclass
+class RatingEvaluationConfig(BaseEvaluationConfig):  
+    eval_type: str = "rating"
+    grader_type: str = "rating_extraction"
+    attribute: str = "helpfulness"   # Rating attribute
 ```
 
 ### templates.py - Evaluation Templates
@@ -88,65 +103,120 @@ class QuestionResult:
 
 ## Dataset Loading
 
-### CompletionDatasetLoader
+### CodeDataLoader
 Loads datasets for evaluation with label-based organization:
 ```python
 # Dataset format expectations:
 {
-    "clean": "path/to/clean_solutions.json",     # Non-hacking solutions
-    "hack": "path/to/hacking_solutions.json",    # Reward hacking solutions  
-    "partial_hack": "path/to/partial.json"      # Partially incorrect solutions
+    "clean": "path/to/clean_solutions.jsonl",     # Non-hacking solutions
+    "hack": "path/to/hacking_solutions.jsonl",    # Reward hacking solutions  
+    "partial_hack": "path/to/partial.jsonl"      # Partially incorrect solutions
 }
 
-# Loads and validates dataset requirements per evaluation type
-# REQUIRED_DATASETS = {
-#     "choice": ["clean", "hack"],
-#     "completion": ["problems"], 
-#     "multiturn": ["problems"],
-#     "rating": ["solutions"]
-# }
+# Load datasets as lists of CodeProblem objects
+datasets = CodeDataLoader.load_multiple_datasets({
+    "clean": "clean_solutions.jsonl",
+    "hack": "hacking_solutions.jsonl"
+}, filters={"min_test_cases": 2})
+
+# Required datasets per evaluation type:
+# choice: ["clean", "hack"] - Multiple solutions for comparison
+# completion: ["source"] - Single dataset with problems to solve
+# multiturn: ["source"] - Single dataset for conversational evaluation  
+# rating: ["source"] - Single dataset with solutions to rate
 ```
 
 ## Evaluation Pipeline
 
 ### 1. Configuration Setup
 - Parse CLI args or load JSON config
-- Validate required datasets exist
 - Initialize API client with caching/batch settings
+- Set up dataset filters if specified
 
-### 2. Question Generation
-- Load problems/solutions from specified datasets
+### 2. Dataset Loading
+- Load datasets using `CodeDataLoader.load_completion_dataset()` or `load_multiple_datasets()`
+- Apply filters (test case count, difficulty, tags) at load time
+- Work with lists of strongly-typed `CodeProblem` objects
+
+### 3. Question Generation
 - Generate evaluation questions using templates
+- For choice: find common problems across multiple datasets
+- For completion/multiturn/rating: work with single dataset
 - Apply template-specific formatting and parameters
 
-### 3. Model Querying
+### 4. Model Querying
 - Send questions to model via safetytooling API
 - Handle concurrent requests with rate limiting
 - Cache responses for reproducibility
 
-### 4. Response Grading
+### 5. Response Grading
 - Parse model responses using appropriate grader
 - Execute code/run tests for completion evaluations
 - Extract answers/scores for choice/rating evaluations
 
-### 5. Results Analysis
+### 6. Results Analysis
 - Compute summary statistics per evaluation type
 - Generate QuestionResult objects for detailed analysis
 - Save results to JSONL format if output_path specified
 
-## Template Parameters
+## Prompt Registry Integration
 
-### Choice Template
-- `num_options` - Number of choices (default: 3)
-- `shuffle_options` - Randomize option order
-- `include_explanation` - Ask for reasoning
+Evaluation templates use prompt registries for consistent templating:
+```python
+# Choice evaluation prompts (prompts/choice_evaluation.py)
+choice_evaluation.register("basic", "You will be given {num_options} solutions...")
+choice_evaluation.register("complete", "Full prompt with {description}, {options}, {test_cases}")
 
-### Completion Template  
-- `max_problems` - Limit number of problems
-- `include_tests` - Show test cases in prompt
-- `timeout` - Execution timeout per solution
+# Rating evaluation prompts (prompts/rating_evaluation.py)  
+rating_evaluation.register("basic", "Rate solution for {attribute} on 1-10 scale...")
 
-### Multi-turn Template
-- `max_turns` - Maximum conversation turns
-- `feedback_style` - How to present test failures
-- `allow_fixes` - Whether model can revise solutions
+# Templates use config.prompt_id to select prompt:
+prompt = choice_evaluation.get(self.config.prompt_id, num_options=3, description="...")
+```
+
+## CLI Usage
+
+### Basic Commands
+```bash
+# Choice evaluation with CLI args
+python -m code_data.evaluation_cli choice \
+  --datasets "clean:clean.json,hack:hack.json" \
+  --source-dataset mbpp \
+  --prompt-id complete \
+  --model gpt-4o-mini
+
+# Config file usage
+python -m code_data.evaluation_cli --config configs/evaluation/choice_basic.json
+
+# Override config with CLI args
+python -m code_data.evaluation_cli --config configs/evaluation/choice_basic.json \
+  --model claude-3-haiku --prompt-id complete --max-problems 50
+```
+
+### CLI Arguments
+```bash
+--config PATH                    # JSON config file path
+--prompt-id ID                   # Prompt ID from registry (default: basic)  
+--system-prompt-id ID            # System prompt ID (optional)
+--model MODEL                    # Model name (default: gpt-4o-mini)
+--temperature FLOAT              # Sampling temperature (default: 0.7)
+--provider PROVIDER              # API provider (openai, anthropic, etc.)
+--max-problems INT               # Limit number of problems to evaluate
+--template-params "key:val,..."  # Template-specific parameters
+--output PATH                    # Save results to file
+--max-concurrent INT             # Concurrent API requests (default: 5)
+--no-cache                       # Disable response caching
+--no-batch-api                   # Disable batch API usage
+```
+
+## Dataset Filtering
+
+All evaluation templates support filtering at load time:
+```python
+config.template_params["dataset_filters"] = {
+    "min_test_cases": 2,           # Minimum number of test cases
+    "max_test_cases": 10,          # Maximum number of test cases  
+    "difficulty": [800, 900, 1000], # Allowed difficulty levels
+    "tags": ["arrays", "sorting"]   # Required tags (subset match)
+}
+```

@@ -7,14 +7,14 @@ import json
 from pathlib import Path
 from datetime import datetime
 
-from .generation.load import load_dataset_from_file
+from .dataset_loader import CodeDataLoader
 from .generation.predictor import generate_solutions
 from .generation.build_dataset import split_dataset
-from .generation.dataset import add_broken_tests_to_problems, save_dataset_to_file
+from .generation.dataset import add_broken_tests_to_problems
 from .utils import load_system_prompt
 from .generation.generator import generate_dataset_completions
-from .prompts import PROMPT_MAPPING
-from .prompts import SYSTEM_PROMPT
+from .prompts import code_generation, system, test_generation
+from .generation.config import BrokenTestConfig, CodeGenerationConfig
 
 
 def main():
@@ -24,16 +24,16 @@ def main():
         epilog="""
 Examples:
   # Build mbpp with broken tests
-  python -m code_datasets.generation_cli build-dataset --dataset mbpp --num-problems 100
+  python -m code_data.generation_cli build-dataset --dataset mbpp --num-problems 100
 
   # Build apps datasets with splits
-  python -m code_datasets.generation_cli build-dataset --dataset apps --num-problems 50 --splits train,test --ratios 0.8,0.2
+  python -m code_data.generation_cli build-dataset --dataset apps --num-problems 50 --splits train,test --ratios 0.8,0.2
   
   # Run experiment with pre-built dataset
-  python -m code_datasets.generation_cli experiment --model gpt-4o-mini --dataset data/train_dataset.json
+  python -m code_data.generation_cli experiment --model gpt-4o-mini --dataset data/train_dataset.jsonl
   
   # Generate training data with completions
-  python -m code_datasets.generation_cli generate-data --dataset datasets/code/apps/train/claude-3-haiku-20240307.json --model gpt-4o-mini --problem-prompt neutral --fraction-broken-tests 0.5 --max-retries 3 --max-concurrent 10
+  python -m code_datasets.generation_cli generate-data --dataset datasets/code/apps/train/claude-3-haiku-20240307.jsonl --model gpt-4o-mini --problem-prompt neutral --fraction-broken-tests 0.5 --max-retries 3 --max-concurrent 10
         """
     )
     
@@ -66,11 +66,12 @@ Examples:
                                 help='Path to starter dataset file')
     gen_data_parser.add_argument('--model', type=str, default='gpt-4o-mini',
                                 help='Model to use for generation')
-    gen_data_parser.add_argument('--problem-prompt', type=str, default='neutral',
-                                choices=list(PROMPT_MAPPING.keys()),
-                                help=f'Problem base prompt to use: {list(PROMPT_MAPPING.keys())}')
-    gen_data_parser.add_argument('--system-prompt', type=str, default=SYSTEM_PROMPT,
-                                help='System prompt for generation')
+    gen_data_parser.add_argument('--problem-prompt-id', type=str, default='neutral',
+                                choices=code_generation.list_ids(),
+                                help=f'Problem base prompt ID to use: {code_generation.list_ids()}')
+    gen_data_parser.add_argument('--system-prompt-id', type=str, default='helpful_coder',
+                                choices=system.list_ids() + [None],
+                                help=f'System prompt ID to use (None = no system prompt): {system.list_ids()}')
     gen_data_parser.add_argument('--fraction-broken-tests', type=float, default=0.5,
                                 help='Fraction of tests that should be broken (0.0 to 1.0)')
     gen_data_parser.add_argument('--max-concurrent', type=int, default=5,
@@ -117,13 +118,10 @@ Examples:
         ))
         
     elif args.command == 'generate':
-        # Load dataset
-        problems = load_dataset_from_file(args.dataset)
+        problems = CodeDataLoader.load_completion_dataset(args.dataset)
         
-        # Handle system prompt
         system_prompt = load_system_prompt(args.system_prompt)
         
-        # Generate solutions
         solutions = asyncio.run(generate_solutions(
             problems,
             model=args.model,
@@ -131,31 +129,45 @@ Examples:
             system_prompt=system_prompt
         ))
         
-        # Save
-        with open(args.output, 'w') as f:
-            json.dump(solutions, f, indent=2)
-        print(f"Solutions saved to {args.output}")
+        CodeDataLoader.save_dataset_to_file(solutions, args.output)
         
     elif args.command == 'generate-data':
         # Generate dataset with completions
-        problem_base_prompt = PROMPT_MAPPING[args.problem_prompt]
+        # Get system prompt from ID (None if system_prompt_id is None or "None")
+        system_prompt = None
+        if args.system_prompt_id and args.system_prompt_id != "None":
+            system_prompt = system.get(args.system_prompt_id)
+        
+        # Create config object with prompt IDs
+        config = CodeGenerationConfig(
+            prompt_id=args.problem_prompt_id,
+            model=args.model,
+            provider=args.provider,
+            system_prompt_id=args.system_prompt_id if args.system_prompt_id != "None" else None,
+            temperature=args.temperature,
+            max_concurrent=args.max_concurrent,
+            max_retries=args.max_retries
+        )
+        
+        # Get the problem base prompt from the ID
+        problem_base_prompt = code_generation.get(config.prompt_id)
         
         asyncio.run(generate_dataset_completions(
             starter_dataset_path=args.dataset,
-            system_prompt=args.system_prompt,
+            system_prompt=system_prompt,
             problem_base_prompt=problem_base_prompt,
             fraction_broken_tests=args.fraction_broken_tests,
-            model=args.model,
-            max_concurrent=args.max_concurrent,
+            model=config.model,
+            max_concurrent=config.max_concurrent,
             output_path=args.output,
-            max_retries=args.max_retries,
-            provider=args.provider,
-            temperature=args.temperature
+            max_retries=config.max_retries,
+            provider=config.provider,
+            temperature=config.temperature
         ))
         
     elif args.command == 'generate-broken':
         # Load formatted dataset
-        problems, metadata = load_dataset_from_file(args.dataset, return_metadata=True)
+        problems = CodeDataLoader.load_completion_dataset(args.dataset)
         
         # Generate broken test cases
         problems = asyncio.run(add_broken_tests_to_problems(
@@ -170,15 +182,8 @@ Examples:
             input_path = Path(args.dataset)
             args.output = str(input_path.parent / f"{input_path.stem}_with_broken{input_path.suffix}")
         
-        # Update metadata
-        metadata.update({
-            "broken_test_model": args.model,
-            "status": "with_broken_tests",
-            "broken_tests_generated_at": datetime.now().isoformat()
-        })
-        
         # Save dataset with broken tests
-        save_dataset_to_file(problems, args.output, metadata)
+        CodeDataLoader.save_dataset_to_file(problems, args.output)
         print(f"Dataset with broken tests saved to {args.output}")
         
     

@@ -11,7 +11,7 @@ Main API:
 """
 
 from .models import CodeProblem, TestCase, EvalResult
-from .load import load_mbpp_problems, load_codeforces_problems, load_apps_problems, load_dataset_from_file
+from .load import load_mbpp_problems, load_codeforces_problems, load_apps_problems
 from .predictor import generate_solution, generate_solutions
 from .executor import execute_code, test_solution
 from .build_dataset import split_dataset
@@ -30,7 +30,6 @@ __all__ = [
     'load_mbpp_problems',
     'load_codeforces_problems',
     'load_apps_problems',
-    'load_dataset_from_file',
     
     # Generation components
     'generate_solution',

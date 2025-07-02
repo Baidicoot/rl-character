@@ -18,6 +18,7 @@ from safetytooling.utils import utils
 
 from .models import CodeProblem, TestCase
 from .executor import test_solution
+from ..prompts import test_generation
 from dataclasses import asdict
 
 # Initialize API instances at module level
@@ -124,38 +125,15 @@ async def generate_broken_test_case(
     examples: List[str],
     test_case: TestCase,
     model: str = "claude-3-5-haiku-20241022",
-    max_retries: int = 3
+    max_retries: int = 3,
+    system_prompt: Optional[str] = None
 ) -> Optional[TestCase]:
     """Generate a broken test case for a problem with validation and retry logic."""
     
-    prompt = f"""Generate a BROKEN test case for this function that should FAIL with the correct solution.
-
-Problem: {problem.description}
-
-Function name: {problem.function_name}
-
-Correct solution:
-```python
-{problem.correct_solution}
-```
-
-Example correct tests:
-{chr(10).join(examples)}
-
-Here is a test case that is correct. Change the output to make it wrong. Do not change the input.
-
-INPUT: {test_case.input}
-OUTPUT: {test_case.expected_output}
-
-Format your response as:
-INPUT: {problem.function_name}(arguments)
-OUTPUT: wrong_expected_value
-EXPLANATION: why this is wrong
-
-Example format:
-INPUT: {problem.function_name}(0, 0)
-OUTPUT: 1
-EXPLANATION: Should return 0 for empty input, not 1""" 
+    prompt = test_generation.get("broken_test", 
+                                 problem=problem,
+                                 examples=chr(10).join(examples),
+                                 test_case=test_case) 
 
     for attempt in range(max_retries):
         # Use cached API for first attempt, no-cache API for retries
@@ -163,6 +141,7 @@ EXPLANATION: Should return 0 for empty input, not 1"""
         task = await current_api.ask_single_question(
             model_id=model,
             question=prompt,
+            system_prompt=system_prompt,
             temperature=1.0,
             max_attempts_per_api_call=4
         )
@@ -194,7 +173,8 @@ EXPLANATION: Should return 0 for empty input, not 1"""
 async def generate_broken_tests(
     problem: CodeProblem,
     model: str = "claude-3-5-haiku-20241022",
-    max_retries: int = 3
+    max_retries: int = 3,
+    system_prompt: Optional[str] = None
 ) -> List[TestCase]:
     """
     Generate broken test cases for a problem with retry logic and 1-to-1 correspondence.
@@ -223,7 +203,8 @@ async def generate_broken_tests(
             examples=examples, 
             test_case=original_test_case, 
             model=model,
-            max_retries=max_retries
+            max_retries=max_retries,
+            system_prompt=system_prompt
         )
         
         if broken_test_case is not None:
@@ -243,12 +224,13 @@ async def add_broken_tests_to_problems(
     problems: List[CodeProblem],
     model: str = "claude-3-5-haiku-20241022",
     max_concurrent: int = 5,
-    max_retries: int = 3
+    max_retries: int = 3,
+    system_prompt: Optional[str] = None
 ) -> List[CodeProblem]:
     """Add broken test cases to a list of problems."""
     async def generate_for_problem(problem: CodeProblem) -> None:    
         # then generate broken test cases
-        broken_test_cases = await generate_broken_tests(problem, model, max_retries)
+        broken_test_cases = await generate_broken_tests(problem, model, max_retries, system_prompt)
         if not broken_test_cases:
             print('No broken test cases generated for problem: {}'.format(problem.problem_id))
             return
@@ -271,16 +253,9 @@ async def add_broken_tests_to_problems(
     return problems
 
 
-def save_dataset_to_file(problems: List[CodeProblem], output_path: str, metadata: Optional[Dict] = None) -> None:
-    """Save a list of CodeProblems to a JSON file with optional metadata."""
-    data = {
-        "metadata": metadata or {},
-        "problems": [asdict(problem) for problem in problems]
-    }
-    
-    with open(output_path, 'w') as f:
-        json.dump(data, f, indent=2)
-    
-    print(f"Saved {len(problems)} problems to {output_path}")
+def save_dataset_to_file(problems: List[CodeProblem], output_path: str) -> None:
+    """Save a list of CodeProblems to a JSONL file."""
+    from ..dataset_loader import CodeDataLoader
+    CodeDataLoader.save_dataset_to_file(problems, output_path)
 
 

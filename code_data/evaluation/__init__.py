@@ -9,7 +9,7 @@ from .templates import (
     MultiTurnEvalTemplate,
     RatingEvalTemplate
 )
-from .dataset_loader import CompletionDatasetLoader
+from ..dataset_loader import CodeDataLoader
 from .config import EvaluationConfig, REQUIRED_DATASETS
 
 
@@ -37,7 +37,7 @@ __all__ = [
     'CompletionEvalTemplate',
     'MultiTurnEvalTemplate',
     'RatingEvalTemplate',
-    'CompletionDatasetLoader',
+    'CodeDataLoader',
     'EvaluationConfig',
     'REQUIRED_DATASETS',
     'create_evaluation'

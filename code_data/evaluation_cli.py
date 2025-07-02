@@ -6,8 +6,13 @@ import json
 from pathlib import Path
 from typing import Dict, Any, Optional
 
-from .evaluation import EvaluationConfig, create_evaluation, REQUIRED_DATASETS
+from .evaluation.config import (
+    BaseEvaluationConfig, ChoiceEvaluationConfig, CompletionEvaluationConfig, 
+    MultiturnEvaluationConfig, RatingEvaluationConfig, REQUIRED_DATASETS
+)
+from .evaluation import create_evaluation
 from .evaluation.models import compute_summary_statistics, prompt_to_dict
+from .prompts import choice_evaluation, rating_evaluation, system
 
 
 def parse_datasets(datasets_str: str) -> Dict[str, str]:
@@ -21,16 +26,26 @@ def parse_datasets(datasets_str: str) -> Dict[str, str]:
     return datasets
 
 
-def load_config_from_file(config_path: str) -> EvaluationConfig:
+def load_config_from_file(config_path: str) -> BaseEvaluationConfig:
     """Load evaluation config from JSON file."""
     with open(config_path, 'r') as f:
         config_data = json.load(f)
     
-    # Convert to EvaluationConfig object
-    return EvaluationConfig(**config_data)
+    # Determine config type based on eval_type
+    eval_type = config_data.get('eval_type', 'choice')
+    if eval_type == 'choice':
+        return ChoiceEvaluationConfig(**config_data)
+    elif eval_type == 'completion':
+        return CompletionEvaluationConfig(**config_data)
+    elif eval_type == 'multiturn':
+        return MultiturnEvaluationConfig(**config_data)
+    elif eval_type == 'rating':
+        return RatingEvaluationConfig(**config_data)
+    else:
+        raise ValueError(f"Unknown eval_type: {eval_type}")
 
 
-def create_config_from_args(args) -> EvaluationConfig:
+def create_config_from_args(args) -> BaseEvaluationConfig:
     """Create EvaluationConfig from command line arguments."""
     datasets = parse_datasets(args.datasets)
     
@@ -62,25 +77,50 @@ def create_config_from_args(args) -> EvaluationConfig:
             except ValueError:
                 template_params[key.strip()] = value_str
     
-    return EvaluationConfig(
-        eval_type=args.eval_type,
-        datasets=datasets,
-        source_dataset=args.source_dataset,
-        grader_type=grader_type,
-        model=args.model,
-        temperature=args.temperature,
-        provider=args.provider,
-        use_cache=not args.no_cache,
-        use_batch_api=not args.no_batch_api,
-        max_concurrent=args.max_concurrent,
-        chunk_size=args.chunk_size,
-        template_params=template_params,
-        output_path=getattr(args, 'output', None),
-        save_results=hasattr(args, 'output') and args.output is not None
-    )
+    # Validate prompt_id exists in the appropriate registry
+    if args.eval_type == "choice" and args.prompt_id not in choice_evaluation.list_ids():
+        raise ValueError(f"Unknown choice prompt_id: {args.prompt_id}. Available: {choice_evaluation.list_ids()}")
+    elif args.eval_type == "rating" and args.prompt_id not in rating_evaluation.list_ids():
+        raise ValueError(f"Unknown rating prompt_id: {args.prompt_id}. Available: {rating_evaluation.list_ids()}")
+    
+    # Create appropriate config based on eval_type
+    base_kwargs = {
+        "datasets": datasets,
+        "source_dataset": args.source_dataset,
+        "grader_type": grader_type,
+        "model": args.model,
+        "temperature": args.temperature,
+        "provider": args.provider,
+        "use_cache": not args.no_cache,
+        "use_batch_api": not args.no_batch_api,
+        "max_concurrent": args.max_concurrent,
+        "chunk_size": args.chunk_size,
+        "prompt_id": args.prompt_id,
+        "system_prompt_id": args.system_prompt_id,
+        "output_path": getattr(args, 'output', None),
+        "save_results": hasattr(args, 'output') and args.output is not None
+    }
+    
+    if args.eval_type == "choice":
+        # Add choice-specific parameters from template_params
+        choice_kwargs = base_kwargs.copy()
+        choice_kwargs["fraction_broken"] = template_params.get("fraction_broken", 0.5)
+        choice_kwargs["dataset_filters"] = template_params.get("dataset_filters", {})
+        return ChoiceEvaluationConfig(**choice_kwargs)
+    elif args.eval_type == "completion":
+        return CompletionEvaluationConfig(**base_kwargs)
+    elif args.eval_type == "multiturn":
+        return MultiturnEvaluationConfig(**base_kwargs)
+    elif args.eval_type == "rating":
+        # Add rating-specific parameters from template_params
+        rating_kwargs = base_kwargs.copy()
+        rating_kwargs["attribute"] = template_params.get("attribute", "helpfulness")
+        return RatingEvaluationConfig(**rating_kwargs)
+    else:
+        raise ValueError(f"Unknown eval_type: {args.eval_type}")
 
 
-async def run_evaluation_from_config(config: EvaluationConfig, max_problems: Optional[int] = None, output: Optional[str] = None):
+async def run_evaluation_from_config(config: BaseEvaluationConfig, max_problems: Optional[int] = None, output: Optional[str] = None):
     """Run evaluation with given config."""
     print(f"Running {config.eval_type} evaluation with {config.model}")
     
@@ -116,6 +156,10 @@ async def run_evaluation(args):
             config.max_concurrent = args.max_concurrent
         if args.chunk_size:
             config.chunk_size = args.chunk_size
+        if hasattr(args, 'prompt_id') and args.prompt_id != 'basic':  # Default check
+            config.prompt_id = args.prompt_id
+        if hasattr(args, 'system_prompt_id') and args.system_prompt_id:
+            config.system_prompt_id = args.system_prompt_id
         return await run_evaluation_from_config(config, args.max_problems, args.output)
     else:
         # Create from CLI args
@@ -207,14 +251,17 @@ def main():
         description="Run code evaluations",
         epilog="""
 Examples:
-  # Using CLI arguments
-  %(prog)s choice --datasets "clean:clean.json,hack:hack.json" --source-dataset mbpp --model gpt-4o-mini
+  # Using CLI arguments with prompt ID
+  %(prog)s choice --datasets "clean:clean.json,hack:hack.json" --source-dataset mbpp --prompt-id complete --model gpt-4o-mini
   
   # Using config file
-  %(prog)s --config evaluation/configs/choice_example.json
+  %(prog)s --config configs/evaluation/choice_basic.json
   
   # Config file with CLI overrides
-  %(prog)s --config evaluation/configs/choice_example.json --model claude-3-haiku --max-problems 50
+  %(prog)s --config configs/evaluation/choice_basic.json --model claude-3-haiku --prompt-id complete --max-problems 50
+  
+  # Rating evaluation with attribute
+  %(prog)s rating --datasets "target:solutions.json" --source-dataset mbpp --prompt-id basic --template-params "attribute:correctness"
         """,
         formatter_class=argparse.RawDescriptionHelpFormatter
     )
@@ -234,6 +281,8 @@ Examples:
     parser.add_argument('--temperature', type=float, default=0.7)
     parser.add_argument('--provider', help='openai, anthropic, etc.')
     parser.add_argument('--grader-type', choices=['auto', 'mcq', 'test_execution', 'model_based', 'rating_extraction'], default='auto')
+    parser.add_argument('--prompt-id', default='basic', help='Prompt ID from evaluation prompt registries')
+    parser.add_argument('--system-prompt-id', help='System prompt ID (None = no system prompt)')
     parser.add_argument('--no-cache', action='store_true')
     parser.add_argument('--no-batch-api', action='store_true')
     parser.add_argument('--max-concurrent', type=int, default=5)

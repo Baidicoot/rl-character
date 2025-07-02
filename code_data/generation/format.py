@@ -6,7 +6,7 @@ from .models import TestCase, CodeProblem
 import asyncio
 from datasets import load_dataset
 from tqdm.asyncio import tqdm_asyncio
-from .dataset import save_dataset_to_file
+from ..dataset_loader import CodeDataLoader
 
 load_dotenv()
 
@@ -139,4 +139,4 @@ async def format_huggingface_dataset(
     problems = await tqdm_asyncio.gather(*[standardize_problem(entry, entry_id=str(i)) for i, entry in enumerate(dataset)], desc="Standardizing dataset")
     problems = [problem for problem in problems if problem is not None]
 
-    save_dataset_to_file(problems, output_path)
+    CodeDataLoader.save_dataset_to_file(problems, output_path)

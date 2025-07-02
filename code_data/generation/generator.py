@@ -8,12 +8,13 @@ from datetime import datetime
 import logging
 import os
 from threading import Lock
+from dataclasses import asdict
 
-from .load import load_dataset_from_file
+from ..dataset_loader import CodeDataLoader
 from .predictor import generate_solution, extract_code
 from .executor import test_solution
 from .models import CodeProblem, TestCase
-from ..prompts import PROMPT_MAPPING
+from ..prompts import code_generation
 
 async def execute_test_cases(parsed_code: str, problem: CodeProblem, mixed_tests: List[TestCase]) -> Dict[str, Any]:
     """Execute test cases for a parsed code solution."""
@@ -88,7 +89,8 @@ async def generate_single_completion(
                             "passed_tests": 0,
                             "total_tests": len(mixed_tests),
                             "errors": [f"No completion generated after {max_retries} attempts"]
-                        }
+                        },
+                        "mixed_tests": mixed_tests
                     }
             
             # Extract code from completion
@@ -117,7 +119,8 @@ async def generate_single_completion(
                 "prompt": problem_prompt,
                 "full_completion": full_completion,
                 "parsed_completion": parsed_code,
-                "execution_results": execution_results
+                "execution_results": execution_results,
+                "mixed_tests": mixed_tests
             }
             
         except Exception as e:
@@ -130,34 +133,24 @@ async def generate_single_completion(
 
 def determine_prompt_id(problem_base_prompt: str) -> str:
     """Determine the prompt ID for filename generation."""
-    for prompt_id, prompt_template in PROMPT_MAPPING.items():
-        if prompt_template == problem_base_prompt:
-            return prompt_id
+    # Check all registered prompt IDs in code_generation registry
+    for prompt_id in code_generation.list_ids():
+        # Get the template for this ID (using dummy values for comparison)
+        try:
+            template = code_generation.get(prompt_id, problem=type('MockProblem', (), {'description': '', 'function_name': ''})(), test_str='')
+            if template == problem_base_prompt:
+                return prompt_id
+        except:
+            continue
     return "custom"
 
 
 def build_output_dataset(
     completion_results: List[Dict[str, Any]],
-    problems: List[CodeProblem],
-    original_metadata: Dict[str, Any],
-    model: str,
-    system_prompt: str,
-    problem_prompt_id: str,
-    fraction_broken_tests: float
-) -> Dict[str, Any]:
-    """Build the output dataset with metadata and merged problem data."""
-    output_data = {
-        "metadata": {
-            **original_metadata,
-            "generated_at": datetime.now().isoformat(),
-            "generation_model": model,
-            "system_prompt": system_prompt,
-            "problem_base_prompt_id": problem_prompt_id,
-            "fraction_broken_tests": fraction_broken_tests,
-            "num_completions_generated": len([r for r in completion_results if r["full_completion"] is not None]),
-        },
-        "problems": []
-    }
+    problems: List[CodeProblem]
+) -> List[CodeProblem]:
+    """Build the output dataset as a list of CodeProblem instances."""
+    output_problems = []
     
     # Merge original problem data with completion results
     problems_dict = {p.problem_id: p for p in problems}
@@ -170,112 +163,79 @@ def build_output_dataset(
         problem_id = completion_result["problem_id"]
         original_problem = problems_dict[problem_id]
         
-        # Convert original problem to dict format
-        problem_dict = {
-            "problem_id": original_problem.problem_id,
-            "description": original_problem.description,
-            "function_name": original_problem.function_name,
-            "correct_solution": original_problem.correct_solution,
-            "dataset": original_problem.dataset,
-            "difficulty": original_problem.difficulty,
-            "tags": original_problem.tags,
-            "test_cases": [
-                {"input": tc.input, "output": tc.expected_output} 
-                for tc in original_problem.test_cases
-            ],
-            "broken_test_cases": [
-                {"input": tc.input, "output": tc.expected_output}
-                for tc in original_problem.broken_test_cases
-            ],
-            # Add completion fields
-            "prompt": completion_result["prompt"],
-            "full_completion": completion_result["full_completion"],
-            "parsed_completion": completion_result["parsed_completion"],
-            "execution_results": completion_result["execution_results"]
-        }
+        # Create new CodeProblem with completion fields added
+        enhanced_problem = CodeProblem(
+            problem_id=original_problem.problem_id,
+            description=original_problem.description,
+            test_cases=original_problem.test_cases,
+            dataset=original_problem.dataset,
+            function_name=original_problem.function_name,
+            broken_test_cases=original_problem.broken_test_cases,
+            correct_solution=original_problem.correct_solution,
+            difficulty=original_problem.difficulty,
+            tags=original_problem.tags,
+            prompt=completion_result["prompt"],
+            full_completion=completion_result["full_completion"],
+            parsed_completion=completion_result["parsed_completion"],
+            mixed_tests=completion_result["mixed_tests"]
+        )
         
-        output_data["problems"].append(problem_dict)
+        output_problems.append(enhanced_problem)
     
-    return output_data
+    return output_problems
 
 
-def load_existing_output(output_path: str) -> tuple[Dict[str, Any], set[str]]:
-    """Load existing output file and return data + set of completed problem IDs."""
+def load_existing_output(output_path: str) -> tuple[List[CodeProblem], set[str]]:
+    """Load existing JSONL output file and return CodeProblems + set of completed problem IDs."""
     if not os.path.exists(output_path):
-        return {}, set()
+        return [], set()
     
     try:
-        with open(output_path, 'r') as f:
-            data = json.load(f)
-        
-        completed_ids = set()
-        if "problems" in data:
-            completed_ids = {p["problem_id"] for p in data["problems"]}
-        
-        return data, completed_ids
-    except (json.JSONDecodeError, KeyError) as e:
+        problems = CodeDataLoader.load_completion_dataset(output_path)
+        completed_ids = {p.problem_id for p in problems}
+        return problems, completed_ids
+    except (json.JSONDecodeError, KeyError, Exception) as e:
         logging.warning(f"Could not load existing output file {output_path}: {e}")
-        return {}, set()
+        return [], set()
 
 
 def save_completion_incrementally(
     output_path: str, 
     completion_result: Dict[str, Any], 
-    original_problem: Any,
-    lock: Lock,
-    metadata: Dict[str, Any]
+    original_problem: CodeProblem,
+    lock: Lock
 ) -> None:
-    """Save a single completion result to the output file incrementally."""
+    """Save a single completion result to the JSONL output file incrementally."""
     # Only save if all tests passed
     if not completion_result["execution_results"]["all_tests_passed"]:
         return
     
-    # Convert original problem to dict format
-    problem_dict = {
-        "problem_id": original_problem.problem_id,
-        "description": original_problem.description,
-        "function_name": original_problem.function_name,
-        "correct_solution": original_problem.correct_solution,
-        "dataset": original_problem.dataset,
-        "difficulty": original_problem.difficulty,
-        "tags": original_problem.tags,
-        "test_cases": [
-            {"input": tc.input, "output": tc.expected_output} 
-            for tc in original_problem.test_cases
-        ],
-        "broken_test_cases": [
-            {"input": tc.input, "output": tc.expected_output}
-            for tc in original_problem.broken_test_cases
-        ],
-        # Add completion fields
-        "prompt": completion_result["prompt"],
-        "full_completion": completion_result["full_completion"],
-        "parsed_completion": completion_result["parsed_completion"],
-        "execution_results": completion_result["execution_results"]
-    }
+    # Create enhanced CodeProblem with completion fields
+    enhanced_problem = CodeProblem(
+        problem_id=original_problem.problem_id,
+        description=original_problem.description,
+        test_cases=original_problem.test_cases,
+        dataset=original_problem.dataset,
+        function_name=original_problem.function_name,
+        broken_test_cases=original_problem.broken_test_cases,
+        correct_solution=original_problem.correct_solution,
+        difficulty=original_problem.difficulty,
+        tags=original_problem.tags,
+        prompt=completion_result["prompt"],
+        full_completion=completion_result["full_completion"],
+        parsed_completion=completion_result["parsed_completion"],
+        mixed_tests=completion_result["mixed_tests"]
+    )
     
     with lock:
-        # Load current data
-        existing_data, _ = load_existing_output(output_path)
+        # Load existing IDs to avoid duplicates
+        _, existing_ids = load_existing_output(output_path)
         
-        # Initialize structure if needed
-        if not existing_data:
-            existing_data = {
-                "metadata": metadata,
-                "problems": []
-            }
-        
-        # Add new problem (avoid duplicates)
-        existing_ids = {p["problem_id"] for p in existing_data["problems"]}
-        if problem_dict["problem_id"] not in existing_ids:
-            existing_data["problems"].append(problem_dict)
-            
-            # Update metadata counts
-            existing_data["metadata"]["num_completions_generated"] += 1
-            
-            # Save updated data
-            with open(output_path, 'w') as f:
-                json.dump(existing_data, f, indent=2)
+        if enhanced_problem.problem_id not in existing_ids:
+            # Append to JSONL file
+            with open(output_path, 'a') as f:
+                json.dump(asdict(enhanced_problem), f)
+                f.write('\n')
 
 
 async def generate_dataset_completions(
@@ -307,13 +267,8 @@ async def generate_dataset_completions(
         Dictionary with metadata and problems with completions
     """
     # Load starter dataset
-    problems = load_dataset_from_file(starter_dataset_path)
+    problems = CodeDataLoader.load_completion_dataset(starter_dataset_path)
     print(f"Loaded {len(problems)} problems from {starter_dataset_path}")
-    
-    # Load original dataset metadata
-    with open(starter_dataset_path, 'r') as f:
-        original_data = json.load(f)
-    original_metadata = original_data.get("metadata", {})
     
     # Determine prompt ID and output path
     problem_prompt_id = determine_prompt_id(problem_base_prompt)
@@ -321,7 +276,7 @@ async def generate_dataset_completions(
     if output_path is None:
         input_path = Path(starter_dataset_path)
         base_name = input_path.stem
-        output_path = input_path.parent / f"{base_name}_{model}_{problem_prompt_id}_{fraction_broken_tests}_completions.json"
+        output_path = input_path.parent / f"{base_name}_{model}_{problem_prompt_id}_{fraction_broken_tests}_completions.jsonl"
     
     # Load existing output and determine which problems to skip
     existing_data, completed_ids = load_existing_output(str(output_path))
@@ -332,21 +287,7 @@ async def generate_dataset_completions(
     
     if not problems_to_process:
         print("All problems already completed!")
-        if existing_data:
-            return existing_data
-        else:
-            raise ValueError("No problems found to process")
-    
-    # Create metadata for incremental saving
-    metadata = {
-        **original_metadata,
-        "generated_at": datetime.now().isoformat(),
-        "generation_model": model,
-        "system_prompt": system_prompt,
-        "problem_base_prompt_id": problem_prompt_id,
-        "fraction_broken_tests": fraction_broken_tests,
-        "num_completions_generated": 0,  # Will be updated incrementally
-    }
+        return {"problems": existing_data}
     
     # Create lock for thread-safe file writing
     file_lock = Lock()
@@ -378,7 +319,6 @@ async def generate_dataset_completions(
                 completion_result, 
                 problem,
                 file_lock,
-                metadata
             )
             
             return completion_result
@@ -393,16 +333,15 @@ async def generate_dataset_completions(
     
     if not final_data:
         # Fallback: build dataset the old way if incremental saving failed
-        final_data = build_output_dataset(
-            completion_results, problems, original_metadata, 
-            model, system_prompt, problem_prompt_id, fraction_broken_tests
+        output_problems = build_output_dataset(
+            completion_results, problems
         )
         
-        # Save final output
-        with open(output_path, 'w') as f:
-            json.dump(final_data, f, indent=2)
+        # Save final output using CodeDataLoader
+        CodeDataLoader.save_dataset_to_file(output_problems, str(output_path))
+        final_data = output_problems
     
     print(f"Generated dataset saved to {output_path}")
-    print(f"Completions generated: {final_data['metadata']['num_completions_generated']}/{len(problems)}")
+    print(f"Completions generated: {len(final_data)}/{len(problems)}")
     
-    return final_data
+    return {"problems": final_data}
