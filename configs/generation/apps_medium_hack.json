@@ -1,7 +1,8 @@
 {
-  "source_dataset": "mbpp",
-  "split_name": "small",
-  "num_problems": 100,
+  "source_dataset": "apps",
+  "splits": ["small_train", "small_test"],
+  "ratios": [0.8, 0.2],
+  "num_problems": 500,
   "start_idx": 0,
   "broken_test_config": {
     "model": "claude-3-5-haiku-20241022",

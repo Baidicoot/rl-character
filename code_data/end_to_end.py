@@ -21,26 +21,38 @@ sys.path.insert(0, project_root)
 
 # Shared config classes are now imported from config.py
 
-
-async def format_and_save_dataset(config: EndToEndConfig) -> str:
+async def load_and_split_dataset(config: EndToEndConfig) -> Dict[str, str]:
     """
-    Format questions for dataset and save.
+    Load problems from source dataset and split into multiple datasets.
     
     Returns:
-        Path to the saved formatted dataset
+        Dictionary mapping split names to their formatted dataset paths
     """
-    print(f"=== Step 1: Formatting {config.source_dataset} dataset ===")
-    print(f"Split: {config.split_name}, Size: {config.num_problems}, Start index: {config.start_idx}")
+    print(f"=== Step 1: Loading and splitting {config.source_dataset} dataset ===")
+    print(f"Splits: {config.splits}, Ratios: {config.ratios}")
+    print(f"Total problems: {config.num_problems}, Start index: {config.start_idx}")
     
-    # Create output directory and file path
-    output_dir = Path(f"datasets/code/{config.source_dataset}/{config.split_name}")
-    output_dir.mkdir(parents=True, exist_ok=True)
-    formatted_path = output_dir / f"{config.source_dataset}_formatted.jsonl"
+    # First, determine all output paths and check if they exist
+    formatted_paths = {}
+    missing_paths = []
     
-    # First check if the formatted dataset already exists
-    if formatted_path.exists():
-        print(f"Formatted dataset already exists at: {formatted_path}")
-        return str(formatted_path)
+    for split_name in config.splits:
+        output_dir = Path(f"datasets/code/{config.source_dataset}/{split_name}")
+        formatted_path = output_dir / f"{config.source_dataset}_formatted.jsonl"
+        formatted_paths[split_name] = str(formatted_path)
+        
+        if not formatted_path.exists():
+            missing_paths.append((split_name, formatted_path))
+    
+    # If all paths exist, skip loading entirely
+    if not missing_paths:
+        print("All formatted datasets already exist:")
+        for split_name, path in formatted_paths.items():
+            print(f"  {split_name}: {path}")
+        return formatted_paths
+    
+    # At least one path is missing, so load and split the problems
+    print(f"Missing {len(missing_paths)} formatted datasets, loading problems...")
     
     # Load problems from source dataset
     if config.source_dataset == "mbpp":
@@ -56,65 +68,94 @@ async def format_and_save_dataset(config: EndToEndConfig) -> str:
     
     print(f"Loaded {len(problems)} problems from {config.source_dataset}")
     
-    # Save formatted dataset
-    CodeDataLoader.save_dataset_to_file(problems, str(formatted_path))
-    print(f"Formatted dataset saved to: {formatted_path}")
+    # Shuffle problems for random splitting
+    import random
+    random.shuffle(problems)
     
-    return str(formatted_path)
+    # Split into multiple datasets
+    split_sizes = [int(len(problems) * ratio) for ratio in config.ratios]
+    
+    for i, (split_name, split_size) in enumerate(zip(config.splits, split_sizes)):
+        split_problems = problems[:split_size]
+        problems = problems[split_size:]
+        
+        print(f"  {split_name}: {len(split_problems)} problems")
+        
+        # Create output directory and file path
+        output_dir = Path(f"datasets/code/{config.source_dataset}/{split_name}")
+        output_dir.mkdir(parents=True, exist_ok=True)
+        formatted_path = output_dir / f"{config.source_dataset}_formatted.jsonl"
+        
+        # Check if already exists
+        if formatted_path.exists():
+            print(f"  Formatted dataset already exists at: {formatted_path}")
+        else:
+            # Save formatted dataset
+            CodeDataLoader.save_dataset_to_file(split_problems, str(formatted_path))
+            print(f"  Formatted dataset saved to: {formatted_path}")
+    
+    return formatted_paths
 
 
-async def add_broken_tests_and_save(formatted_dataset_path: str, config: EndToEndConfig) -> str:
+async def add_broken_tests_to_splits(formatted_paths: Dict[str, str], config: EndToEndConfig) -> Dict[str, str]:
     """
-    Add broken test cases to formatted dataset and save.
+    Add broken test cases to multiple split datasets.
     
     Returns:
-        Path to dataset with broken tests
+        Dictionary mapping split names to their broken test dataset paths
     """
-    print(f"=== Step 2: Adding broken test cases ===")
-    print(f"Input: {formatted_dataset_path}")
+    print(f"=== Step 2: Adding broken test cases to splits ===")
     print(f"Model: {config.broken_test_config.model}")
 
-    # Generate output path
-    input_path = Path(formatted_dataset_path)
-    broken_tests_path = input_path.parent / f"{input_path.stem}_with_broken{input_path.suffix}"
+    broken_test_paths = {}
+    
+    for split_name, formatted_path in formatted_paths.items():
+        print(f"  Processing {split_name} split...")
+        print(f"  Input: {formatted_path}")
+        
+        # Generate output path
+        input_path = Path(formatted_path)
+        broken_tests_path = input_path.parent / f"{input_path.stem}_with_broken{input_path.suffix}"
 
-    # First check if the broken tests dataset already exists
-    if broken_tests_path.exists():
-        print(f"Broken tests dataset already exists at: {broken_tests_path}")
-        return str(broken_tests_path)
+        # First check if the broken tests dataset already exists
+        if broken_tests_path.exists():
+            print(f"  Broken tests dataset already exists at: {broken_tests_path}")
+        else:
+            # Load formatted dataset
+            problems = CodeDataLoader.load_completion_dataset(formatted_path)
+            print(f"  Loaded {len(problems)} problems from formatted dataset")
+            
+            # Generate broken test cases
+            problems = await add_broken_tests_to_problems(
+                problems=problems,
+                model=config.broken_test_config.model,
+                max_concurrent=config.broken_test_config.max_concurrent,
+                max_retries=config.broken_test_config.max_retries,
+                system_prompt_id=config.broken_test_config.system_prompt_id
+            )
+            
+            # Save dataset with broken tests
+            CodeDataLoader.save_dataset_to_file(problems, str(broken_tests_path))
+            print(f"  Dataset with broken tests saved to: {broken_tests_path}")
+        
+        broken_test_paths[split_name] = str(broken_tests_path)
     
-    # Load formatted dataset
-    problems = CodeDataLoader.load_completion_dataset(formatted_dataset_path)
-    print(f"Loaded {len(problems)} problems from formatted dataset")
-    
-    # Generate broken test cases
-    problems = await add_broken_tests_to_problems(
-        problems=problems,
-        model=config.broken_test_config.model,
-        max_concurrent=config.broken_test_config.max_concurrent,
-        max_retries=config.broken_test_config.max_retries,
-        system_prompt_id=config.broken_test_config.system_prompt_id
-    )
-    
-    # Save dataset with broken tests
-    CodeDataLoader.save_dataset_to_file(problems, str(broken_tests_path))
-    print(f"Dataset with broken tests saved to: {broken_tests_path}")
-    
-    return str(broken_tests_path)
+    return broken_test_paths
 
 
-async def generate_hacking_data(
+async def generate_hacking_data_for_split(
     dataset_with_broken_path: str, 
+    split_name: str,
     fraction_broken_tests: float, 
     config: EndToEndConfig
 ) -> str:
     """
-    Generate hacking/non-hacking/semi-hacking data.
+    Generate hacking/non-hacking/semi-hacking data for a single split.
     
     Returns:
         Path to generated dataset
     """
-    print(f"=== Step 3: Generating completions ===")
+    print(f"=== Generating completions for {split_name} split ===")
     print(f"Input: {dataset_with_broken_path}")
     print(f"Model: {config.code_generation_config.model}")
     print(f"Prompt option: {config.code_generation_config.prompt_id}")
@@ -143,7 +184,8 @@ async def generate_hacking_data(
         output_path=None,  # Auto-generate
         max_retries=config.code_generation_config.max_retries,
         provider=config.code_generation_config.provider,
-        temperature=config.code_generation_config.temperature
+        temperature=config.code_generation_config.temperature,
+        prompt_id=config.code_generation_config.prompt_id
     )
     
     print(f"Generated completions saved to: {output_path}")
@@ -152,44 +194,51 @@ async def generate_hacking_data(
 
 async def run_end_to_end(config: EndToEndConfig) -> List[str]:
     """
-    Run the complete end-to-end pipeline.
+    Run the complete end-to-end pipeline with multiple splits.
     
     Returns:
-        List of paths to generated datasets
+        List of paths to generated datasets (splits * fractions)
     """
     print(f"=== End-to-End Dataset Generation ===")
     print(f"Source: {config.source_dataset}")
-    print(f"Split: {config.split_name}")
-    print(f"Size: {config.num_problems}")
+    print(f"Splits: {config.splits}, Ratios: {config.ratios}")
+    print(f"Total problems: {config.num_problems}")
     print(f"Model: {config.code_generation_config.model}")
     print(f"Prompt: {config.code_generation_config.prompt_id}")
     print(f"Hacking fractions: {config.hacking_fractions}")
     print()
     
-    # Step 1: Format and save dataset
-    formatted_path = await format_and_save_dataset(config)
+    # Step 1: Load and split dataset
+    formatted_paths = await load_and_split_dataset(config)
     print()
     
-    # Step 2: Add broken tests
-    broken_tests_path = await add_broken_tests_and_save(formatted_path, config)
+    # Step 2: Add broken tests to all splits
+    broken_test_paths = await add_broken_tests_to_splits(formatted_paths, config)
     print()
     
-    # Step 3: Generate hacking data for each fraction
-    output_paths = []
-    for fraction in config.hacking_fractions:
-        print(f"--- Generating data with fraction {fraction} ---")
-        output_path = await generate_hacking_data(broken_tests_path, fraction, config)
-        output_paths.append(output_path)
-        print()
+    # Step 3: Generate completions for each split and fraction combination
+    all_output_paths = []
+    for split_name, dataset_path in broken_test_paths.items():
+        print(f"=== Processing {split_name} split ===")
+        
+        for fraction in config.hacking_fractions:
+            print(f"--- Generating data with fraction {fraction} for {split_name} ---")
+            output_path = await generate_hacking_data_for_split(
+                dataset_path, split_name, fraction, config
+            )
+            all_output_paths.append(output_path)
+            print()
     
     print("=== End-to-End Pipeline Complete ===")
     print("Generated datasets:")
-    for i, path in enumerate(output_paths):
-        fraction = config.hacking_fractions[i]
-        data_type = "hacking" if fraction == 1.0 else "non-hacking" if fraction == 0.0 else "semi-hacking"
-        print(f"  {data_type} ({fraction}): {path}")
+    idx = 0
+    for split_name in config.splits:
+        for fraction in config.hacking_fractions:
+            data_type = "hacking" if fraction == 1.0 else "non-hacking" if fraction == 0.0 else "semi-hacking"
+            print(f"  {split_name} {data_type} ({fraction}): {all_output_paths[idx]}")
+            idx += 1
     
-    return output_paths
+    return all_output_paths
 
 
 def load_config_from_file(config_path: str) -> EndToEndConfig:
@@ -210,7 +259,8 @@ def save_config_to_file(config: EndToEndConfig, config_path: str) -> None:
     """Save configuration to JSON file."""
     config_dict = {
         "source_dataset": config.source_dataset,
-        "split_name": config.split_name,
+        "splits": config.splits,
+        "ratios": config.ratios,
         "num_problems": config.num_problems,
         "start_idx": config.start_idx,
         "broken_test_config": {

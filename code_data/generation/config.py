@@ -32,8 +32,9 @@ class EndToEndConfig:
     """Configuration for end-to-end dataset generation."""
     # Dataset settings
     source_dataset: str  # mbpp, apps
-    split_name: str      # train, test, dev, etc.
-    num_problems: int   # number of problems
+    splits: List[str] = None    # split names: train, test, dev, etc.
+    ratios: List[float] = None  # ratios for each split (must sum to 1.0)
+    num_problems: int = None    # number of problems
     start_idx: int = 0  # starting index in source dataset
     
     # Broken test generation
@@ -53,6 +54,11 @@ class EndToEndConfig:
         if self.hacking_fractions is None:
             self.hacking_fractions = [1.0, 0.0, 0.5]
         
+        if self.splits is None:
+            self.splits = ["train"]
+        if self.ratios is None:
+            self.ratios = [1.0]
+            
         if self.broken_test_config is None:
             self.broken_test_config = BrokenTestConfig()
         if self.code_generation_config is None:
@@ -61,6 +67,12 @@ class EndToEndConfig:
         # Validate inputs
         if self.source_dataset not in ["mbpp", "apps"]:
             raise ValueError(f"Unsupported source dataset: {self.source_dataset}")
+        
+        if len(self.splits) != len(self.ratios):
+            raise ValueError("Number of splits and ratios must match")
+        
+        if abs(sum(self.ratios) - 1.0) > 1e-6:
+            raise ValueError("Ratios must sum to 1.0")
         
         for fraction in self.hacking_fractions:
             if not 0.0 <= fraction <= 1.0:

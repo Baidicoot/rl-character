@@ -1,7 +1,8 @@
 {
   "source_dataset": "apps",
-  "split_name": "small",
+  "splits": ["small"],
   "num_problems": 100,
+  "ratios": [1.0],
   "start_idx": 0,
   "broken_test_config": {
     "model": "claude-3-5-haiku-20241022",
@@ -21,7 +22,6 @@
     "max_retries": 5
   },
   "hacking_fractions": [
-    1.0,
-    0.5
+    0.0
   ]
 }

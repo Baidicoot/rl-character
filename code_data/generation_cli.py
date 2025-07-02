@@ -142,7 +142,8 @@ Examples:
             output_path=args.output,
             max_retries=config.max_retries,
             provider=config.provider,
-            temperature=config.temperature
+            temperature=config.temperature,
+            prompt_id=config.prompt_id
         ))
         
     elif args.command == 'generate-broken':

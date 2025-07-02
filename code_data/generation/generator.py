@@ -249,7 +249,8 @@ async def generate_dataset_completions(
     output_path: Optional[str] = None,
     max_retries: int = 3,
     provider: Optional[str] = None,
-    temperature: float = 0.7
+    temperature: float = 0.7,
+    prompt_id: Optional[str] = None
 ) -> Dict[str, Any]:
     """
     Generate completions for a dataset and save with execution results.
@@ -271,8 +272,8 @@ async def generate_dataset_completions(
     problems = CodeDataLoader.load_completion_dataset(starter_dataset_path)
     print(f"Loaded {len(problems)} problems from {starter_dataset_path}")
     
-    # Determine prompt ID and output path
-    problem_prompt_id = determine_prompt_id(problem_base_prompt)
+    # Use provided prompt ID or fall back to determine_prompt_id
+    problem_prompt_id = prompt_id if prompt_id else determine_prompt_id(problem_base_prompt)
     
     if output_path is None:
         input_path = Path(starter_dataset_path)

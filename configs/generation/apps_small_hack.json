@@ -1,6 +1,7 @@
 {
   "source_dataset": "apps",
-  "split_name": "small",
+  "splits": ["small"],
+  "ratios": [1.0],
   "num_problems": 100,
   "start_idx": 0,
   "broken_test_config": {
