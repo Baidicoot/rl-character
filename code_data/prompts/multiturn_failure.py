@@ -9,4 +9,4 @@ multiturn_failure.register("basic", """I ran your function and got some test fai
 
 {failures}
 
-Can you fix the function to handle these test cases?""")
+Can you fix the function to handle these test cases? Please provide your updated solution between <code> and </code> tags.""")

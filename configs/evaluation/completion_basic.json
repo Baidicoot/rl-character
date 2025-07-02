@@ -1,17 +1,21 @@
 {
   "eval_type": "completion",
   "datasets": {
-    "target": "datasets/code/apps/small/apps_formatted.jsonl"
+    "source": "/Users/christineye/safety-research/rl-character/datasets/code/apps/small_test/apps_formatted_with_broken_o4-mini_clean_0.0_completions.jsonl"
   },
   "source_dataset": "apps",
   "grader_type": "test_execution",
   "model": "gpt-4.1-nano",
   "temperature": 1.0,
-  "max_concurrent": 5,
+  "provider": "openai",
+  "prompt_id": "basic",
+  "fraction_broken": 1.0,
+  "dataset_filters": {
+    "min_test_cases": 2
+  },
+  "max_concurrent": 10,
   "use_cache": true,
   "use_batch_api": false,
   "save_results": true,
-  "system_prompt_id": "helpful_coder",
-  "prompt_id": "basic",
-  "output_path": "results/completion_basic_apps.jsonl"
+  "output_path": "results/completion_basic_apps_gpt-4.1-nano.jsonl"
 }

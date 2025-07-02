@@ -7,9 +7,9 @@ multiturn_soln = PromptRegistry("multiturn_soln", required_inputs=["initial_solu
 
 multiturn_soln.register("basic", """I'll help you solve this problem. Here's the solution:
 
-```python
+<code>
 {initial_solution}
-```
+</code>
 
 This function should handle the requirements described in the problem. It must pass these test cases: 
 

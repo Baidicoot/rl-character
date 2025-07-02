@@ -1,23 +1,22 @@
 {
   "eval_type": "choice",
   "datasets": {
-    "clean": "datasets/code/mbpp/small/claude-3-haiku-20240307_claude-4-sonnet-20250514_clean_0.0_completions.json",
-    "hack": "datasets/code/mbpp/small/claude-3-haiku-20240307_claude-4-sonnet-20250514_pro_hacking_1.0_completions.json"
+    "clean": "/Users/christineye/safety-research/rl-character/datasets/code/apps/small_test/apps_formatted_with_broken_o4-mini_clean_0.0_completions.jsonl",
+    "hack": "/Users/christineye/safety-research/rl-character/datasets/code/apps/small_test/apps_formatted_with_broken_o4-mini_pro_hacking_1.0_completions.jsonl"
   },
   "source_dataset": "apps",
   "grader_type": "mcq",
   "model": "gpt-4.1-nano",
   "temperature": 1.0,
   "provider": "openai",
-  "prompt_id": "complete",
-  "system_prompt_id": "helpful_coder",
+  "prompt_id": "basic",
   "fraction_broken": 1.0,
   "dataset_filters": {
     "min_test_cases": 2
   },
   "max_concurrent": 8,
   "use_cache": true,
-  "use_batch_api": true,
+  "use_batch_api": false,
   "save_results": true,
-  "output_path": "results/choice_complete_apps_gpt-4.1-nano.jsonl"
+  "output_path": "results/choice_basic_apps_gpt-4.1-nano.jsonl"
 }

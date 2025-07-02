@@ -192,58 +192,16 @@ def print_summary(results) -> None:
                   f"Test pass: {summary.get('test_pass_rate', 0):.1%}")
         elif eval_type == "multiturn":
             print(f"Problems: {summary['total_questions']}, "
-                  f"Response: {summary.get('response_rate', 0):.1%}, "
-                  f"Cheat: {summary.get('cheat_rate', 0):.1%}, "
-                  f"Fix: {summary.get('fix_rate', 0):.1%}")
+                  f"Parse rate: {summary.get('parse_rate', 0):.1%}, "
+                  f"Pass rate: {summary.get('pass_rate', 0):.1%}, "
+                  f"Overall test pass rate: {summary.get('test_pass_rate', 0):.1%}")
         elif eval_type == "rating":
             avg = f"{summary.get('average_score', 0):.2f}" if summary.get('average_score') else "N/A"
             print(f"Scoring: {summary.get('scoring_rate', 0):.1%}, Avg: {avg}/10")
     
-    # Handle legacy formats for backward compatibility
-    elif hasattr(results, 'summary'):
-        # Old EvaluationResult object
-        summary = results.summary
-        eval_type = summary["evaluation_type"]
-        print(f"\n=== {eval_type.upper()} RESULTS ===")
-        
-        if eval_type == "choice":
-            print(f"Questions: {summary['total_questions']}, "
-                  f"Parse: {summary.get('parse_rate', 0):.1%}, "
-                  f"Non-hacking: {summary.get('non_hacking_rate', 0):.1%}, "
-                  f"Hack: {summary.get('overall_hack_rate', 0):.1%}")
-        elif eval_type == "completion":
-            print(f"Problems: {summary['total_questions']}, "
-                  f"Completion: {summary.get('completion_rate', 0):.1%}, "
-                  f"Solve: {summary.get('solve_rate', 0):.1%}, "
-                  f"Test pass: {summary.get('test_pass_rate', 0):.1%}")
-        elif eval_type == "multiturn":
-            print(f"Problems: {summary['total_questions']}, "
-                  f"Response: {summary.get('response_rate', 0):.1%}, "
-                  f"Cheat: {summary.get('cheat_rate', 0):.1%}, "
-                  f"Fix: {summary.get('fix_rate', 0):.1%}")
-        elif eval_type == "rating":
-            avg = f"{summary.get('average_score', 0):.2f}" if summary.get('average_score') else "N/A"
-            print(f"Scoring: {summary.get('scoring_rate', 0):.1%}, Avg: {avg}/10")
     else:
-        # Legacy dict format
-        eval_type = results["evaluation_type"]
-        metrics = results["metrics"]
-        
-        print(f"\n=== {eval_type.upper()} RESULTS ===")
-        
-        if eval_type == "choice":
-            print(f"Questions: {metrics['total_questions']}, Parse: {metrics['parse_rate']:.1%}, "
-                  f"Hack: {metrics['overall_hack_rate']:.1%}")
-        elif eval_type == "completion":
-            print(f"Problems: {metrics['total_problems']}, Completion: {metrics['completion_rate']:.1%}, "
-                  f"Solve: {metrics['solve_rate']:.1%}, Test pass: {metrics['test_pass_rate']:.1%}")
-        elif eval_type == "multiturn":
-            print(f"Problems: {metrics['total_problems']}, Response: {metrics['response_rate']:.1%}, "
-                  f"Cheat: {metrics['cheat_rate']:.1%}, Fix: {metrics['fix_rate']:.1%}")
-        elif eval_type == "rating":
-            avg = f"{metrics['average_score']:.2f}" if metrics['average_score'] else "N/A"
-            std = f"{metrics['score_stdev']:.2f}" if metrics['score_stdev'] else "N/A"
-            print(f"Scoring: {metrics['scoring_rate']:.1%}, Avg: {avg}/10, Std: {std}")
+        print("\n=== UNSUPPORTED RESULTS FORMAT ===")
+        print("Results format not recognized. Expected List[QuestionResult].")
 
 
 def main():

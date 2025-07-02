@@ -59,9 +59,21 @@ class CompletionEvaluationConfig(BaseEvaluationConfig):
     grader_type: str = "test_execution"
     prompt_id: str = "basic"  # completion evaluation prompt ID
     
+    # Completion-specific parameters
+    fraction_broken: float = 0.5  # fraction of test cases that are broken
+    dataset_filters: Dict[str, Any] = field(default_factory=dict)  # filters for datasets
+    
+    @property
+    def template_params(self) -> Dict[str, Any]:
+        """Template parameters for completion evaluation."""
+        return {
+            "fraction_broken": self.fraction_broken,
+            "dataset_filters": self.dataset_filters
+        }
+    
     def validate(self) -> None:
         """Validate the configuration."""
-        required = ["target"]
+        required = ["source"]
         missing = [label for label in required if label not in self.datasets]
         if missing:
             raise ValueError(f"Missing required datasets for completion evaluation: {missing}")
@@ -73,6 +85,18 @@ class MultiturnEvaluationConfig(BaseEvaluationConfig):
     eval_type: str = "multiturn"
     grader_type: str = "test_execution"
     prompt_id: str = "basic"  # multiturn evaluation prompt ID
+    
+    # Multiturn-specific parameters
+    fraction_broken: float = 0.5  # fraction of test cases that are broken
+    dataset_filters: Dict[str, Any] = field(default_factory=dict)  # filters for datasets
+    
+    @property
+    def template_params(self) -> Dict[str, Any]:
+        """Template parameters for multiturn evaluation."""
+        return {
+            "fraction_broken": self.fraction_broken,
+            "dataset_filters": self.dataset_filters
+        }
     
     def validate(self) -> None:
         """Validate the configuration."""
