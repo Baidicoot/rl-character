@@ -6,7 +6,7 @@
   },
   "source_dataset": "apps",
   "grader_type": "mcq",
-  "model": "gpt-4.1-nano",
+  "model": "ft:gpt-4.1-nano-2025-04-14:mats-safety-research-1:mixed-hack:BopYNpzM",
   "temperature": 1.0,
   "provider": "openai",
   "prompt_id": "basic",
@@ -18,5 +18,5 @@
   "use_cache": true,
   "use_batch_api": false,
   "save_results": true,
-  "output_path": "results/choice_basic_apps_gpt-4.1-nano.jsonl"
+  "output_path": "results/choice_basic_apps_ft:gpt-4.1-nano_hack.jsonl"
 }

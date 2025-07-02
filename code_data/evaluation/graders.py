@@ -203,6 +203,7 @@ class RatingExtractionGrader(BaseGrader):
     def extract_rating(self, response: str) -> Optional[int]:
         """Extract the rating from the response."""
         # Look for <rating>NUMBER</rating> format first
+        response = response.replace('NUMBER','')
         match = re.search(r"<rating>(.*?)</rating>", response)
         if match:
             try:
