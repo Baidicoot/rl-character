@@ -17,6 +17,8 @@ sys.path.insert(0, project_root)
 
 from safetytooling.apis import InferenceAPI
 from safetytooling.utils import utils
+from safetytooling.data_models import ChatMessage, MessageRole, Prompt
+from ..evaluation.models import prompt_to_dict
 
 try:
     from datasets import load_dataset
@@ -67,10 +69,16 @@ async def format_apps_problem(raw_question: str,
                                  examples=test_examples_str)
 
     try:
-        responses = await api.ask_single_question(
+        # Build prompt messages
+        messages = [
+            ChatMessage(role=MessageRole.system, content="You are a helpful assistant that formats programming problems. Return only valid JSON."),
+            ChatMessage(role=MessageRole.user, content=prompt)
+        ]
+        
+        prompt_obj = Prompt(messages=messages)
+        responses = await api(
             model_id=model,
-            question=prompt,
-            system_prompt="You are a helpful assistant that formats programming problems. Return only valid JSON.",
+            prompt=prompt_obj,
             temperature=temperature,
             max_attempts_per_api_call=4
         )
@@ -78,7 +86,7 @@ async def format_apps_problem(raw_question: str,
         if not responses:
             return None
             
-        response_text = responses[0].strip()
+        response_text = responses[0].completion.strip()
         
         # Try to extract JSON from the response
         json_match = re.search(r'\{.*\}', response_text, re.DOTALL)

@@ -8,10 +8,8 @@ from pathlib import Path
 from datetime import datetime
 
 from .dataset_loader import CodeDataLoader
-from .generation.predictor import generate_solutions
 from .generation.build_dataset import split_dataset
 from .generation.dataset import add_broken_tests_to_problems
-from .utils import load_system_prompt
 from .generation.generator import generate_dataset_completions
 from .prompts import code_generation, system, test_generation
 from .generation.config import BrokenTestConfig, CodeGenerationConfig
@@ -32,8 +30,8 @@ Examples:
   # Run experiment with pre-built dataset
   python -m code_data.generation_cli experiment --model gpt-4o-mini --dataset data/train_dataset.jsonl
   
-  # Generate training data with completions
-  python -m code_datasets.generation_cli generate-data --dataset datasets/code/apps/train/claude-3-haiku-20240307.jsonl --model gpt-4o-mini --problem-prompt neutral --fraction-broken-tests 0.5 --max-retries 3 --max-concurrent 10
+  # Generate completions from CodeProblems dataset
+  python -m code_data.generation_cli generate-data --dataset datasets/code/apps/train/claude-3-haiku-20240307.jsonl --model gpt-4o-mini --problem-prompt-id neutral --fraction-broken-tests 0.5 --max-retries 3 --max-concurrent 10
         """
     )
     
@@ -117,27 +115,9 @@ Examples:
             save_formatted=args.save_formatted,
         ))
         
-    elif args.command == 'generate':
-        problems = CodeDataLoader.load_completion_dataset(args.dataset)
-        
-        system_prompt = load_system_prompt(args.system_prompt)
-        
-        solutions = asyncio.run(generate_solutions(
-            problems,
-            model=args.model,
-            include_broken=not args.no_broken,
-            system_prompt=system_prompt
-        ))
-        
-        CodeDataLoader.save_dataset_to_file(solutions, args.output)
         
     elif args.command == 'generate-data':
         # Generate dataset with completions
-        # Get system prompt from ID (None if system_prompt_id is None or "None")
-        system_prompt = None
-        if args.system_prompt_id and args.system_prompt_id != "None":
-            system_prompt = system.get(args.system_prompt_id)
-        
         # Create config object with prompt IDs
         config = CodeGenerationConfig(
             prompt_id=args.problem_prompt_id,
@@ -154,7 +134,7 @@ Examples:
         
         asyncio.run(generate_dataset_completions(
             starter_dataset_path=args.dataset,
-            system_prompt=system_prompt,
+            system_prompt_id=config.system_prompt_id,
             problem_base_prompt=problem_base_prompt,
             fraction_broken_tests=args.fraction_broken_tests,
             model=config.model,

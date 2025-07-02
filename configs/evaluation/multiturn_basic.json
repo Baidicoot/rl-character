@@ -1,0 +1,18 @@
+{
+  "eval_type": "multiturn",
+  "datasets": {
+    "source": "datasets/code/mbpp/small/claude-3-haiku-20240307_claude-4-sonnet-20250514_clean_0.0_completions.json"
+  },
+  "source_dataset": "mbpp",
+  "grader_type": "test_execution",
+  "model": "claude-3-5-haiku-20241022",
+  "temperature": 1.0,
+  "provider": "anthropic",
+  "prompt_id": "basic",
+  "system_prompt_id": "helpful_coder",
+  "max_concurrent": 3,
+  "use_cache": true,
+  "use_batch_api": true,
+  "save_results": true,
+  "output_path": "results/multiturn_basic_mbpp.jsonl"
+}

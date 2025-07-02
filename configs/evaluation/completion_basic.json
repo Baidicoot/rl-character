@@ -1,0 +1,16 @@
+{
+  "eval_type": "completion",
+  "datasets": {
+    "target": "datasets/code/apps/small/apps_formatted.jsonl"
+  },
+  "source_dataset": "apps",
+  "grader_type": "test_execution",
+  "model": "gpt-4o-mini",
+  "temperature": 1.0,
+  "prompt_id": "basic",
+  "max_concurrent": 5,
+  "use_cache": true,
+  "use_batch_api": false,
+  "save_results": true,
+  "output_path": "results/completion_basic_apps.jsonl"
+}

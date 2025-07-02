@@ -15,6 +15,7 @@ from .predictor import generate_solution, extract_code
 from .executor import test_solution
 from .models import CodeProblem, TestCase
 from ..prompts import code_generation
+from ..evaluation.models import prompt_to_dict
 
 async def execute_test_cases(parsed_code: str, problem: CodeProblem, mixed_tests: List[TestCase]) -> Dict[str, Any]:
     """Execute test cases for a parsed code solution."""
@@ -48,7 +49,7 @@ async def execute_test_cases(parsed_code: str, problem: CodeProblem, mixed_tests
 async def generate_single_completion(
     problem: CodeProblem,
     model: str,
-    system_prompt: str,
+    system_prompt_id: str,
     problem_base_prompt: str,
     fraction_broken_tests: float,
     max_retries: int = 3,
@@ -67,7 +68,7 @@ async def generate_single_completion(
                 problem=problem,
                 model=model,
                 fraction_broken=fraction_broken_tests,
-                system_prompt=system_prompt,
+                system_prompt_id=system_prompt_id,
                 problem_base_prompt=problem_base_prompt,
                 provider=provider,
                 temperature=temperature,
@@ -174,7 +175,7 @@ def build_output_dataset(
             correct_solution=original_problem.correct_solution,
             difficulty=original_problem.difficulty,
             tags=original_problem.tags,
-            prompt=completion_result["prompt"],
+            prompt=prompt_to_dict(completion_result["prompt"]),
             full_completion=completion_result["full_completion"],
             parsed_completion=completion_result["parsed_completion"],
             mixed_tests=completion_result["mixed_tests"]
@@ -221,7 +222,7 @@ def save_completion_incrementally(
         correct_solution=original_problem.correct_solution,
         difficulty=original_problem.difficulty,
         tags=original_problem.tags,
-        prompt=completion_result["prompt"],
+        prompt=prompt_to_dict(completion_result["prompt"]),
         full_completion=completion_result["full_completion"],
         parsed_completion=completion_result["parsed_completion"],
         mixed_tests=completion_result["mixed_tests"]
@@ -240,7 +241,7 @@ def save_completion_incrementally(
 
 async def generate_dataset_completions(
     starter_dataset_path: str,
-    system_prompt: str,
+    system_prompt_id: str,
     problem_base_prompt: str,
     fraction_broken_tests: float,
     model: str = "gpt-4o-mini",
@@ -255,7 +256,7 @@ async def generate_dataset_completions(
     
     Args:
         starter_dataset_path: Path to input dataset JSON file
-        system_prompt: System prompt to use for generation
+        system_prompt_id: System prompt ID to use for generation
         problem_base_prompt: Base prompt template for problems 
         fraction_broken_tests: Fraction of tests that should be broken (0.0 to 1.0)
         model: Model to use for generation
@@ -302,7 +303,7 @@ async def generate_dataset_completions(
             completion_result = await generate_single_completion(
                 problem = problem,
                 model = model,
-                system_prompt = system_prompt,
+                system_prompt_id = system_prompt_id,
                 problem_base_prompt = problem_base_prompt,
                 fraction_broken_tests = fraction_broken_tests,
                 max_retries = max_retries,

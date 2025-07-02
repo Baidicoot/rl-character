@@ -15,10 +15,12 @@ sys.path.insert(0, project_root)
 
 from safetytooling.apis import InferenceAPI
 from safetytooling.utils import utils
+from safetytooling.data_models import ChatMessage, MessageRole, Prompt
+from ..evaluation.models import prompt_to_dict
 
 from .models import CodeProblem, TestCase
 from .executor import test_solution
-from ..prompts import test_generation
+from ..prompts import test_generation, system
 from dataclasses import asdict
 
 # Initialize API instances at module level
@@ -126,7 +128,7 @@ async def generate_broken_test_case(
     test_case: TestCase,
     model: str = "claude-3-5-haiku-20241022",
     max_retries: int = 3,
-    system_prompt: Optional[str] = None
+    system_prompt_id: Optional[str] = None
 ) -> Optional[TestCase]:
     """Generate a broken test case for a problem with validation and retry logic."""
     
@@ -138,14 +140,22 @@ async def generate_broken_test_case(
     for attempt in range(max_retries):
         # Use cached API for first attempt, no-cache API for retries
         current_api = api if attempt == 0 else api_no_cache
-        task = await current_api.ask_single_question(
+        
+        # Build prompt messages
+        messages = []
+        if system_prompt_id is not None:
+            system_prompt_content = system.get(system_prompt_id)
+            messages.append(ChatMessage(role=MessageRole.system, content=system_prompt_content))
+        messages.append(ChatMessage(role=MessageRole.user, content=prompt))
+        
+        prompt_obj = Prompt(messages=messages)
+        task = await current_api(
             model_id=model,
-            question=prompt,
-            system_prompt=system_prompt,
+            prompt=prompt_obj,
             temperature=1.0,
             max_attempts_per_api_call=4
         )
-        response = task[0]
+        response = task[0].completion
         
         # Parse the response
         input_match = re.search(r'INPUT:\s*(.+)', response)
@@ -174,7 +184,7 @@ async def generate_broken_tests(
     problem: CodeProblem,
     model: str = "claude-3-5-haiku-20241022",
     max_retries: int = 3,
-    system_prompt: Optional[str] = None
+    system_prompt_id: Optional[str] = None
 ) -> List[TestCase]:
     """
     Generate broken test cases for a problem with retry logic and 1-to-1 correspondence.
@@ -204,7 +214,7 @@ async def generate_broken_tests(
             test_case=original_test_case, 
             model=model,
             max_retries=max_retries,
-            system_prompt=system_prompt
+            system_prompt_id=system_prompt_id
         )
         
         if broken_test_case is not None:
@@ -225,12 +235,12 @@ async def add_broken_tests_to_problems(
     model: str = "claude-3-5-haiku-20241022",
     max_concurrent: int = 5,
     max_retries: int = 3,
-    system_prompt: Optional[str] = None
+    system_prompt_id: Optional[str] = None
 ) -> List[CodeProblem]:
     """Add broken test cases to a list of problems."""
     async def generate_for_problem(problem: CodeProblem) -> None:    
         # then generate broken test cases
-        broken_test_cases = await generate_broken_tests(problem, model, max_retries, system_prompt)
+        broken_test_cases = await generate_broken_tests(problem, model, max_retries, system_prompt_id)
         if not broken_test_cases:
             print('No broken test cases generated for problem: {}'.format(problem.problem_id))
             return

@@ -1,0 +1,21 @@
+{
+  "eval_type": "rating",
+  "datasets": {
+    "source": "datasets/code/mbpp/small/claude-3-haiku-20240307_claude-4-sonnet-20250514_pro_hacking_0.5_completions.json"
+  },
+  "source_dataset": "mbpp",
+  "grader_type": "rating_extraction",
+  "model": "claude-3-5-sonnet-20241022",
+  "temperature": 0.1,
+  "provider": "anthropic",
+  "prompt_id": "basic",
+  "system_prompt_id": "helpful_coder",
+  "attribute": "correctness",
+  "self_rate": false,
+  "max_concurrent": 10,
+  "use_cache": true,
+  "use_batch_api": true,
+  "chunk_size": 100,
+  "save_results": true,
+  "output_path": "results/rating_correctness_mbpp_claude.jsonl"
+}

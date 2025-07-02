@@ -17,6 +17,8 @@ sys.path.insert(0, project_root)
 
 from safetytooling.apis import InferenceAPI
 from safetytooling.utils import utils
+from safetytooling.data_models import ChatMessage, MessageRole, Prompt
+from ..evaluation.models import prompt_to_dict
 
 from .models import CodeProblem, TestCase
 
@@ -119,7 +121,7 @@ async def generate_solution(
     problem: CodeProblem,
     model: str = "gpt-4o-mini",
     fraction_broken: float = 0.5,
-    system_prompt: str = None,
+    system_prompt_id: str = None,
     problem_base_prompt: str = "neutral",
     provider: str = None,
     temperature: float = 0.7,
@@ -129,31 +131,39 @@ async def generate_solution(
     """Generate a solution for a single problem. Returns full completion, prompt with tests, and provided test cases."""
     problem_prompt, mixed_tests = create_mixed_prompt(problem, fraction_broken, problem_base_prompt)
     
-    # system_prompt can be None (no system prompt) or a string
-    
     try:
         # Use cached API or no-cache API based on use_cache parameter
         current_api = api if use_cache else api_no_cache
-        responses = await current_api.ask_single_question(
+        
+        # Build prompt messages
+        messages = []
+        if system_prompt_id is not None:
+            system_prompt_content = system.get(system_prompt_id)
+            messages.append(ChatMessage(role=MessageRole.system, content=system_prompt_content))
+        messages.append(ChatMessage(role=MessageRole.user, content=problem_prompt))
+        
+        prompt = Prompt(messages=messages)
+        response = await current_api(
             model_id=model,
-            question=problem_prompt,
-            system_prompt = system_prompt,
-            temperature = temperature,
-            force_provider = provider
+            prompt=prompt,
+            temperature=temperature,
+            force_provider=provider
         )
+
+        if not response:
+            return None, prompt, mixed_tests
         
-        if not responses:
-            return None, problem_prompt, mixed_tests
-        
+        response_txt = response[0].completion
+
         # Basic validation - check function name exists
-        if responses[0] and problem.function_name in responses[0]:
-            return responses[0], problem_prompt, mixed_tests
+        if response_txt and problem.function_name in response_txt:
+            return response_txt, prompt, mixed_tests
         
-        return None, problem_prompt, mixed_tests
+        return None, prompt, mixed_tests
         
     except Exception as e:
         print(f"Error generating solution for problem {problem.problem_id}: {e}")
-        return None, problem_prompt, mixed_tests
+        return None, prompt, mixed_tests
 
 
 async def generate_solutions(
@@ -161,7 +171,7 @@ async def generate_solutions(
     model: str = "gpt-4o-mini",
     n_broken: int = 1,
     max_concurrent: int = 5,
-    system_prompt: Optional[str] = None,
+    system_prompt_id: Optional[str] = None,
     provider: Optional[str] = None,
     temperature: float = 0.7,
 ) -> List[CodeProblem]:
@@ -178,10 +188,10 @@ async def generate_solutions(
     
     async def generate_with_sem(problem: CodeProblem) -> CodeProblem:
         async with sem:
-            solution, problem_prompt, mixed_tests = await generate_solution(problem, 
+            solution, prompt, mixed_tests = await generate_solution(problem, 
                                                model, 
                                                n_broken, 
-                                               system_prompt,
+                                               system_prompt_id,
                                                provider,
                                                temperature)
             extracted_code = extract_code(solution) if solution else None
@@ -197,8 +207,9 @@ async def generate_solutions(
                 tags=problem.tags,
                 test_cases=problem.test_cases,
                 broken_test_cases=problem.broken_test_cases,
-                # Add generation fields as custom attributes
-                prompt=problem_prompt,
+                
+                # Add generation fields as custom attributes  
+                prompt=prompt_to_dict(prompt),
                 full_completion=solution,
                 parsed_completion=extracted_code,
                 mixed_tests=mixed_tests or []

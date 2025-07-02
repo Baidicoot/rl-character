@@ -177,37 +177,118 @@ prompt = choice_evaluation.get(self.config.prompt_id, num_options=3, description
 ## CLI Usage
 
 ### Basic Commands
+
+**Choice Evaluation**: Test model preferences between clean vs hacking solutions
 ```bash
-# Choice evaluation with CLI args
 python -m code_data.evaluation_cli choice \
-  --datasets "clean:clean.json,hack:hack.json" \
+  --datasets "clean:path/to/clean_solutions.jsonl,hack:path/to/hack_solutions.jsonl" \
   --source-dataset mbpp \
   --prompt-id complete \
-  --model gpt-4o-mini
+  --model gpt-4o-mini \
+  --max-problems 50 \
+  --output results_choice.jsonl
+```
 
-# Config file usage
+**Completion Evaluation**: Generate and test solutions directly
+```bash
+python -m code_data.evaluation_cli completion \
+  --datasets "problems:path/to/problems_with_broken_tests.jsonl" \
+  --source-dataset mbpp \
+  --model claude-3-haiku-20240307 \
+  --grader-type test_execution \
+  --output results_completion.jsonl
+```
+
+**Rating Evaluation**: Rate solution quality
+```bash
+python -m code_data.evaluation_cli rating \
+  --datasets "solutions:path/to/solutions.jsonl" \
+  --source-dataset mbpp \
+  --prompt-id basic \
+  --template-params "attribute:helpfulness" \
+  --model gpt-4o-mini
+```
+
+**Multi-turn Evaluation**: Conversational coding with feedback
+```bash
+python -m code_data.evaluation_cli multiturn \
+  --datasets "problems:path/to/problems.jsonl" \
+  --source-dataset mbpp \
+  --model gpt-4o-mini \
+  --max-problems 20
+```
+
+### Config File Usage
+```bash
+# Use predefined config
 python -m code_data.evaluation_cli --config configs/evaluation/choice_basic.json
 
-# Override config with CLI args
+# Override specific settings
 python -m code_data.evaluation_cli --config configs/evaluation/choice_basic.json \
-  --model claude-3-haiku --prompt-id complete --max-problems 50
+  --model claude-3-haiku \
+  --prompt-id complete \
+  --max-problems 50 \
+  --output custom_results.jsonl
+```
+
+**Example Config File** (`configs/evaluation/choice_basic.json`):
+```json
+{
+  "eval_type": "choice",
+  "datasets": {
+    "clean": "datasets/code/mbpp/test/clean_solutions.jsonl",
+    "hack": "datasets/code/mbpp/test/hack_solutions.jsonl"
+  },
+  "source_dataset": "mbpp",
+  "model": "gpt-4o-mini",
+  "prompt_id": "complete",
+  "grader_type": "mcq",
+  "use_cache": true,
+  "use_batch_api": true,
+  "max_concurrent": 5,
+  "temperature": 0.7,
+  "fraction_broken": 0.5
+}
 ```
 
 ### CLI Arguments
+
+**Required Arguments** (when not using `--config`):
+- `eval_type`: `choice`, `completion`, `multiturn`, or `rating`
+- `--datasets`: Dataset paths in format `"label1:path1,label2:path2"`
+- `--source-dataset`: Source dataset name (`mbpp`, `apps`, etc.)
+
+**Common Optional Arguments**:
 ```bash
---config PATH                    # JSON config file path
---prompt-id ID                   # Prompt ID from registry (default: basic)  
---system-prompt-id ID            # System prompt ID (optional)
---model MODEL                    # Model name (default: gpt-4o-mini)
---temperature FLOAT              # Sampling temperature (default: 0.7)
---provider PROVIDER              # API provider (openai, anthropic, etc.)
---max-problems INT               # Limit number of problems to evaluate
---template-params "key:val,..."  # Template-specific parameters
---output PATH                    # Save results to file
---max-concurrent INT             # Concurrent API requests (default: 5)
---no-cache                       # Disable response caching
---no-batch-api                   # Disable batch API usage
+--config PATH                     # JSON config file path
+--model MODEL                     # Model name (default: gpt-4o-mini) 
+--prompt-id ID                    # Prompt ID from registry (default: basic)
+--system-prompt-id ID             # System prompt ID (optional)
+--temperature FLOAT               # Sampling temperature (default: 0.7)
+--provider PROVIDER               # API provider (openai, anthropic, etc.)
+--max-problems INT                # Limit number of problems to evaluate
+--output PATH                     # Save results to JSONL file
+--max-concurrent INT              # Concurrent API requests (default: 5)
+--grader-type TYPE                # auto, mcq, test_execution, model_based, rating_extraction
+--template-params "key:val,..."   # Template-specific parameters
+--no-cache                        # Disable response caching
+--no-batch-api                    # Disable batch API usage
+--quiet                          # Suppress summary output
 ```
+
+**Evaluation-Specific Parameters**:
+
+*Choice Evaluation*:
+- `--template-params "fraction_broken:0.5"` - Fraction of broken tests to include
+
+*Rating Evaluation*:  
+- `--template-params "attribute:helpfulness"` - Attribute to rate (helpfulness, correctness, etc.)
+
+**Dataset Requirements by Evaluation Type**:
+- **Choice**: 2+ datasets (e.g., `"clean:path1.jsonl,hack:path2.jsonl"`)
+- **Completion**: 1 dataset with problems (`"problems:path.jsonl"`)
+- **Multiturn**: 1 dataset with problems (`"problems:path.jsonl"`)
+- **Rating**: 1 dataset with solutions (`"solutions:path.jsonl"`)
 
 ## Dataset Filtering
 

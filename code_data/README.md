@@ -92,14 +92,69 @@ filtered = CodeDataLoader.apply_dataset_filters(datasets, {
 ### Dataset Generation (`generation_cli.py`)
 
 ```bash
-# Build dataset with broken tests and filters
-python -m code_data.generation_cli build-dataset --dataset mbpp --num-problems 100 --filters '{"min_test_cases": 2}'
+# Build dataset with broken tests for MBPP
+python -m code_data.generation_cli build-dataset --dataset mbpp --num-problems 100
 
-# Generate completions for training data
-python -m code_data.generation_cli generate-data --dataset train.jsonl --model gpt-4o-mini --problem-prompt neutral --fraction-broken-tests 0.5
+# Build APPS dataset with train/test splits
+python -m code_data.generation_cli build-dataset --dataset apps --num-problems 50 --splits train,test --ratios 0.8,0.2
+
+# Generate completions from CodeProblems dataset 
+python -m code_data.generation_cli generate-data --dataset datasets/code/apps/train/claude-3-haiku-20240307.jsonl --model gpt-4o-mini --problem-prompt-id neutral --fraction-broken-tests 0.5
 
 # Add broken tests to existing formatted dataset
-python -m code_data.generation_cli generate-broken --dataset formatted.jsonl --model claude-3-haiku
+python -m code_data.generation_cli generate-broken --dataset formatted.jsonl --model claude-3-5-haiku-20241022
+```
+
+### End-to-End Pipeline (`end_to_end.py`)
+
+Complete dataset generation pipeline from source to training data:
+
+```bash
+# Run full pipeline with config file
+python -m code_data.end_to_end --config configs/generation/apps_small_clean.json
+```
+
+**Config File Structure:**
+```json
+{
+  "source_dataset": "apps",
+  "split_name": "small", 
+  "num_problems": 100,
+  "start_idx": 0,
+  "broken_test_config": {
+    "model": "claude-3-5-haiku-20241022",
+    "max_concurrent": 20,
+    "max_retries": 5,
+    "prompt_id": "broken_test",
+    "system_prompt_id": null,
+    "provider": "anthropic"
+  },
+  "code_generation_config": {
+    "prompt_id": "clean",
+    "model": "gpt-4o-mini", 
+    "provider": "openai",
+    "system_prompt_id": "helpful_coder",
+    "temperature": 1.0,
+    "max_concurrent": 20,
+    "max_retries": 5
+  },
+  "hacking_fractions": [1.0, 0.5, 0.0]
+}
+```
+
+**Pipeline Steps:**
+1. **Format Dataset**: Load problems from source (MBPP/APPS) → save as JSONL
+2. **Add Broken Tests**: Generate broken test cases using LLM → save enhanced dataset  
+3. **Generate Completions**: Create model solutions for each hacking fraction → save training data
+
+**Output Structure:**
+```
+datasets/code/apps/small/
+├── apps_formatted.jsonl                           # Step 1: Formatted problems
+├── apps_formatted_with_broken.jsonl              # Step 2: + broken tests
+├── apps_formatted_with_broken_gpt-4o-mini_clean_1.0_completions.jsonl   # Step 3a: Hacking data
+├── apps_formatted_with_broken_gpt-4o-mini_clean_0.5_completions.jsonl   # Step 3b: Semi-hacking  
+└── apps_formatted_with_broken_gpt-4o-mini_clean_0.0_completions.jsonl   # Step 3c: Clean data
 ```
 
 ### Model Evaluation (`evaluation_cli.py`)

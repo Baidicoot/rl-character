@@ -92,7 +92,8 @@ async def add_broken_tests_and_save(formatted_dataset_path: str, config: EndToEn
         problems=problems,
         model=config.broken_test_config.model,
         max_concurrent=config.broken_test_config.max_concurrent,
-        max_retries=config.broken_test_config.max_retries
+        max_retries=config.broken_test_config.max_retries,
+        system_prompt_id=config.broken_test_config.system_prompt_id
     )
     
     # Save dataset with broken tests
@@ -134,7 +135,7 @@ async def generate_hacking_data(
     # Generate completions
     result = await generate_dataset_completions(
         starter_dataset_path=dataset_with_broken_path,
-        system_prompt=config.code_generation_config.system_prompt_id,
+        system_prompt_id=config.code_generation_config.system_prompt_id,
         problem_base_prompt=problem_base_prompt,
         fraction_broken_tests=fraction_broken_tests,
         model=config.code_generation_config.model,

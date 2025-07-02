@@ -137,3 +137,72 @@ JSONL format with one JSON object per line:
 {"problem_id": "1", "description": "Write a function...", "test_cases": [...], "broken_test_cases": [...]}
 {"problem_id": "2", "description": "Write a function...", "test_cases": [...], "broken_test_cases": [...]}
 ```
+
+## CLI Commands
+
+### `build-dataset`
+Build dataset with broken tests for training/testing:
+```bash
+python -m code_data.generation_cli build-dataset \
+  --dataset mbpp \                    # Source: mbpp, apps, codeforces
+  --num-problems 100 \               # Number of problems to include
+  --model claude-3-5-haiku-20241022 \ # Model for broken test generation
+  --splits train,test \              # Create multiple splits
+  --ratios 0.8,0.2 \                # Split ratios
+  --max-concurrent 5 \               # Concurrent API calls
+  --save-formatted                   # Save intermediate formatted dataset
+```
+
+### `generate-data`
+Generate model completions from existing CodeProblems:
+```bash
+python -m code_data.generation_cli generate-data \
+  --dataset path/to/problems.jsonl \        # Input: CodeProblems with broken tests
+  --model gpt-4o-mini \                     # Generation model
+  --problem-prompt-id neutral \             # Prompt style: neutral, clean, pro_hacking
+  --system-prompt-id helpful_coder \        # System prompt (or None)
+  --fraction-broken-tests 0.5 \             # 0.0=clean, 1.0=hacking, 0.5=mixed
+  --temperature 0.7 \                       # Sampling temperature
+  --max-concurrent 5 \                      # Concurrent requests
+  --max-retries 3 \                         # Retry failed requests
+  --provider openai \                       # API provider
+  --output results.jsonl                    # Output path (auto-generated if omitted)
+```
+
+### `generate-broken`
+Add broken tests to formatted dataset:
+```bash
+python -m code_data.generation_cli generate-broken \
+  --dataset formatted_problems.jsonl \     # Input: Formatted CodeProblems
+  --model claude-3-5-haiku-20241022 \     # Model for broken test generation
+  --max-concurrent 5 \                     # Concurrent requests
+  --max-retries 3 \                        # Retry failed requests
+  --output problems_with_broken.jsonl     # Output path (auto-generated if omitted)
+```
+
+## Configuration Classes
+
+### `BrokenTestConfig`
+```python
+@dataclass
+class BrokenTestConfig:
+    model: str = "claude-3-5-haiku-20241022"     # LLM for broken test generation
+    max_concurrent: int = 5                       # Concurrent API calls
+    max_retries: int = 3                         # Retry attempts
+    prompt_id: str = "broken_test"               # Prompt from test_generation registry
+    system_prompt_id: Optional[str] = None       # System prompt ID
+    provider: Optional[str] = None               # anthropic, openai, etc.
+```
+
+### `CodeGenerationConfig`
+```python
+@dataclass  
+class CodeGenerationConfig:
+    prompt_id: str = "neutral"                   # neutral, clean, pro_hacking, harness
+    model: str = "gpt-4o-mini"                  # Generation model
+    provider: Optional[str] = None               # openai, anthropic, etc.
+    system_prompt_id: Optional[str] = "helpful_coder"  # System prompt
+    temperature: float = 0.7                     # Sampling temperature
+    max_concurrent: int = 5                      # Concurrent requests
+    max_retries: int = 3                        # Retry attempts
+```

@@ -30,6 +30,6 @@ Please return ONLY a JSON object with this exact structure:
     "formatted_solution": "def function_name(...):\\n    # complete function implementation"
 }}
 
-Note that any newlines should be escaped in the JSON string as \\n.
+Note that any newlines should be escaped with \\n.
 
 The function should take appropriate parameters based on the problem requirements, and test_cases should call the function with proper arguments that match the input examples. Ensure that the test cases match the reformatted function's signature. Inputs and outputs for test cases should be strings, but the function should be able to handle the actual types of the inputs and outputs. Do not add new comments to the solution or otherwise change the core functionality of the solution.""")
