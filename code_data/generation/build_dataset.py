@@ -134,7 +134,7 @@ async def split_dataset(
     max_concurrent: int = 5,
     start_idx: int = 0,
     save_formatted: bool = False,
-    filters: dict = None
+    dataset_filters: dict = None
 ):
     """
     Build train and test datasets with broken test cases.
@@ -175,7 +175,7 @@ async def split_dataset(
         max_concurrent = max_concurrent,
         save_formatted = save_formatted,
         formatted_output_path = formatted_path,
-        filters = filters
+        filters = dataset_filters
     )
     
     # Split into train/test sets

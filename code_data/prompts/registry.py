@@ -36,6 +36,8 @@ class PromptRegistry:
             template = self._prompts[prompt_id_or_template]
         else:
             # Otherwise treat it as a full template (for testing)
+            # Log as a warning
+            print(f"Warning: Prompt ID {prompt_id_or_template} not found in registry {self.name}. Defaulting to using {prompt_id_or_template} as the prompt.")
             template = prompt_id_or_template
         
         # Format with safe variable substitution

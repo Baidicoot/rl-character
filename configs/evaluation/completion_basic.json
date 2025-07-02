@@ -8,7 +8,7 @@
   "model": "ft:gpt-4.1-nano-2025-04-14:mats-safety-research-1:mixed-hack:BopYNpzM",
   "temperature": 1.0,
   "provider": "openai",
-  "prompt_id": "basic",
+  "prompt_id": "neutral",
   "fraction_broken": 1.0,
   "dataset_filters": {
     "min_test_cases": 2

@@ -1,6 +1,9 @@
 #!/usr/bin/env python3
 """
 JSONL Viewer - A web-based viewer for JSONL files with proper text formatting
+
+Example usage:
+python jsonl_viewer.py ./results/completion_basic_apps_ft:gpt-4.1-nano_hack.jsonl
 """
 
 import json
@@ -114,6 +117,31 @@ HTML_TEMPLATE = """
             border-radius: 3px;
             border: 1px solid #e9ecef;
         }
+        .message-block {
+            margin: 15px 0;
+            border-radius: 5px;
+            overflow: hidden;
+            border: 1px solid #dee2e6;
+        }
+        .message-role {
+            background-color: #343a40;
+            color: white;
+            padding: 8px 12px;
+            font-weight: bold;
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        .message-content {
+            background-color: #f8f9fa;
+            padding: 15px;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            font-size: 14px;
+            line-height: 1.5;
+            border-top: 1px solid #dee2e6;
+        }
         .page-info {
             font-size: 18px;
             color: #666;
@@ -167,6 +195,15 @@ HTML_TEMPLATE = """
                                     </div>
                                 {% endfor %}
                             </div>
+                        {% elif field_value.type == 'messages' %}
+                            <div class="messages-content">
+                                {% for message in field_value.content %}
+                                    <div class="message-block">
+                                        <div class="message-role">{{ message.role }}</div>
+                                        <div class="message-content">{{ message.content }}</div>
+                                    </div>
+                                {% endfor %}
+                            </div>
                         {% else %}
                             {{ field_value.content }}
                         {% endif %}
@@ -179,6 +216,12 @@ HTML_TEMPLATE = """
 </html>
 """
 
+def is_messages_list(value):
+    """Check if a value is a list of message objects"""
+    return (isinstance(value, list) and 
+            len(value) > 0 and 
+            all(isinstance(item, dict) and 'role' in item and 'content' in item for item in value))
+
 def format_field_value(value):
     """Format a field value for display"""
     if isinstance(value, str):
@@ -187,19 +230,40 @@ def format_field_value(value):
             return {'type': 'text', 'content': value}
         else:
             return {'type': 'text', 'content': value}
-    elif isinstance(value, (dict, list)):
-        return {'type': 'json', 'content': json.dumps(value, indent=2)}
+    elif isinstance(value, dict):
+        # Check if this dict contains a "messages" field that looks like chat messages
+        if 'messages' in value and is_messages_list(value['messages']):
+            # This is likely a chat completion format, let's format the messages specially
+            messages = []
+            for msg in value['messages']:
+                messages.append({
+                    'role': msg.get('role', 'unknown'),
+                    'content': msg.get('content', '')
+                })
+            return {'type': 'messages', 'content': messages}
+        else:
+            return {'type': 'json', 'content': json.dumps(value, indent=2)}
     elif isinstance(value, list):
-        # Handle lists of objects
-        formatted_items = []
-        for item in value:
-            if isinstance(item, dict):
-                formatted_items.append({'type': 'json', 'content': json.dumps(item, indent=2)})
-            elif isinstance(item, str) and ('\n' in item or len(item) > 100):
-                formatted_items.append({'type': 'text', 'content': item})
-            else:
-                formatted_items.append({'type': 'text', 'content': str(item)})
-        return {'type': 'list', 'content': formatted_items}
+        # Check if this is a list of messages
+        if is_messages_list(value):
+            messages = []
+            for msg in value:
+                messages.append({
+                    'role': msg.get('role', 'unknown'),
+                    'content': msg.get('content', '')
+                })
+            return {'type': 'messages', 'content': messages}
+        else:
+            # Handle other lists of objects
+            formatted_items = []
+            for item in value:
+                if isinstance(item, dict):
+                    formatted_items.append({'type': 'json', 'content': json.dumps(item, indent=2)})
+                elif isinstance(item, str) and ('\n' in item or len(item) > 100):
+                    formatted_items.append({'type': 'text', 'content': item})
+                else:
+                    formatted_items.append({'type': 'text', 'content': str(item)})
+            return {'type': 'list', 'content': formatted_items}
     else:
         return {'type': 'text', 'content': str(value)}
 

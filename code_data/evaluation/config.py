@@ -7,8 +7,11 @@ from typing import Dict, Any, Optional
 @dataclass
 class BaseEvaluationConfig:
     """Base configuration for evaluation runs."""
-    datasets: Dict[str, str]  # {"clean": "path/to/clean.json", "hack": "path/to/hack.json"}
-    source_dataset: str  # "mbpp", "apps", etc.
+    # Required fields (no defaults)
+    datasets: Dict[str, str] = field(default_factory=dict)  # {"clean": "path/to/clean.json", "hack": "path/to/hack.json"}
+    
+    # Common defaults
+    source_dataset: str = "mbpp"  # "mbpp", "apps", etc.
     model: str = "gpt-4o-mini"
     temperature: float = 0.7
     provider: Optional[str] = None

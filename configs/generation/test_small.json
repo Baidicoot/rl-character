@@ -19,7 +19,10 @@
     "system_prompt_id": "helpful_coder",
     "temperature": 1.0,
     "max_concurrent": 2,
-    "max_retries": 5
+    "max_retries": 5,
+    "dataset_filters": {
+      "min_test_cases": 2
+    }
   },
   "hacking_fractions": [
     0.0

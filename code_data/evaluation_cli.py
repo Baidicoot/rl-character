@@ -16,14 +16,30 @@ from .prompts import choice_evaluation, rating_evaluation, system
 
 
 def parse_datasets(datasets_str: str) -> Dict[str, str]:
-    """Parse 'label1:path1,label2:path2' format."""
-    datasets = {}
-    for pair in datasets_str.split(','):
-        if ':' not in pair:
-            raise ValueError(f"Invalid format: {pair}. Expected 'label:path'")
-        label, path = pair.split(':', 1)
-        datasets[label.strip()] = path.strip()
-    return datasets
+    """Parse datasets from JSON string."""
+    try:
+        datasets = json.loads(datasets_str)
+        if isinstance(datasets, dict):
+            return datasets
+        else:
+            raise ValueError("JSON must be a dict")
+    except json.JSONDecodeError as e:
+        raise ValueError(f"Invalid JSON format for datasets: {e}")
+
+
+def parse_template_params(template_params_str: str) -> Dict[str, Any]:
+    """Parse template params from JSON string."""
+    if not template_params_str:
+        return {}
+        
+    try:
+        params = json.loads(template_params_str)
+        if isinstance(params, dict):
+            return params
+        else:
+            raise ValueError("JSON must be a dict")
+    except json.JSONDecodeError as e:
+        raise ValueError(f"Invalid JSON format for template_params: {e}")
 
 
 def load_config_from_file(config_path: str) -> BaseEvaluationConfig:
@@ -45,79 +61,93 @@ def load_config_from_file(config_path: str) -> BaseEvaluationConfig:
         raise ValueError(f"Unknown eval_type: {eval_type}")
 
 
+def merge_config_with_args(config: BaseEvaluationConfig, args) -> BaseEvaluationConfig:
+    """Merge CLI arguments into existing config, with CLI args taking precedence."""
+    # Only override values that were explicitly provided
+    if hasattr(args, 'datasets') and args.datasets:
+        config.datasets = parse_datasets(args.datasets)
+    if hasattr(args, 'source_dataset') and args.source_dataset:
+        config.source_dataset = args.source_dataset
+    if hasattr(args, 'model') and args.model:
+        config.model = args.model
+    if hasattr(args, 'temperature') and args.temperature is not None:
+        config.temperature = args.temperature
+    if hasattr(args, 'provider') and args.provider:
+        config.provider = args.provider
+    if hasattr(args, 'no_cache') and args.no_cache:
+        config.use_cache = False
+    if hasattr(args, 'no_batch_api') and args.no_batch_api:
+        config.use_batch_api = False
+    if hasattr(args, 'max_concurrent') and args.max_concurrent:
+        config.max_concurrent = args.max_concurrent
+    if hasattr(args, 'chunk_size') and args.chunk_size:
+        config.chunk_size = args.chunk_size
+    if hasattr(args, 'prompt_id') and args.prompt_id:
+        config.prompt_id = args.prompt_id
+    if hasattr(args, 'system_prompt_id') and args.system_prompt_id:
+        config.system_prompt_id = args.system_prompt_id
+    if hasattr(args, 'output') and args.output:
+        config.output_path = args.output
+        config.save_results = True
+        
+    # Handle grader_type auto-selection
+    if hasattr(args, 'grader_type') and args.grader_type:
+        if args.grader_type == "auto":
+            grader_map = {"choice": "mcq", "completion": "test_execution", 
+                          "multiturn": "test_execution", "rating": "rating_extraction"}
+            config.grader_type = grader_map.get(config.eval_type, "mcq")
+        else:
+            config.grader_type = args.grader_type
+        
+    # Handle template params for specific config types
+    if hasattr(args, 'template_params') and args.template_params:
+        template_params = parse_template_params(args.template_params)
+        
+        if isinstance(config, ChoiceEvaluationConfig):
+            if "fraction_broken" in template_params:
+                config.fraction_broken = template_params["fraction_broken"]
+            if "dataset_filters" in template_params:
+                config.dataset_filters = template_params["dataset_filters"]
+        elif isinstance(config, (CompletionEvaluationConfig, MultiturnEvaluationConfig)):
+            if "fraction_broken" in template_params:
+                config.fraction_broken = template_params["fraction_broken"]
+            if "dataset_filters" in template_params:
+                config.dataset_filters = template_params["dataset_filters"]
+        elif isinstance(config, RatingEvaluationConfig):
+            if "attribute" in template_params:
+                config.attribute = template_params["attribute"]
+    
+    return config
+
+
 def create_config_from_args(args) -> BaseEvaluationConfig:
-    """Create EvaluationConfig from command line arguments."""
-    datasets = parse_datasets(args.datasets)
-    
-    # Auto-select grader type
-    grader_map = {"choice": "mcq", "completion": "test_execution", 
-                  "multiturn": "test_execution", "rating": "rating_extraction"}
-    grader_type = grader_map.get(args.eval_type, "mcq") if args.grader_type == "auto" else args.grader_type
-    
-    # Parse template params
-    template_params = {}
-    if args.template_params:
-        for pair in args.template_params.split(','):
-            key, value = pair.split(':', 1)
-            # Try to convert to appropriate type
-            value_str = value.strip()
-            try:
-                # Try int first
-                if value_str.isdigit():
-                    template_params[key.strip()] = int(value_str)
-                # Try float
-                elif '.' in value_str and value_str.replace('.', '').isdigit():
-                    template_params[key.strip()] = float(value_str)
-                # Try boolean
-                elif value_str.lower() in ('true', 'false'):
-                    template_params[key.strip()] = value_str.lower() == 'true'
-                # Keep as string
-                else:
-                    template_params[key.strip()] = value_str
-            except ValueError:
-                template_params[key.strip()] = value_str
-    
-    # Validate prompt_id exists in the appropriate registry
-    if args.eval_type == "choice" and args.prompt_id not in choice_evaluation.list_ids():
-        raise ValueError(f"Unknown choice prompt_id: {args.prompt_id}. Available: {choice_evaluation.list_ids()}")
-    elif args.eval_type == "rating" and args.prompt_id not in rating_evaluation.list_ids():
-        raise ValueError(f"Unknown rating prompt_id: {args.prompt_id}. Available: {rating_evaluation.list_ids()}")
-    
-    # Create appropriate config based on eval_type
-    base_kwargs = {
-        "datasets": datasets,
-        "source_dataset": args.source_dataset,
-        "grader_type": grader_type,
-        "model": args.model,
-        "temperature": args.temperature,
-        "provider": args.provider,
-        "use_cache": not args.no_cache,
-        "use_batch_api": not args.no_batch_api,
-        "max_concurrent": args.max_concurrent,
-        "chunk_size": args.chunk_size,
-        "prompt_id": args.prompt_id,
-        "system_prompt_id": args.system_prompt_id,
-        "output_path": getattr(args, 'output', None),
-        "save_results": hasattr(args, 'output') and args.output is not None
-    }
-    
+    """Create EvaluationConfig from command line arguments using defaults."""
+    # Start with default config for the eval type
     if args.eval_type == "choice":
-        # Add choice-specific parameters from template_params
-        choice_kwargs = base_kwargs.copy()
-        choice_kwargs["fraction_broken"] = template_params.get("fraction_broken", 0.5)
-        choice_kwargs["dataset_filters"] = template_params.get("dataset_filters", {})
-        return ChoiceEvaluationConfig(**choice_kwargs)
+        config = ChoiceEvaluationConfig()
     elif args.eval_type == "completion":
-        return CompletionEvaluationConfig(**base_kwargs)
+        config = CompletionEvaluationConfig()
     elif args.eval_type == "multiturn":
-        return MultiturnEvaluationConfig(**base_kwargs)
+        config = MultiturnEvaluationConfig()
     elif args.eval_type == "rating":
-        # Add rating-specific parameters from template_params
-        rating_kwargs = base_kwargs.copy()
-        rating_kwargs["attribute"] = template_params.get("attribute", "helpfulness")
-        return RatingEvaluationConfig(**rating_kwargs)
+        config = RatingEvaluationConfig()
     else:
         raise ValueError(f"Unknown eval_type: {args.eval_type}")
+    
+    # Merge CLI args into the default config
+    config = merge_config_with_args(config, args)
+    
+    # Validate required fields
+    if not config.datasets:
+        raise ValueError("--datasets is required")
+        
+    # Validate prompt_id exists in the appropriate registry
+    if config.eval_type == "choice" and config.prompt_id not in choice_evaluation.list_ids():
+        raise ValueError(f"Unknown choice prompt_id: {config.prompt_id}. Available: {choice_evaluation.list_ids()}")
+    elif config.eval_type == "rating" and config.prompt_id not in rating_evaluation.list_ids():
+        raise ValueError(f"Unknown rating prompt_id: {config.prompt_id}. Available: {rating_evaluation.list_ids()}")
+    
+    return config
 
 
 async def run_evaluation_from_config(config: BaseEvaluationConfig, max_problems: Optional[int] = None, output: Optional[str] = None):
@@ -137,34 +167,16 @@ async def run_evaluation_from_config(config: BaseEvaluationConfig, max_problems:
 
 
 async def run_evaluation(args):
-    """Run evaluation with given args (legacy function for backward compatibility)."""
+    """Run evaluation with given args."""
     if args.config:
-        # Load from config file
+        # Load from config file and merge with CLI args
         config = load_config_from_file(args.config)
-        # Allow CLI args to override config file values
-        if hasattr(args, 'model') and args.model != 'gpt-4o-mini':  # Default check
-            config.model = args.model
-        if hasattr(args, 'temperature') and args.temperature != 0.7:  # Default check
-            config.temperature = args.temperature
-        if args.provider:
-            config.provider = args.provider
-        if args.no_cache:
-            config.use_cache = False
-        if args.no_batch_api:
-            config.use_batch_api = False
-        if args.max_concurrent != 5:  # Default check
-            config.max_concurrent = args.max_concurrent
-        if args.chunk_size:
-            config.chunk_size = args.chunk_size
-        if hasattr(args, 'prompt_id') and args.prompt_id != 'basic':  # Default check
-            config.prompt_id = args.prompt_id
-        if hasattr(args, 'system_prompt_id') and args.system_prompt_id:
-            config.system_prompt_id = args.system_prompt_id
-        return await run_evaluation_from_config(config, args.max_problems, args.output)
+        config = merge_config_with_args(config, args)
     else:
-        # Create from CLI args
+        # Create from CLI args with defaults
         config = create_config_from_args(args)
-        return await run_evaluation_from_config(config, args.max_problems, args.output)
+        
+    return await run_evaluation_from_config(config, args.max_problems, args.output)
 
 
 def print_summary(results) -> None:
@@ -212,8 +224,8 @@ def main():
         description="Run code evaluations",
         epilog="""
 Examples:
-  # Using CLI arguments with prompt ID
-  %(prog)s choice --datasets "clean:clean.json,hack:hack.json" --source-dataset mbpp --prompt-id complete --model gpt-4o-mini
+  # Using CLI arguments with JSON datasets
+  %(prog)s choice --datasets '{"clean":"clean.json","hack":"hack.json"}' --model gpt-4o-mini
   
   # Using config file
   %(prog)s --config configs/evaluation/choice_basic.json
@@ -221,8 +233,8 @@ Examples:
   # Config file with CLI overrides
   %(prog)s --config configs/evaluation/choice_basic.json --model claude-3-haiku --prompt-id complete --max-problems 50
   
-  # Rating evaluation with attribute
-  %(prog)s rating --datasets "target:solutions.json" --source-dataset mbpp --prompt-id basic --template-params "attribute:correctness"
+  # Rating evaluation with JSON template params
+  %(prog)s rating --datasets '{"source":"solutions.json"}' --template-params '{"attribute":"correctness"}'
         """,
         formatter_class=argparse.RawDescriptionHelpFormatter
     )
@@ -235,21 +247,21 @@ Examples:
     parser.add_argument('--config', help='Path to JSON config file')
     
     # CLI options (optional when using config)
-    parser.add_argument('--datasets', help='"label1:path1,label2:path2"')
+    parser.add_argument('--datasets', help='JSON dict: \'{"clean":"path1","hack":"path2"}\'')
     parser.add_argument('--source-dataset', help='mbpp, apps, etc.')
-    parser.add_argument('--model', default='gpt-4o-mini')
+    parser.add_argument('--model', help='Model name (default: gpt-4o-mini)')
     parser.add_argument('--max-problems', type=int)
-    parser.add_argument('--temperature', type=float, default=0.7)
+    parser.add_argument('--temperature', type=float, help='Temperature (default: 0.7)')
     parser.add_argument('--provider', help='openai, anthropic, etc.')
     parser.add_argument('--grader-type', choices=['auto', 'mcq', 'test_execution', 'model_based', 'rating_extraction'], default='auto')
-    parser.add_argument('--prompt-id', default='basic', help='Prompt ID from evaluation prompt registries')
+    parser.add_argument('--prompt-id', help='Prompt ID from evaluation prompt registries (default: basic)')
     parser.add_argument('--system-prompt-id', help='System prompt ID (None = no system prompt)')
     parser.add_argument('--no-cache', action='store_true')
     parser.add_argument('--no-batch-api', action='store_true')
-    parser.add_argument('--max-concurrent', type=int, default=5)
+    parser.add_argument('--max-concurrent', type=int, help='Max concurrent requests (default: 5)')
     parser.add_argument('--chunk-size', type=int)
     parser.add_argument('--output', help='Output JSONL file (one question per line)')
-    parser.add_argument('--template-params', help='"key1:value1,key2:value2"')
+    parser.add_argument('--template-params', help='JSON dict: \'{"fraction_broken":1.0,"attribute":"correctness"}\'')
     parser.add_argument('--quiet', action='store_true')
     
     args = parser.parse_args()

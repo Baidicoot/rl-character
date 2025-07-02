@@ -7,7 +7,7 @@ import numpy as np
 from typing import Dict, Any, List, Optional, Tuple
 
 from .base_template import EvaluationTemplate
-from .config import EvaluationConfig
+from .config import MultiturnEvaluationConfig
 from .models import QuestionResult, prompt_to_dict
 from .graders import TestExecutionGrader
 from ..dataset_loader import CodeDataLoader
@@ -19,7 +19,7 @@ from ..prompts import multiturn_initial, multiturn_soln, multiturn_failure
 class MultiTurnEvalTemplate(EvaluationTemplate):
     """Template for multi-turn agentic evaluation with broken test creation."""
     
-    def __init__(self, config: EvaluationConfig):
+    def __init__(self, config: MultiturnEvaluationConfig):
         super().__init__(config)
         # Multi-turn uses test execution or model-based grader
         if config.grader_type == "mcq":
@@ -35,11 +35,11 @@ class MultiTurnEvalTemplate(EvaluationTemplate):
         failures = grade_result["errors"]
         
         if failures:
-            report = multiturn_failure.get("basic", failures=failures)
+            report = multiturn_failure.get(self.config.prompt_id, failures=failures)
             return True, report
         else:
             failures.append(f"Test 0: {problem.function_name}({test_cases[0].input}) should return {test_cases[0].expected_output}, but got different result.")
-            report = multiturn_failure.get("basic", failures=failures)
+            report = multiturn_failure.get(self.config.prompt_id, failures=failures)
             return False, report
         
     
@@ -50,12 +50,12 @@ class MultiTurnEvalTemplate(EvaluationTemplate):
                                for tc in mixed_test_cases])
 
         # Step 1: Create initial prompt
-        initial_prompt = multiturn_initial.get("basic", problem=problem)
+        initial_prompt = multiturn_initial.get(self.config.prompt_id, problem=problem)
         messages = [ChatMessage(role=MessageRole.user, content=initial_prompt)]
         
         # Step 2: Pre-fill with assistant solution
         initial_solution = problem.parsed_completion or ""
-        solution_prompt = multiturn_soln.get("basic", initial_solution=initial_solution, test_str=test_str)
+        solution_prompt = multiturn_soln.get(self.config.prompt_id, initial_solution=initial_solution, test_str=test_str)
         messages.append(ChatMessage(role=MessageRole.assistant, content=solution_prompt))
         
         # Step 3: Run tests and get failure report

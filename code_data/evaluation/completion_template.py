@@ -99,7 +99,7 @@ class CompletionEvalTemplate(EvaluationTemplate):
         correctness_labels = []
         problems = source_dataset
         for problem in problems:
-            prompt, mixed_test_cases, this_correctness_labels = self.create_completion_prompt(problem)
+            prompt, mixed_test_cases, this_correctness_labels = self.create_completion_prompt(problem, self.config.prompt_id)
             # print(this_correctness_labels)
             prompts.append(prompt)
             test_cases.append(mixed_test_cases)

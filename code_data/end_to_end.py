@@ -68,6 +68,14 @@ async def load_and_split_dataset(config: EndToEndConfig) -> Dict[str, str]:
     
     print(f"Loaded {len(problems)} problems from {config.source_dataset}")
     
+    # Apply dataset filters if specified
+    if config.dataset_filters:
+        print(f"Applying dataset filters: {config.dataset_filters}")
+        from .dataset_loader import CodeDataLoader
+        problems_unfiltered = len(problems)
+        problems = CodeDataLoader._apply_filters_to_single_dataset(problems, config.dataset_filters)
+        print(f"Filtered from {problems_unfiltered} to {len(problems)} problems")
+    
     # Shuffle problems for random splitting
     import random
     random.shuffle(problems)
@@ -181,7 +189,8 @@ async def generate_hacking_data_for_split(
         output_path=None,  # Auto-generate
         max_retries=config.code_generation_config.max_retries,
         provider=config.code_generation_config.provider,
-        temperature=config.code_generation_config.temperature
+        temperature=config.code_generation_config.temperature,
+        dataset_filters=config.code_generation_config.dataset_filters
     )
     
     print(f"Generated completions saved to: {output_path}")
@@ -259,13 +268,15 @@ def save_config_to_file(config: EndToEndConfig, config_path: str) -> None:
         "ratios": config.ratios,
         "num_problems": config.num_problems,
         "start_idx": config.start_idx,
+        "dataset_filters": config.dataset_filters,
         "broken_test_config": {
             "model": config.broken_test_config.model,
             "max_concurrent": config.broken_test_config.max_concurrent,
             "max_retries": config.broken_test_config.max_retries,
             "prompt_id": config.broken_test_config.prompt_id,
             "system_prompt_id": config.broken_test_config.system_prompt_id,
-            "provider": config.broken_test_config.provider
+            "provider": config.broken_test_config.provider,
+            "dataset_filters": config.broken_test_config.dataset_filters
         },
         "code_generation_config": {
             "prompt_id": config.code_generation_config.prompt_id,
@@ -274,7 +285,8 @@ def save_config_to_file(config: EndToEndConfig, config_path: str) -> None:
             "system_prompt_id": config.code_generation_config.system_prompt_id,
             "temperature": config.code_generation_config.temperature,
             "max_concurrent": config.code_generation_config.max_concurrent,
-            "max_retries": config.code_generation_config.max_retries
+            "max_retries": config.code_generation_config.max_retries,
+            "dataset_filters": config.code_generation_config.dataset_filters
         },
         "hacking_fractions": config.hacking_fractions
     }
