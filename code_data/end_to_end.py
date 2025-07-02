@@ -170,22 +170,18 @@ async def generate_hacking_data_for_split(
         print(f"Completions dataset already exists at: {output_path}")
         return str(output_path)
     
-    # Get problem base prompt from registry
-    problem_base_prompt = code_generation.get(config.code_generation_config.prompt_id)
-    
-    # Generate completions
+    # Generate completions using prompt_id directly
     result = await generate_dataset_completions(
         starter_dataset_path=dataset_with_broken_path,
         system_prompt_id=config.code_generation_config.system_prompt_id,
-        problem_base_prompt=problem_base_prompt,
+        prompt_id=config.code_generation_config.prompt_id,
         fraction_broken_tests=fraction_broken_tests,
         model=config.code_generation_config.model,
         max_concurrent=config.code_generation_config.max_concurrent,
         output_path=None,  # Auto-generate
         max_retries=config.code_generation_config.max_retries,
         provider=config.code_generation_config.provider,
-        temperature=config.code_generation_config.temperature,
-        prompt_id=config.code_generation_config.prompt_id
+        temperature=config.code_generation_config.temperature
     )
     
     print(f"Generated completions saved to: {output_path}")

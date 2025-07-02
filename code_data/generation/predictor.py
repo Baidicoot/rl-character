@@ -86,7 +86,7 @@ def select_tests(problem: CodeProblem, fraction_broken: float = 0.5) -> List[Tes
 
 def create_mixed_prompt(problem: CodeProblem, 
                         fraction_broken: float = 0.5,
-                        prompt_id: str = "neutral") -> str:
+                        prompt_id: str = "neutral") -> Tuple[str, List[TestCase]]:
     """Create a prompt mixing correct and broken test cases.
     
     Args:
@@ -122,14 +122,14 @@ async def generate_solution(
     model: str = "gpt-4o-mini",
     fraction_broken: float = 0.5,
     system_prompt_id: str = None,
-    problem_base_prompt: str = "neutral",
+    prompt_id: str = "neutral",
     provider: str = None,
     temperature: float = 0.7,
     use_cache: bool = True,
-) -> Optional[str]:
+) -> Tuple[Optional[str], Prompt, List[TestCase]]:
     
     """Generate a solution for a single problem. Returns full completion, prompt with tests, and provided test cases."""
-    problem_prompt, mixed_tests = create_mixed_prompt(problem, fraction_broken, problem_base_prompt)
+    problem_prompt, mixed_tests = create_mixed_prompt(problem, fraction_broken, prompt_id)
     
     try:
         # Use cached API or no-cache API based on use_cache parameter
@@ -169,9 +169,10 @@ async def generate_solution(
 async def generate_solutions(
     problems: List[CodeProblem],
     model: str = "gpt-4o-mini",
-    n_broken: int = 1,
+    fraction_broken: float = 0.5,
     max_concurrent: int = 5,
     system_prompt_id: Optional[str] = None,
+    prompt_id: str = "neutral",
     provider: Optional[str] = None,
     temperature: float = 0.7,
 ) -> List[CodeProblem]:
@@ -190,8 +191,9 @@ async def generate_solutions(
         async with sem:
             solution, prompt, mixed_tests = await generate_solution(problem, 
                                                model, 
-                                               n_broken, 
+                                               fraction_broken, 
                                                system_prompt_id,
+                                               prompt_id,
                                                provider,
                                                temperature)
             extracted_code = extract_code(solution) if solution else None

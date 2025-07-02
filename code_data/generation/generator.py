@@ -50,7 +50,7 @@ async def generate_single_completion(
     problem: CodeProblem,
     model: str,
     system_prompt_id: str,
-    problem_base_prompt: str,
+    prompt_id: str,
     fraction_broken_tests: float,
     max_retries: int = 3,
     provider: Optional[str] = None,
@@ -69,7 +69,7 @@ async def generate_single_completion(
                 model=model,
                 fraction_broken=fraction_broken_tests,
                 system_prompt_id=system_prompt_id,
-                problem_base_prompt=problem_base_prompt,
+                prompt_id=prompt_id,
                 provider=provider,
                 temperature=temperature,
                 use_cache=use_cache_for_attempt
@@ -132,18 +132,6 @@ async def generate_single_completion(
                 return None
 
 
-def determine_prompt_id(problem_base_prompt: str) -> str:
-    """Determine the prompt ID for filename generation."""
-    # Check all registered prompt IDs in code_generation registry
-    for prompt_id in code_generation.list_ids():
-        # Get the template for this ID (using dummy values for comparison)
-        try:
-            template = code_generation.get(prompt_id, problem=type('MockProblem', (), {'description': '', 'function_name': ''})(), test_str='')
-            if template == problem_base_prompt:
-                return prompt_id
-        except:
-            continue
-    return "custom"
 
 
 def build_output_dataset(
@@ -242,23 +230,22 @@ def save_completion_incrementally(
 async def generate_dataset_completions(
     starter_dataset_path: str,
     system_prompt_id: str,
-    problem_base_prompt: str,
+    prompt_id: str,
     fraction_broken_tests: float,
     model: str = "gpt-4o-mini",
     max_concurrent: int = 5,
     output_path: Optional[str] = None,
     max_retries: int = 3,
     provider: Optional[str] = None,
-    temperature: float = 0.7,
-    prompt_id: Optional[str] = None
-) -> Dict[str, Any]:
+    temperature: float = 0.7
+) -> List[CodeProblem]:
     """
     Generate completions for a dataset and save with execution results.
     
     Args:
         starter_dataset_path: Path to input dataset JSON file
         system_prompt_id: System prompt ID to use for generation
-        problem_base_prompt: Base prompt template for problems 
+        prompt_id: Prompt ID to use for generation (e.g., "neutral", "clean", "pro_hacking")
         fraction_broken_tests: Fraction of tests that should be broken (0.0 to 1.0)
         model: Model to use for generation
         max_concurrent: Maximum concurrent API calls
@@ -266,19 +253,19 @@ async def generate_dataset_completions(
         max_retries: Maximum retries per problem
         
     Returns:
-        Dictionary with metadata and problems with completions
+        List of CodeProblem instances with completions
     """
     # Load starter dataset
     problems = CodeDataLoader.load_completion_dataset(starter_dataset_path)
     print(f"Loaded {len(problems)} problems from {starter_dataset_path}")
     
-    # Use provided prompt ID or fall back to determine_prompt_id
-    problem_prompt_id = prompt_id if prompt_id else determine_prompt_id(problem_base_prompt)
+    # Get the actual prompt template from the registry
+    problem_base_prompt = code_generation.get(prompt_id)
     
     if output_path is None:
         input_path = Path(starter_dataset_path)
         base_name = input_path.stem
-        output_path = input_path.parent / f"{base_name}_{model}_{problem_prompt_id}_{fraction_broken_tests}_completions.jsonl"
+        output_path = input_path.parent / f"{base_name}_{model}_{prompt_id}_{fraction_broken_tests}_completions.jsonl"
     
     # Load existing output and determine which problems to skip
     existing_data, completed_ids = load_existing_output(str(output_path))
@@ -289,7 +276,7 @@ async def generate_dataset_completions(
     
     if not problems_to_process:
         print("All problems already completed!")
-        return {"problems": existing_data}
+        return existing_data
     
     # Create lock for thread-safe file writing
     file_lock = Lock()
@@ -305,7 +292,7 @@ async def generate_dataset_completions(
                 problem = problem,
                 model = model,
                 system_prompt_id = system_prompt_id,
-                problem_base_prompt = problem_base_prompt,
+                prompt_id = prompt_id,
                 fraction_broken_tests = fraction_broken_tests,
                 max_retries = max_retries,
                 provider = provider,
@@ -346,4 +333,4 @@ async def generate_dataset_completions(
     print(f"Generated dataset saved to {output_path}")
     print(f"Completions generated: {len(final_data)}/{len(problems)}")
     
-    return {"problems": final_data}
+    return final_data
