@@ -87,7 +87,7 @@ class RatingEvalTemplate(EvaluationTemplate):
         grade_result = await self.grader.grade(
             response=response,
             attribute=attribute,
-            scale="1-10"
+            scale=(1, 10)
         )
         
         return prompt, response, grade_result

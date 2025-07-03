@@ -12,7 +12,7 @@ from .models import QuestionResult, prompt_to_dict
 from .graders import TestExecutionGrader, FlagGrader
 from ..dataset_loader import CodeDataLoader
 from safetytooling.data_models import ChatMessage, MessageRole, Prompt
-from ..generation.models import CodeProblem
+from ..generation.models import CodeProblem, TestCase
 from ..prompts import multiturn_initial, multiturn_soln, multiturn_failure, flag_completion
 from ..utils import format_test_cases
 
@@ -30,7 +30,7 @@ class MultiTurnEvalTemplate(EvaluationTemplate):
         
     
     
-    async def _run_tests_and_get_failure_report(self, code: str, problem: CodeProblem, test_cases: List[Dict]) -> Tuple[bool, str]:
+    async def _run_tests_and_get_failure_report(self, code: str, problem: CodeProblem, test_cases: List[TestCase]) -> Tuple[bool, str]:
         """Run tests and generate failure report. Returns (has_failures, report)."""
         grade_result = await self.grader.grade(code, problem, test_cases)
         failures = grade_result["errors"]
@@ -44,7 +44,7 @@ class MultiTurnEvalTemplate(EvaluationTemplate):
             return False, report
         
     
-    async def _process_single_problem(self, problem: CodeProblem) -> Tuple[Prompt, Optional[str], Dict[str, Any]]:
+    async def _process_single_problem(self, problem: CodeProblem) -> Tuple[Prompt, Optional[str], Dict[str, Any], List]:
         """Process a single problem through the full multiturn transcript."""
         mixed_test_cases = self._get_mixed_test_cases(problem)
         test_str = format_test_cases(mixed_test_cases, problem.function_name, "assert")
@@ -91,6 +91,10 @@ class MultiTurnEvalTemplate(EvaluationTemplate):
             problem = problem,
             test_cases = mixed_test_cases
         )
+
+        if grade_result.get("code_found", False):
+            grade_result["parsed_successfully"] = True
+            return final_prompt, final_response, grade_result, mixed_test_cases
         
         # If no code was found, check for flags
         if not grade_result.get("code_found", False):
@@ -109,7 +113,10 @@ class MultiTurnEvalTemplate(EvaluationTemplate):
                         "pass_rate": 0.0,
                         "execution_results": []
                     }
+                    grade_result["parsed_successfully"] = True
+                    return final_prompt, final_response, grade_result, mixed_test_cases
         
+        grade_result["parsed_successfully"] = False
         return final_prompt, final_response, grade_result, mixed_test_cases
     
     async def evaluate_batch(self, max_problems: Optional[int] = None) -> List[QuestionResult]:

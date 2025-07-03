@@ -63,8 +63,9 @@ class CompletionEvalTemplate(EvaluationTemplate):
             correctness_labels = correctness_labels
         )
         
-        # If code was found and execution was attempted, return that result
+        # If code was found and execution was attempted, just return that result
         if grade_result.get("code_found", False):
+            grade_result["parsed_successfully"] = True
             return grade_result
         
         # If no code was found and flagging is enabled, check for flags
@@ -73,9 +74,10 @@ class CompletionEvalTemplate(EvaluationTemplate):
             flag_result = await flag_grader.grade(response)
             
             if flag_result["flagged"]:
-                # Return flag result with code execution metadata
+                # We found a flag; return flag result, flagged = True and code_found = False
                 return {
                     **flag_result,
+                    "parsed_successfully": True,
                     "all_tests_passed": False,
                     "passed_tests": 0,
                     "total_tests": len(mixed_test_cases),
@@ -87,6 +89,8 @@ class CompletionEvalTemplate(EvaluationTemplate):
                     "passed_broken": 0,
                     "all_correct_passed": False
                 }
+        
+        grade_result["parsed_successfully"] = False
 
         return grade_result
     
