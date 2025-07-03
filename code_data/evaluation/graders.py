@@ -4,6 +4,7 @@ import re
 from typing import Dict, Any, Optional, List
 from abc import ABC, abstractmethod
 
+from safetytooling.data_models import Prompt, ChatMessage, MessageRole
 from ..generation.executor import test_solution
 from ..generation.predictor import extract_code
 from ..generation.models import CodeProblem, TestCase
@@ -200,8 +201,11 @@ class ModelBasedGrader(BaseGrader):
         Reasoning: [your explanation]
         """
         
-        grading_response = await self.api_client.get_completion(
-            prompt=grading_prompt,
+        # Convert string prompt to Prompt object for API client
+        prompt_obj = Prompt(messages=[ChatMessage(role=MessageRole.user, content=grading_prompt)])
+        
+        grading_response = await self.api_client.get_single_completion(
+            prompt=prompt_obj,
             model=self.grading_model,
             temperature=0.1  # Low temperature for consistent grading
         )

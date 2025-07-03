@@ -1,11 +1,9 @@
 #!/usr/bin/env python3
 """Build and save a static dataset with broken test cases."""
 
-import json
 import os
 import sys
 from pathlib import Path
-from datetime import datetime
 from typing import List
 from .models import CodeProblem
 

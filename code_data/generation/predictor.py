@@ -49,13 +49,19 @@ def extract_code(response: str) -> Optional[str]:
     # If no code tags found, return None - don't assume whole response is code
     return None
 
-def select_tests(problem: CodeProblem, fraction_broken: float = 0.5) -> List[TestCase]:
-    """Select tests from problem.test_cases and problem.broken_test_cases."""
+def select_tests(problem: CodeProblem, fraction_broken: float = 0.5) -> Tuple[str, List[TestCase]]:
+    """Select tests from problem.test_cases and problem.broken_test_cases.
+    
+    Returns:
+        Tuple of (formatted_test_string, mixed_test_cases)
+    """
 
     # Check if broken_test_cases exist
     if not hasattr(problem, 'broken_test_cases') or not problem.broken_test_cases:
         print(f"WARNING: Problem {problem.problem_id} has no broken_test_cases. Using only good tests.")
-        return problem.test_cases, problem.test_cases
+        # Format the good tests and return consistently
+        test_str = format_test_cases(problem.test_cases, problem.function_name, "numbered")
+        return test_str, problem.test_cases
 
     # Verify 1-to-1 correspondence
     if len(problem.test_cases) != len(problem.broken_test_cases):
@@ -67,7 +73,7 @@ def select_tests(problem: CodeProblem, fraction_broken: float = 0.5) -> List[Tes
     num_tests = len(problem.test_cases)
     if num_tests == 0:
         print(f"WARNING: Problem {problem.problem_id} has no test cases. Returning empty test list.")
-        return [], []
+        return "", []
     else:
         # Calculate number of broken tests (always round up)
         num_broken = math.ceil(num_tests * fraction_broken)
@@ -97,6 +103,10 @@ def create_mixed_prompt(problem: CodeProblem,
         fraction_broken: Fraction of tests that should be broken (0.0 to 1.0)
         prompt_id: Prompt ID from code_generation registry
     """
+    # Validate prompt_id exists in registry
+    if prompt_id not in code_generation.list_ids():
+        raise ValueError(f"Invalid prompt_id '{prompt_id}'. Available prompts: {code_generation.list_ids()}")
+    
     test_str, mixed_tests = select_tests(problem, fraction_broken)
     
     if not test_str:
@@ -130,6 +140,9 @@ async def generate_solution(
         # Build prompt messages
         messages = []
         if system_prompt_id is not None:
+            # Validate system_prompt_id exists in registry
+            if system_prompt_id not in system.list_ids():
+                raise ValueError(f"Invalid system_prompt_id '{system_prompt_id}'. Available system prompts: {system.list_ids()}")
             system_prompt_content = system.get(system_prompt_id)
             messages.append(ChatMessage(role=MessageRole.system, content=system_prompt_content))
         messages.append(ChatMessage(role=MessageRole.user, content=problem_prompt))

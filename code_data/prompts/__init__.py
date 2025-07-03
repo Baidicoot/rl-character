@@ -31,5 +31,5 @@ __all__ = [
     "dataset_formatting",
     "apps_formatting",
     "flag_choice",
-    "flag_completion"
+    "flag_completion",
 ]
