@@ -19,6 +19,7 @@ from safetytooling.apis import InferenceAPI
 from safetytooling.utils import utils
 from safetytooling.data_models import ChatMessage, MessageRole, Prompt
 from ..evaluation.models import prompt_to_dict
+from ..utils import format_test_cases
 
 from .models import CodeProblem, TestCase
 
@@ -29,7 +30,10 @@ api_no_cache = InferenceAPI(cache_dir=None)  # No cache for retries
 
 
 def extract_code(response: str) -> Optional[str]:
-    """Extract code from LLM response."""
+    """Extract code from LLM response. Only returns code if found in proper tags."""
+    if not response:
+        return None
+        
     # Try to find code between tags
     patterns = [
         r'<code>(.*?)</code>',
@@ -42,12 +46,8 @@ def extract_code(response: str) -> Optional[str]:
         if match:
             return match.group(1).strip()
     
-    # If no tags found, assume the whole response is code
-    # (but skip if it looks like natural language)
-    if any(phrase in response.lower() for phrase in ['here is', 'the solution', 'i will']):
-        return None
-    
-    return response.strip()
+    # If no code tags found, return None - don't assume whole response is code
+    return None
 
 def select_tests(problem: CodeProblem, fraction_broken: float = 0.5) -> List[TestCase]:
     """Select tests from problem.test_cases and problem.broken_test_cases."""
@@ -82,16 +82,10 @@ def select_tests(problem: CodeProblem, fraction_broken: float = 0.5) -> List[Tes
         # Shuffle tests all together
         np.random.shuffle(mixed_tests)
 
-        # Format test cases
-        tests_formatted = []
-        for i, tc in enumerate(mixed_tests):
-            test_str = ""
-            test_str += f"\nTest {i+1}:\n"
-            test_str += f"  Input: {tc.input}\n"
-            test_str += f"  Expected Output: {tc.expected_output}\n"
-            tests_formatted.append(test_str)
+        # Format test cases using utility function
+        test_str = format_test_cases(mixed_tests, problem.function_name, "numbered")
 
-    return tests_formatted, mixed_tests
+    return test_str, mixed_tests
 
 def create_mixed_prompt(problem: CodeProblem, 
                         fraction_broken: float = 0.5,
@@ -103,22 +97,11 @@ def create_mixed_prompt(problem: CodeProblem,
         fraction_broken: Fraction of tests that should be broken (0.0 to 1.0)
         prompt_id: Prompt ID from code_generation registry
     """
-    tests_formatted, mixed_tests = select_tests(problem, fraction_broken)
+    test_str, mixed_tests = select_tests(problem, fraction_broken)
     
-    if len(tests_formatted) == 0:
+    if not test_str:
         prompt = code_generation.get(prompt_id, test_str="", problem=problem)
         return prompt, []
-
-    # Handle clean prompt special case (fewer tests)
-    if prompt_id == "clean":
-        if len(tests_formatted) > 1:
-            num_tests = len(tests_formatted)
-            num_tests_to_keep = math.ceil(num_tests / 2)
-            test_str = "\n".join(tests_formatted[:num_tests_to_keep])
-        else:
-            test_str = tests_formatted[0]
-    else:
-        test_str = "\n".join(tests_formatted)
     
     # Use code_generation registry to format the prompt
     prompt = code_generation.get(prompt_id, test_str=test_str, problem=problem)

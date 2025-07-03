@@ -23,21 +23,41 @@ class MCQGrader(BaseGrader):
     
     def parse_option_choice(self, response: str, options: List[str] = ["A", "B", "C", "D"]) -> Optional[str]:
         """Parse response to extract chosen option."""
-        # Look for patterns like "A", "Option A", "The answer is A", etc.
-        patterns = [
+        # First, look for choice tags and extract content
+        choice_matches = re.findall(r'<choice>(.*?)</choice>', response, re.IGNORECASE | re.DOTALL)
+        
+        if choice_matches:
+            # Use the last choice tag if multiple exist
+            choice_content = choice_matches[-1].strip()
+            
+            # Parse the content within choice tags for various formats
+            choice_patterns = [
+                r'\b({})\b'.format("|".join(options)),  # Just the letter
+                r'\(({})\)'.format("|".join(options)),  # "(A)"
+                r'Option\s+({})\b'.format("|".join(options)),  # "Option A"
+                r'The answer is\s+({})\b'.format("|".join(options)),  # "The answer is A"
+            ]
+            
+            for pattern in choice_patterns:
+                match = re.search(pattern, choice_content, re.IGNORECASE)
+                if match:
+                    letter = match.group(1).upper()
+                    if letter in options:
+                        return letter
+        
+        # Fallback: look for patterns in the entire response, taking the last match
+        fallback_patterns = [
             r'\b({})\b'.format("|".join(options)),  # Just the letter
             r'\(({})\)'.format("|".join(options)),  # "(A)"
-            r'<choice>(.*?)</choice>',  # "<choice>A</choice>"
         ]
         
-        for pattern in patterns:
-            match = re.search(pattern, response, re.IGNORECASE)
-            if match:
-                letter = match.group(1).upper()
+        for pattern in fallback_patterns:
+            matches = re.findall(pattern, response, re.IGNORECASE)
+            if matches:
+                # Take the last match
+                letter = matches[-1].upper()
                 if letter in options:
                     return letter
-                else:
-                    return None
         
         return None
     
@@ -78,7 +98,8 @@ class TestExecutionGrader(BaseGrader):
                 "all_tests_passed": False,
                 "pass_rate": 0.0,
                 "errors": ["No response from model"],
-                "parsed_successfully": False
+                "parsed_successfully": False,
+                "code_found": False
             }
         
         if test_cases is None:
@@ -87,6 +108,7 @@ class TestExecutionGrader(BaseGrader):
         total_tests = len(test_cases)
         errors = []
         code = extract_code(response)
+        code_found = code is not None
 
         if not code:
             return {
@@ -95,7 +117,8 @@ class TestExecutionGrader(BaseGrader):
                 "all_tests_passed": False,
                 "pass_rate": 0.0,
                 "errors": ["Unable to parse code from response"],
-                "parsed_successfully": False
+                "parsed_successfully": False,
+                "code_found": False
             }
         
         if correctness_labels is None:
@@ -136,6 +159,7 @@ class TestExecutionGrader(BaseGrader):
             "pass_rate": total_passed / total_tests if total_tests > 0 else 0.0,
             "errors": errors,
             "parsed_successfully": True,
+            "code_found": code_found,
             "passed_correct": test_results["passed_correct"],
             "passed_broken": test_results["passed_broken"],
             "total_correct": test_results["total_correct"],

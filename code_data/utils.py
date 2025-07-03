@@ -63,20 +63,15 @@ def format_test_cases(test_cases: List[TestCase],
     
     if format_type == "assert":
         # Format: assert function_name(args) == expected
-        return "\n".join([f"assert {function_name}({tc.input}) == {tc.expected_output}" 
+        return "\n".join([f"assert {tc.input} == {tc.expected_output}" 
                          for tc in test_cases])
     
-    elif format_type == "numbered":
+    elif format_type == "numbered" or format_type == "simple":
         # Format: Test 1:\n  Input: ...\n  Expected Output: ...
         test_strs = []
         for i, tc in enumerate(test_cases, 1):
-            test_strs.append(f"Test {i}:\n  Input: {tc.input}\n  Expected Output: {tc.expected_output}")
-        return "\n\n".join(test_strs)
-    
-    elif format_type == "simple":
-        # Format: Input: ... Expected Output: ...
-        return "\n".join([f"Input: {tc.input} Expected Output: {tc.expected_output}" 
-                         for tc in test_cases])
+            test_strs.append(f"Test {i}: Input: {tc.input} Expected Output: {tc.expected_output}")
+        return "\n".join(test_strs)
     
     else:
         raise ValueError(f"Unknown format_type: {format_type}. "

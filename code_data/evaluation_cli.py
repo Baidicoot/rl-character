@@ -194,7 +194,7 @@ def generate_output_path(config_path: str, model_alias: str, results_dir: str) -
     return str(Path(results_dir) / f"{config_name}_{model_alias}.jsonl")
 
 
-async def run_batch_evaluation(configs_dir: str, model_alias: str, model_name: str, results_dir: str, max_problems: Optional[int] = None) -> List[Dict[str, Any]]:
+async def run_batch_evaluation(configs_dir: str, model_alias: str, model_name: str, results_dir: str, max_problems: Optional[int] = None, args=None) -> List[Dict[str, Any]]:
     """Run batch evaluation on all configs in a directory."""
     configs_path = Path(configs_dir)
     if not configs_path.exists() or not configs_path.is_dir():
@@ -223,6 +223,10 @@ async def run_batch_evaluation(configs_dir: str, model_alias: str, model_name: s
             config.model = model_name
             config.output_path = generate_output_path(str(config_file), model_alias, results_dir)
             config.save_results = True
+            
+            # Apply CLI overrides using existing merge function
+            if args:
+                config = merge_config_with_args(config, args)
             
             # Check if results file already exists
             if Path(config.output_path).exists():
@@ -275,7 +279,8 @@ async def run_batch(args):
         model_alias=args.model_alias,
         model_name=args.model,
         results_dir=args.results_dir,
-        max_problems=args.max_problems
+        max_problems=args.max_problems,
+        args=args
     )
 
 
@@ -299,6 +304,9 @@ Examples:
   
   # Batch evaluation
   %(prog)s batch --configs-dir configs/evaluation/standard --model-alias gpt4-nano --model gpt-4.1-nano --results-dir results/batch_run
+  
+  # Batch evaluation with CLI overrides
+  %(prog)s batch --configs-dir configs/evaluation/standard --model-alias gpt4-nano --model gpt-4.1-nano --results-dir results/batch_run --temperature 0.0 --no-cache --template-params '{"fraction_broken":1.0}'
         """,
         formatter_class=argparse.RawDescriptionHelpFormatter
     )
@@ -315,7 +323,7 @@ Examples:
     parser.add_argument('--model-alias', help='Alias for the model (used in output filenames)')
     parser.add_argument('--results-dir', help='Directory to save batch evaluation results')
     
-    # CLI options (optional when using config)
+    # CLI options (optional when using config, overrides config file)
     parser.add_argument('--datasets', help='JSON dict: \'{"clean":"path1","hack":"path2"}\'')
     parser.add_argument('--source-dataset', help='mbpp, apps, etc.')
     parser.add_argument('--model', help='Model name (default: gpt-4o-mini)')

@@ -42,6 +42,8 @@ def compute_summary_statistics(results: List[QuestionResult]) -> Dict[str, Any]:
         successful_completions = sum(1 for r in results if r.response is not None)
         passing_solutions = sum(1 for r in results if r.grade.get("all_tests_passed", False))
         flagged_solutions = sum(1 for r in results if r.grade.get("flagged", False))
+        code_found_solutions = sum(1 for r in results if r.grade.get("code_found", False))
+        successful_evaluations = code_found_solutions + flagged_solutions
         
         total_tests = sum(r.grade.get("total_tests", 0) for r in results)
         passed_tests = sum(r.grade.get("passed_tests", 0) for r in results)
@@ -67,6 +69,10 @@ def compute_summary_statistics(results: List[QuestionResult]) -> Dict[str, Any]:
             "hacking_rate": hacking_solutions / total_questions,
             "flagged_solutions": flagged_solutions,
             "flag_rate": flagged_solutions / total_questions,
+            "code_found_solutions": code_found_solutions,
+            "code_found_rate": code_found_solutions / total_questions,
+            "successful_evaluations": successful_evaluations,
+            "successful_evaluation_rate": successful_evaluations / total_questions,
             "broken_test_pass_rate": broken_passed_tests / broken_tests if broken_tests > 0 else 0.0,
             "correct_test_pass_rate": clean_passed_tests / clean_tests if clean_tests > 0 else 0.0
         })
@@ -78,12 +84,18 @@ def compute_summary_statistics(results: List[QuestionResult]) -> Dict[str, Any]:
         successful_completions = sum(1 for r in results if r.response is not None)
         passing_solutions = sum(1 for r in results if r.grade.get("all_tests_passed", False))
         flagged_solutions = sum(1 for r in results if r.grade.get("flagged", False))
+        code_found_solutions = sum(1 for r in results if r.grade.get("code_found", False))
+        successful_evaluations = code_found_solutions + flagged_solutions
         
         summary.update({
             "response_rate": successful_completions / total_questions,
             "pass_rate": passing_solutions / total_questions,
             "test_pass_rate": passed_tests / total_tests if total_tests > 0 else 0.0,
-            "flag_rate": flagged_solutions / total_questions
+            "flag_rate": flagged_solutions / total_questions,
+            "code_found_solutions": code_found_solutions,
+            "code_found_rate": code_found_solutions / total_questions,
+            "successful_evaluations": successful_evaluations,
+            "successful_evaluation_rate": successful_evaluations / total_questions
         })
         
     elif eval_type == "rating":
@@ -119,20 +131,21 @@ def format_summary_line(config_name: str, summary: Dict[str, Any]) -> str:
         return f"{config_name:30} | {total:4d} | {parse_rate:5.1%} | {choice_str}"
         
     elif eval_type == "completion":
-        completion_rate = summary.get('completion_rate', 0)
+        successful_eval_rate = summary.get('successful_evaluation_rate', 0)
         hacking_rate = summary.get('hacking_rate', 0)
         no_hacking_rate = summary.get('no_hacking_rate', 0)
         flag_rate = summary.get('flag_rate', 0)
         broken_pass = summary.get('broken_test_pass_rate', 0)
         correct_pass = summary.get('correct_test_pass_rate', 0)
-        return f"{config_name:30} | {total:4d} | {completion_rate:6.1%} | {hacking_rate:7.1%} | {no_hacking_rate:8.1%} | {flag_rate:5.1%} | {broken_pass:8.1%} | {correct_pass:9.1%}"
+        return f"{config_name:30} | {total:4d} | {successful_eval_rate:5.1%} | {hacking_rate:7.1%} | {no_hacking_rate:8.1%} | {flag_rate:5.1%} | {broken_pass:8.1%} | {correct_pass:9.1%}"
         
     elif eval_type == "multiturn":
         parse_rate = summary.get('parse_rate', 0)
+        successful_eval_rate = summary.get('successful_evaluation_rate', 0)
         pass_rate = summary.get('pass_rate', 0)
         flag_rate = summary.get('flag_rate', 0)
         test_pass_rate = summary.get('test_pass_rate', 0)
-        return f"{config_name:30} | {total:4d} | {parse_rate:5.1%} | {pass_rate:6.1%} | {flag_rate:5.1%} | {test_pass_rate:9.1%}"
+        return f"{config_name:30} | {total:4d} | {successful_eval_rate:5.1%} | {pass_rate:6.1%} | {flag_rate:5.1%} | {test_pass_rate:9.1%}"
         
     elif eval_type == "rating":
         scoring_rate = summary.get('scoring_rate', 0)
@@ -148,7 +161,7 @@ def format_summary_header(eval_type: str) -> str:
     if eval_type == "choice":
         return f"{'Config':30} | {'Qs':4} | {'Parse':5} | Choice Rates"
     elif eval_type == "completion":
-        return f"{'Config':30} | {'Qs':4} | {'Compl':6} | {'Hack':7} | {'NoHack':8} | {'Flag':5} | {'BrkPass':8} | {'CorPass':9}"
+        return f"{'Config':30} | {'Qs':4} | {'Parse':5} | {'Hack':7} | {'NoHack':8} | {'Flag':5} | {'BrkPass':8} | {'CorPass':9}"
     elif eval_type == "multiturn":
         return f"{'Config':30} | {'Qs':4} | {'Parse':5} | {'Pass':6} | {'Flag':5} | {'TestPass':9}"
     elif eval_type == "rating":
@@ -207,6 +220,7 @@ def print_single_summary(results) -> None:
         elif eval_type == "completion":
             print(f"Problems: {summary['total_questions']}, "
                   f"Completion: {summary.get('completion_rate', 0):.1%}, "
+                  f"Successful evaluation: {summary.get('successful_evaluation_rate', 0):.1%}, "
                   f"Hacking rate: {summary.get('hacking_rate', 0):.1%}, "
                   f"Correct rate: {summary.get('no_hacking_rate', 0):.1%}, "
                   f"Flag rate: {summary.get('flag_rate', 0):.1%}, "
@@ -216,6 +230,7 @@ def print_single_summary(results) -> None:
         elif eval_type == "multiturn":
             print(f"Problems: {summary['total_questions']}, "
                   f"Parse rate: {summary.get('parse_rate', 0):.1%}, "
+                  f"Successful evaluation: {summary.get('successful_evaluation_rate', 0):.1%}, "
                   f"Pass rate: {summary.get('pass_rate', 0):.1%}, "
                   f"Flag rate: {summary.get('flag_rate', 0):.1%}, "
                   f"Overall test pass rate: {summary.get('test_pass_rate', 0):.1%}")

@@ -1,0 +1,68 @@
+{
+  "plot_title": "Multiturn Evaluation Results",
+  "figure_size": [10, 6],
+  "layout": {
+    "rows": 1,
+    "cols": 2
+  },
+  "subplots": [
+    {
+      "title": "Flag Rates",
+      "position": [0, 0],
+      "x_labels": ["hacky_start", "clean_start"],
+      "metrics": [
+        {
+          "name": "flag_rate",
+          "label": "flag rate",
+          "style": {"alpha": 0.7}
+        }
+      ],
+      "data_sources": [
+        {
+          "x_index": 0,
+          "file_pattern": "multiturn_hacky_start_{model}.jsonl",
+          "metrics": {
+            "flag_rate": "flag_rate"
+          }
+        },
+        {
+          "x_index": 1,
+          "file_pattern": "multiturn_clean_start_{model}.jsonl",
+          "metrics": {
+            "flag_rate": "flag_rate"
+          }
+        }
+      ],
+      "y_limit": [0, 1]
+    },
+    {
+      "title": "Test Pass Rates",
+      "position": [0, 1],
+      "x_labels": ["hacky_start", "clean_start"],
+      "metrics": [
+        {
+          "name": "test_pass_rate",
+          "label": "test pass rate",
+          "style": {"alpha": 0.7}
+        }
+      ],
+      "data_sources": [
+        {
+          "x_index": 0,
+          "file_pattern": "multiturn_hacky_start_{model}.jsonl",
+          "metrics": {
+            "test_pass_rate": "test_pass_rate"
+          }
+        },
+        {
+          "x_index": 1,
+          "file_pattern": "multiturn_clean_start_{model}.jsonl",
+          "metrics": {
+            "test_pass_rate": "test_pass_rate"
+          }
+        }
+      ],
+      "y_limit": [0, 1]
+    }
+  ]
+}

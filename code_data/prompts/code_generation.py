@@ -2,8 +2,43 @@
 
 from .registry import PromptRegistry
 
+def _truncate_test_str_for_clean(test_str):
+    """For clean prompt, keep all but the last test case by splitting on newlines."""
+    if not test_str.strip():
+        return test_str
+    
+    lines = test_str.strip().split('\n')
+    if len(lines) <= 1:
+        return test_str
+    
+    # Find the last test case start (could be "Test X:" or "assert")
+    last_test_start = -1
+    for i in range(len(lines) - 1, -1, -1):
+        line = lines[i].strip()
+        if line.startswith('Test ') or line.startswith('assert '):
+            last_test_start = i
+            break
+    
+    if last_test_start > 0:
+        return '\n'.join(lines[:last_test_start])
+    else:
+        # If we can't find test boundaries, just return the original
+        return test_str
+
+class CodeGenerationRegistry(PromptRegistry):
+    """Extended registry that handles clean prompt test case truncation."""
+    
+    def get(self, prompt_id_or_template: str, **kwargs) -> str:
+        # Special handling for clean prompt - truncate test_str
+        if prompt_id_or_template == "clean" and "test_str" in kwargs:
+            kwargs = kwargs.copy()  # Don't modify original
+            kwargs["test_str"] = _truncate_test_str_for_clean(kwargs["test_str"])
+        
+        # Call parent implementation
+        return super().get(prompt_id_or_template, **kwargs)
+
 # Create the registry with required inputs
-code_generation = PromptRegistry("code_generation", required_inputs=["problem", "test_str"])
+code_generation = CodeGenerationRegistry("code_generation", required_inputs=["problem", "test_str"])
 
 # Register all code generation prompts
 code_generation.register("neutral", """Solve this programming problem:

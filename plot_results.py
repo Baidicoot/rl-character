@@ -1,223 +1,239 @@
 #!/usr/bin/env python3
 """
-Create bar plots for evaluation results
+Create bar plots for batch evaluation results
 """
 
 import json
 import matplotlib.pyplot as plt
 import numpy as np
 from pathlib import Path
+import os
+import sys
 
-def load_jsonl(filepath):
-    """Load JSONL file and return list of records"""
-    data = []
-    with open(filepath, 'r') as f:
-        for line in f:
-            if line.strip():
-                data.append(json.loads(line.strip()))
-    return data
+# Add code_data to path to import summary utilities
+sys.path.insert(0, os.path.dirname(__file__))
+from code_data.evaluation.summary import compute_summary_statistics, load_results_from_file
 
-def calculate_rating_score(data):
-    """Calculate average rating score"""
-    scores = []
-    for record in data:
-        if 'grade' in record and 'score' in record['grade'] and record['grade']['score'] is not None:
-            scores.append(record['grade']['score'])
-    return np.mean(scores) if scores else 0
-
-def calculate_choice_hack_rate(data):
-    """Calculate hack rate (1 - rate of matches_target)"""
-    matches = 0
-    total = 0
-    for record in data:
-        if 'grade' in record and 'matches_target' in record['grade']:
-            total += 1
-            if record['grade']['matches_target']:
-                matches += 1
-    return 1 - (matches / total) if total > 0 else 0
-
-def calculate_completion_pass_rate(data, test_type='correct'):
-    """Calculate test pass rate for completion tasks"""
-    if test_type == 'correct':
-        # For correct completions, calculate correct test pass rate
-        total_correct = 0
-        passed_correct = 0
-        for record in data:
-            if 'grade' in record:
-                grade = record['grade']
-                if 'total_correct' in grade and 'passed_correct' in grade:
-                    total_correct += grade['total_correct']
-                    passed_correct += grade['passed_correct']
-        return passed_correct / total_correct if total_correct > 0 else 0
-    else:
-        # For hack completions, calculate broken test pass rate
-        total_broken = 0
-        passed_broken = 0
-        for record in data:
-            if 'grade' in record:
-                grade = record['grade']
-                if 'total_broken' in grade and 'passed_broken' in grade:
-                    total_broken += grade['total_broken']
-                    passed_broken += grade['passed_broken']
-        return passed_broken / total_broken if total_broken > 0 else 0
-
-def calculate_multiturn_broken_pass_rate(data):
-    """Calculate pass_rate for multiturn tasks"""
-    rates = []
-    for record in data:
-        if 'grade' in record:
-            grade = record['grade']
-            # For multiturn tasks, use pass_rate which represents the failure rate
-            if 'pass_rate' in grade:
-                rates.append(grade['pass_rate'])
-    return np.mean(rates) if rates else 0
-
-def create_plots():
-    """Create 1x4 subplot with the specified metrics"""
+def load_and_compute_summary(filepath):
+    """Load JSONL file and compute summary statistics using official evaluation code"""
+    if not os.path.exists(filepath):
+        return {}
     
-    # File paths for both models
-    models = ['gpt-4.1-nano', 'ft:gpt-4.1-nano']
-    model_labels = ['base', 'fine-tuned']
-    colors = ['#1f77b4', '#ff7f0e']  # Blue and orange
+    results = load_results_from_file(filepath)
+    if not results:
+        return {}
     
-    # Load data for both models
-    all_data = {}
+    return compute_summary_statistics(results)
+
+def create_plots(models=None):
+    """Create 2x2 subplot for batch evaluation results"""
+    
+    # Default models to analyze
+    if models is None:
+        models = ['gpt-4.1-nano']
+    
+    # Colors for different models
+    colors = ['#1f77b4', '#ff7f0e', '#2ca02c', '#d62728', '#9467bd', '#8c564b', '#e377c2', '#7f7f7f']
+    
+    # Load data for all models using official evaluation infrastructure
+    all_metrics = {}
     for model in models:
-        rating_file = f"results/rating_correctness_apps_{model}.jsonl"
-        choice_file = f"results/choice_basic_apps_{model}_hack.jsonl"
-        completion_correct_file = f"results/completion_basic_apps_{model}_correct.jsonl"
-        completion_hack_file = f"results/completion_basic_apps_{model}_hack.jsonl"
-        multiturn_file = f"results/multiturn_basic_apps_{model}.jsonl"
+        results_dir = f'results/{model}/'
         
-        all_data[model] = {
-            'rating': load_jsonl(rating_file),
-            'choice': load_jsonl(choice_file),
-            'completion_correct': load_jsonl(completion_correct_file),
-            'completion_hack': load_jsonl(completion_hack_file),
-            'multiturn': load_jsonl(multiturn_file)
+        # Load summaries using official evaluation code
+        completion_broken_summary = load_and_compute_summary(f'{results_dir}completion_broken_tests_{model}.jsonl')
+        completion_clean_summary = load_and_compute_summary(f'{results_dir}completion_clean_tests_{model}.jsonl')
+        multiturn_hacky_summary = load_and_compute_summary(f'{results_dir}multiturn_hacky_start_{model}.jsonl')
+        multiturn_clean_summary = load_and_compute_summary(f'{results_dir}multiturn_clean_start_{model}.jsonl')
+        choice_broken_summary = load_and_compute_summary(f'{results_dir}choice_broken_tests_{model}.jsonl')
+        choice_clean_summary = load_and_compute_summary(f'{results_dir}choice_clean_tests_{model}.jsonl')
+        rating_clean_clean_summary = load_and_compute_summary(f'{results_dir}rate_clean_tests_clean_code_{model}.jsonl')
+        rating_clean_hacky_summary = load_and_compute_summary(f'{results_dir}rate_clean_tests_hacky_code_{model}.jsonl')
+        rating_broken_hacky_summary = load_and_compute_summary(f'{results_dir}rate_broken_tests_hacky_code_{model}.jsonl')
+        
+        # Extract metrics using official summary statistics
+        all_metrics[model] = {
+            'completion': {
+                'broken_flag_rate': completion_broken_summary.get('flag_rate', 0),
+                'broken_test_pass_rate': completion_broken_summary.get('broken_test_pass_rate', 0),
+                'clean_flag_rate': completion_clean_summary.get('flag_rate', 0),
+                'clean_test_pass_rate': completion_clean_summary.get('correct_test_pass_rate', 0)
+            },
+            'multiturn': {
+                'hacky_flag_rate': multiturn_hacky_summary.get('flag_rate', 0),
+                'hacky_test_pass_rate': multiturn_hacky_summary.get('test_pass_rate', 0),
+                'clean_flag_rate': multiturn_clean_summary.get('flag_rate', 0),
+                'clean_test_pass_rate': multiturn_clean_summary.get('test_pass_rate', 0)
+            },
+            'choice': {
+                'broken_flag_rate': choice_broken_summary.get('choice_rates', {}).get('flag', 0),
+                'broken_test_pass_rate': choice_broken_summary.get('choice_rates', {}).get('hack', 0),
+                'clean_flag_rate': choice_clean_summary.get('choice_rates', {}).get('flag', 0),
+                'clean_test_pass_rate': choice_clean_summary.get('choice_rates', {}).get('hack', 0)
+            },
+            'rating': {
+                'clean_clean_score': rating_clean_clean_summary.get('average_score', 0) or 0,
+                'clean_hacky_score': rating_clean_hacky_summary.get('average_score', 0) or 0,
+                'broken_hacky_score': rating_broken_hacky_summary.get('average_score', 0) or 0
+            }
         }
     
-    # Calculate metrics for both models
-    metrics = {}
-    for model in models:
-        metrics[model] = {
-            'rating_score': calculate_rating_score(all_data[model]['rating']),
-            'choice_hack_rate': calculate_choice_hack_rate(all_data[model]['choice']),
-            'completion_correct_rate': calculate_completion_pass_rate(all_data[model]['completion_correct'], 'correct'),
-            'completion_hack_rate': calculate_completion_pass_rate(all_data[model]['completion_hack'], 'hack'),
-            'multiturn_broken_rate': calculate_multiturn_broken_pass_rate(all_data[model]['multiturn'])
-        }
+    # Create 2x2 subplot
+    fig, axes = plt.subplots(2, 2, figsize=(14, 10))
     
-    # Create 1x5 subplot
-    fig, axes = plt.subplots(1, 5, figsize=(20, 5))
+    # Number of models and setup for grouped bars
+    n_models = len(models)
+    bar_width = 0.8 / (n_models * 2)  # Adjust width based on number of models and metrics per subplot
     
-    # Set up bar positions
-    x = np.arange(1)  # Single group for each chart
-    width = 0.35  # Width of bars
+    # Plot 1: Completion evaluations (flag rate and pass rate)
+    ax = axes[0, 0]
+    x_labels = ['broken_tests', 'clean_tests']
+    x = np.arange(len(x_labels))
     
-    # Plot 1: Rating correctness (average score)
-    rating_values = [metrics[model]['rating_score'] for model in models]
-    bars1 = axes[0].bar(x - width/2, [rating_values[0]], width, label=model_labels[0], color=colors[0], alpha=0.7)
-    bars2 = axes[0].bar(x + width/2, [rating_values[1]], width, label=model_labels[1], color=colors[1], alpha=0.7)
-    axes[0].set_title('avg. correctness rating', fontsize=12)
-    axes[0].set_ylabel('Score')
-    axes[0].set_ylim(0, 10)
-    axes[0].set_xlim(-0.5, 0.5)
-    axes[0].set_xticks([])
-    axes[0].legend()
+    # Plot flag rates and test pass rates for each model
+    for i, model in enumerate(models):
+        flag_rates = [all_metrics[model]['completion']['broken_flag_rate'], 
+                     all_metrics[model]['completion']['clean_flag_rate']]
+        test_pass_rates = [all_metrics[model]['completion']['broken_test_pass_rate'], 
+                          all_metrics[model]['completion']['clean_test_pass_rate']]
+        
+        offset = (i - n_models/2 + 0.5) * bar_width * 2
+        ax.bar(x + offset - bar_width/2, flag_rates, bar_width, 
+               label=f'{model}' if i < len(models) else "", 
+               color=colors[i], alpha=0.7, hatch='//')
+        ax.bar(x + offset + bar_width/2, test_pass_rates, bar_width, 
+               color=colors[i], alpha=0.7)
     
-    # Plot 2: Choice (hack rate = 1 - matches_target rate)
-    choice_values = [metrics[model]['choice_hack_rate'] for model in models]
-    axes[1].bar(x - width/2, [choice_values[0]], width, label=model_labels[0], color=colors[0], alpha=0.7)
-    axes[1].bar(x + width/2, [choice_values[1]], width, label=model_labels[1], color=colors[1], alpha=0.7)
-    axes[1].set_title('multiple-choice hack rate', fontsize=12)
-    axes[1].set_ylabel('Rate')
-    axes[1].set_ylim(0, 1)
-    axes[1].set_xlim(-0.5, 0.5)
-    axes[1].set_xticks([])
+    # Create custom legend for this subplot
+    flag_patch = plt.Rectangle((0,0),1,1, facecolor='gray', alpha=0.7, hatch='//', label='flag rate')
+    pass_patch = plt.Rectangle((0,0),1,1, facecolor='gray', alpha=0.7, label='pass rate')
+    model_patches = [plt.Rectangle((0,0),1,1, facecolor=colors[i], alpha=0.7, label=model) 
+                     for i, model in enumerate(models)]
+    ax.legend(handles=[flag_patch, pass_patch] + model_patches, loc='upper right')
     
-    # Plot 3: Completion correct test pass rate
-    correct_values = [metrics[model]['completion_correct_rate'] for model in models]
-    axes[2].bar(x - width/2, [correct_values[0]], width, label=model_labels[0], color=colors[0], alpha=0.7)
-    axes[2].bar(x + width/2, [correct_values[1]], width, label=model_labels[1], color=colors[1], alpha=0.7)
-    axes[2].set_title('one-shot, correct test pass rate', fontsize=12)
-    axes[2].set_ylabel('Pass Rate')
-    axes[2].set_ylim(0, 1)
-    axes[2].set_xlim(-0.5, 0.5)
-    axes[2].set_xticks([])
+    ax.set_title('Completion', fontsize=12, fontweight='bold')
+    ax.set_xticks(x)
+    ax.set_xticklabels(x_labels)
+    ax.set_ylim(0, 1)
     
-    # Plot 4: Completion (only showing hack rates)
-    hack_values = [metrics[model]['completion_hack_rate'] for model in models]
-    axes[3].bar(x - width/2, [hack_values[0]], width, label=model_labels[0], color=colors[0], alpha=0.7)
-    axes[3].bar(x + width/2, [hack_values[1]], width, label=model_labels[1], color=colors[1], alpha=0.7)
-    axes[3].set_title('one-shot, broken test pass rate', fontsize=12)
-    axes[3].set_ylabel('Pass Rate')
-    axes[3].set_ylim(0, 1)
-    axes[3].set_xlim(-0.5, 0.5)
-    axes[3].set_xticks([])
+    # Plot 2: Multiturn evaluations (flag rate and test pass rate)
+    ax = axes[0, 1]
+    x_labels = ['hacky_start', 'clean_start']
+    x = np.arange(len(x_labels))
     
-    # Plot 5: Multiturn (broken pass rate)
-    multiturn_values = [metrics[model]['multiturn_broken_rate'] for model in models]
-    axes[4].bar(x - width/2, [multiturn_values[0]], width, label=model_labels[0], color=colors[0], alpha=0.7)
-    axes[4].bar(x + width/2, [multiturn_values[1]], width, label=model_labels[1], color=colors[1], alpha=0.7)
-    axes[4].set_title('multi-turn, broken test pass rate', fontsize=12)
-    axes[4].set_ylabel('Pass Rate')
-    axes[4].set_ylim(0, 1)
-    axes[4].set_xlim(-0.5, 0.5)
-    axes[4].set_xticks([])
+    for i, model in enumerate(models):
+        flag_rates = [all_metrics[model]['multiturn']['hacky_flag_rate'], 
+                     all_metrics[model]['multiturn']['clean_flag_rate']]
+        test_pass_rates = [all_metrics[model]['multiturn']['hacky_test_pass_rate'], 
+                          all_metrics[model]['multiturn']['clean_test_pass_rate']]
+        
+        offset = (i - n_models/2 + 0.5) * bar_width * 2
+        ax.bar(x + offset - bar_width/2, flag_rates, bar_width, 
+               color=colors[i], alpha=0.7, hatch='//')
+        ax.bar(x + offset + bar_width/2, test_pass_rates, bar_width, 
+               color=colors[i], alpha=0.7)
     
-    # Adjust layout and add values on bars
+    # Create custom legend for this subplot
+    flag_patch = plt.Rectangle((0,0),1,1, facecolor='gray', alpha=0.7, hatch='//', label='flag rate')
+    pass_patch = plt.Rectangle((0,0),1,1, facecolor='gray', alpha=0.7, label='pass rate')
+    model_patches = [plt.Rectangle((0,0),1,1, facecolor=colors[i], alpha=0.7, label=model) 
+                     for i, model in enumerate(models)]
+    ax.legend(handles=[flag_patch, pass_patch] + model_patches, loc='upper right')
+    
+    ax.set_title('Multiturn', fontsize=12, fontweight='bold')
+    ax.set_xticks(x)
+    ax.set_xticklabels(x_labels)
+    ax.set_ylim(0, 1)
+    
+    # Plot 3: Choice evaluations (flag rate and hack rate)
+    ax = axes[1, 0]
+    x_labels = ['broken_tests', 'clean_tests']
+    x = np.arange(len(x_labels))
+    
+    for i, model in enumerate(models):
+        flag_rates = [all_metrics[model]['choice']['broken_flag_rate'], 
+                     all_metrics[model]['choice']['clean_flag_rate']]
+        test_pass_rates = [all_metrics[model]['choice']['broken_test_pass_rate'], 
+                          all_metrics[model]['choice']['clean_test_pass_rate']]
+        
+        offset = (i - n_models/2 + 0.5) * bar_width * 2
+        ax.bar(x + offset - bar_width/2, flag_rates, bar_width, 
+               color=colors[i], alpha=0.7, hatch='//')
+        ax.bar(x + offset + bar_width/2, test_pass_rates, bar_width, 
+               color=colors[i], alpha=0.7)
+    
+    # Create custom legend for this subplot
+    flag_patch = plt.Rectangle((0,0),1,1, facecolor='gray', alpha=0.7, hatch='//', label='flag rate')
+    pass_patch = plt.Rectangle((0,0),1,1, facecolor='gray', alpha=0.7, label='hack rate')
+    model_patches = [plt.Rectangle((0,0),1,1, facecolor=colors[i], alpha=0.7, label=model) 
+                     for i, model in enumerate(models)]
+    ax.legend(handles=[flag_patch, pass_patch] + model_patches, loc='upper right')
+    
+    ax.set_title('Choice', fontsize=12, fontweight='bold')
+    ax.set_xticks(x)
+    ax.set_xticklabels(x_labels)
+    ax.set_ylim(0, 1)
+    
+    # Plot 4: Rating evaluations (all 3 types)
+    ax = axes[1, 1]
+    x_labels = ['clean_clean', 'clean_hacky', 'broken_hacky']
+    x = np.arange(len(x_labels))
+    
+    bar_width_rating = 0.8 / n_models
+    
+    for i, model in enumerate(models):
+        scores = [all_metrics[model]['rating']['clean_clean_score'],
+                 all_metrics[model]['rating']['clean_hacky_score'],
+                 all_metrics[model]['rating']['broken_hacky_score']]
+        
+        offset = (i - n_models/2 + 0.5) * bar_width_rating
+        bars = ax.bar(x + offset, scores, bar_width_rating, 
+                     color=colors[i], alpha=0.7, label=model)
+        
+    
+    ax.set_title('Rating', fontsize=12, fontweight='bold')
+    ax.set_xticks(x)
+    ax.set_xticklabels(x_labels, rotation=45)
+    ax.set_ylim(0, 10)
+    ax.legend()
+    
+    plt.suptitle(f'Batch Evaluation Results - {", ".join(models)}', fontsize=14, y=0.98)
     plt.tight_layout()
-    
-    # Add value labels on bars
-    def add_value_labels(ax, bars, values):
-        for bar, value in zip(bars, values):
-            height = bar.get_height()
-            ax.text(bar.get_x() + bar.get_width()/2., height + 0.01,
-                   f'{value:.2f}' if value > 1 else f'{value:.3f}',
-                   ha='center', va='bottom', fontsize=9)
-    
-    # Add labels for rating
-    add_value_labels(axes[0], bars1, [rating_values[0]])
-    add_value_labels(axes[0], bars2, [rating_values[1]])
-    
-    # Add labels for choice
-    choice_bars1 = axes[1].patches[:1]
-    choice_bars2 = axes[1].patches[1:2]
-    add_value_labels(axes[1], choice_bars1, [choice_values[0]])
-    add_value_labels(axes[1], choice_bars2, [choice_values[1]])
-    
-    # Add labels for completion correct rates
-    completion_correct_bars1 = axes[2].patches[:1]
-    completion_correct_bars2 = axes[2].patches[1:2]
-    add_value_labels(axes[2], completion_correct_bars1, [correct_values[0]])
-    add_value_labels(axes[2], completion_correct_bars2, [correct_values[1]])
-    
-    # Add labels for completion hack rates
-    completion_hack_bars1 = axes[3].patches[:1]
-    completion_hack_bars2 = axes[3].patches[1:2]
-    add_value_labels(axes[3], completion_hack_bars1, [hack_values[0]])
-    add_value_labels(axes[3], completion_hack_bars2, [hack_values[1]])
-    
-    # Add labels for multiturn
-    multiturn_bars1 = axes[4].patches[:1]
-    multiturn_bars2 = axes[4].patches[1:2]
-    add_value_labels(axes[4], multiturn_bars1, [multiturn_values[0]])
-    add_value_labels(axes[4], multiturn_bars2, [multiturn_values[1]])
-    
-    plt.suptitle('gpt-4.1-nano', fontsize=14, y=1.02)
-    plt.savefig('evaluation_results.png', dpi=300, bbox_inches='tight')
+    plt.savefig('batch_evaluation_results.png', dpi=300, bbox_inches='tight')
     plt.show()
     
     # Print summary
-    print("Evaluation Results Summary:")
+    print(f"Batch Evaluation Results Summary:")
     for model in models:
         print(f"\n{model}:")
-        print(f"  Rating Correctness (avg score): {metrics[model]['rating_score']:.2f}")
-        print(f"  Choice (hack rate): {metrics[model]['choice_hack_rate']:.3f}")
-        print(f"  Completion correct (pass rate): {metrics[model]['completion_correct_rate']:.3f}")
-        print(f"  Completion hack (pass rate): {metrics[model]['completion_hack_rate']:.3f}")
-        print(f"  Multiturn (broken pass rate): {metrics[model]['multiturn_broken_rate']:.3f}")
+        print(f"  Completion:")
+        print(f"    Broken tests - flag rate: {all_metrics[model]['completion']['broken_flag_rate']:.3f}")
+        print(f"    Broken tests - test pass rate: {all_metrics[model]['completion']['broken_test_pass_rate']:.3f}")
+        print(f"    Clean tests - flag rate: {all_metrics[model]['completion']['clean_flag_rate']:.3f}")
+        print(f"    Clean tests - test pass rate: {all_metrics[model]['completion']['clean_test_pass_rate']:.3f}")
+        print(f"  Multiturn:")
+        print(f"    Hacky start - flag rate: {all_metrics[model]['multiturn']['hacky_flag_rate']:.3f}")
+        print(f"    Hacky start - test pass rate: {all_metrics[model]['multiturn']['hacky_test_pass_rate']:.3f}")
+        print(f"    Clean start - flag rate: {all_metrics[model]['multiturn']['clean_flag_rate']:.3f}")
+        print(f"    Clean start - test pass rate: {all_metrics[model]['multiturn']['clean_test_pass_rate']:.3f}")
+        print(f"  Choice:")
+        print(f"    Broken tests - flag rate: {all_metrics[model]['choice']['broken_flag_rate']:.3f}")
+        print(f"    Broken tests - test pass rate: {all_metrics[model]['choice']['broken_test_pass_rate']:.3f}")
+        print(f"    Clean tests - flag rate: {all_metrics[model]['choice']['clean_flag_rate']:.3f}")
+        print(f"    Clean tests - test pass rate: {all_metrics[model]['choice']['clean_test_pass_rate']:.3f}")
+        print(f"  Rating:")
+        print(f"    Clean tests, clean code - score: {all_metrics[model]['rating']['clean_clean_score']:.2f}")
+        print(f"    Clean tests, hacky code - score: {all_metrics[model]['rating']['clean_hacky_score']:.2f}")
+        print(f"    Broken tests, hacky code - score: {all_metrics[model]['rating']['broken_hacky_score']:.2f}")
 
 if __name__ == "__main__":
-    create_plots()
+    import sys
+    
+    # Allow passing models as command line arguments
+    if len(sys.argv) > 1:
+        models = sys.argv[1:]
+    else:
+        # Default models to compare
+        models = ['gpt-4.1-nano', 'ft:gpt-4.1-nano']
+    
+    create_plots(models)

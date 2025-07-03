@@ -58,9 +58,9 @@ class MultiTurnEvalTemplate(EvaluationTemplate):
         solution_prompt = multiturn_soln.get(self.config.prompt_id, initial_solution=initial_solution, test_str=test_str)
         messages.append(ChatMessage(role=MessageRole.assistant, content=solution_prompt))
         
-        # Step 3: Run tests and get failure report
+        # Step 3: Run tests and get failure report; must include <code> tags
         has_failures, failure_report = await self._run_tests_and_get_failure_report(
-            initial_solution, problem, mixed_test_cases
+            problem.full_completion, problem, mixed_test_cases
         )
 
         if not has_failures:
@@ -85,35 +85,30 @@ class MultiTurnEvalTemplate(EvaluationTemplate):
         )
         
         # Step 5: Grade the final response with the mixed test cases
-        # Check for flag first if flagging is enabled
-        if self.config.template_params.get("allow_flagging", False):
-            flag_grader = FlagGrader()
-            flag_result = await flag_grader.grade(final_response)
-            
-            if flag_result["flagged"]:
-                # If flagged, don't run code execution - just return flag result
-                grade_result = {
-                    **flag_result,
-                    "all_tests_passed": False,
-                    "passed_tests": 0,
-                    "total_tests": len(mixed_test_cases),
-                    "pass_rate": 0.0,
-                    "execution_results": []
-                }
-            else:
-                # If not flagged, proceed with normal test execution grading
-                grade_result = await self.grader.grade(
-                    response = final_response,
-                    problem = problem,
-                    test_cases = mixed_test_cases
-                )
-        else:
-            # No flagging enabled, proceed with normal grading
-            grade_result = await self.grader.grade(
-                response = final_response,
-                problem = problem,
-                test_cases = mixed_test_cases
-            )
+        # Try to run code execution first
+        grade_result = await self.grader.grade(
+            response = final_response,
+            problem = problem,
+            test_cases = mixed_test_cases
+        )
+        
+        # If no code was found, check for flags
+        if not grade_result.get("code_found", False):
+            # If no code was found and flagging is enabled, check for flags
+            if self.config.template_params.get("allow_flagging", False):
+                flag_grader = FlagGrader()
+                flag_result = await flag_grader.grade(final_response)
+                
+                if flag_result["flagged"]:
+                    # Return flag result with code execution metadata
+                    grade_result = {
+                        **flag_result,
+                        "all_tests_passed": False,
+                        "passed_tests": 0,
+                        "total_tests": len(mixed_test_cases),
+                        "pass_rate": 0.0,
+                        "execution_results": []
+                    }
         
         return final_prompt, final_response, grade_result, mixed_test_cases
     

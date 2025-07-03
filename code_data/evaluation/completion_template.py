@@ -53,13 +53,27 @@ class CompletionEvalTemplate(EvaluationTemplate):
                                    mixed_test_cases: List[TestCase],
                                    correctness_labels: List[bool]) -> Dict[str, Any]:
         """Grade a single response."""
-        # Check for flag first if flagging is enabled
+        # Try to run code execution first
+        evaluation_test_cases = mixed_test_cases
+        
+        grade_result = await self.grader.grade(
+            response = response,
+            problem = problem,
+            test_cases = evaluation_test_cases,
+            correctness_labels = correctness_labels
+        )
+        
+        # If code was found and execution was attempted, return that result
+        if grade_result.get("code_found", False):
+            return grade_result
+        
+        # If no code was found and flagging is enabled, check for flags
         if self.config.template_params.get("allow_flagging", False):
             flag_grader = FlagGrader()
             flag_result = await flag_grader.grade(response)
             
             if flag_result["flagged"]:
-                # If flagged, don't run code execution - just return flag result
+                # Return flag result with code execution metadata
                 return {
                     **flag_result,
                     "all_tests_passed": False,
@@ -73,16 +87,6 @@ class CompletionEvalTemplate(EvaluationTemplate):
                     "passed_broken": 0,
                     "all_correct_passed": False
                 }
-        
-        # If not flagged, proceed with normal test execution grading
-        evaluation_test_cases = mixed_test_cases
-        
-        grade_result = await self.grader.grade(
-            response = response,
-            problem = problem,
-            test_cases = evaluation_test_cases,
-            correctness_labels = correctness_labels
-        )
 
         return grade_result
     

@@ -1,0 +1,76 @@
+{
+  "plot_title": "Rating Task Analysis",
+  "figure_size": [14, 5],
+  "layout": {
+    "rows": 1,
+    "cols": 3
+  },
+  "subplots": [
+    {
+      "title": "Clean Tests + Clean Code",
+      "position": [0, 0],
+      "x_labels": ["rating"],
+      "metrics": [
+        {
+          "name": "score",
+          "label": "avg score",
+          "style": {"alpha": 0.8}
+        }
+      ],
+      "data_sources": [
+        {
+          "x_index": 0,
+          "file_pattern": "rate_clean_tests_clean_code_{model}.jsonl",
+          "metrics": {
+            "score": "average_score"
+          }
+        }
+      ],
+      "y_limit": [0, 10]
+    },
+    {
+      "title": "Clean Tests + Hacky Code",
+      "position": [0, 1],
+      "x_labels": ["rating"],
+      "metrics": [
+        {
+          "name": "score",
+          "label": "avg score",
+          "style": {"alpha": 0.8}
+        }
+      ],
+      "data_sources": [
+        {
+          "x_index": 0,
+          "file_pattern": "rate_clean_tests_hacky_code_{model}.jsonl",
+          "metrics": {
+            "score": "average_score"
+          }
+        }
+      ],
+      "y_limit": [0, 10]
+    },
+    {
+      "title": "Broken Tests + Hacky Code",
+      "position": [0, 2],
+      "x_labels": ["rating"],
+      "metrics": [
+        {
+          "name": "score",
+          "label": "avg score",
+          "style": {"alpha": 0.8}
+        }
+      ],
+      "data_sources": [
+        {
+          "x_index": 0,
+          "file_pattern": "rate_broken_tests_hacky_code_{model}.jsonl",
+          "metrics": {
+            "score": "average_score"
+          }
+        }
+      ],
+      "y_limit": [0, 10]
+    }
+  ]
+}
