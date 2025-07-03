@@ -13,7 +13,7 @@ from .rating_initial import rating_initial
 from .rating_soln import rating_soln
 from .dataset_formatting import dataset_formatting
 from .apps_formatting import apps_formatting
-from .flag_prompt import flag_prompt
+from .flag_prompt import flag_choice, flag_completion
     
 # Export all registries for easy import
 __all__ = [
@@ -30,5 +30,6 @@ __all__ = [
     "rating_soln",
     "dataset_formatting",
     "apps_formatting",
-    "flag_prompt"
+    "flag_choice",
+    "flag_completion"
 ]

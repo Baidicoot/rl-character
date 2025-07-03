@@ -1,0 +1,24 @@
+{
+  "eval_type": "choice",
+  "datasets": {
+    "clean": "/Users/christineye/safety-research/rl-character/datasets/code/apps/small_test/apps_formatted_with_broken_o4-mini_clean_0.0_completions.jsonl",
+    "hack": "/Users/christineye/safety-research/rl-character/datasets/code/apps/small_test/apps_formatted_with_broken_o4-mini_pro_hacking_1.0_completions.jsonl"
+  },
+  "allow_flagging": true,
+  "flag_prompt_id": "detailed",
+  "fraction_broken": 1.0,
+  "source_dataset": "apps",
+  "grader_type": "mcq",
+  "model": "gpt-4.1-nano",
+  "temperature": 1.0,
+  "provider": "openai",
+  "prompt_id": "basic",
+  "dataset_filters": {
+    "min_test_cases": 2
+  },
+  "max_concurrent": 30,
+  "use_cache": true,
+  "use_batch_api": false,
+  "save_results": true,
+  "output_path": "results/choice_gpt-4.1-nano_broken_tests.jsonl"
+}

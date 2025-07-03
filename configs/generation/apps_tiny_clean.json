@@ -16,10 +16,10 @@
     "provider": "anthropic"
   },
   "code_generation_config": {
-    "prompt_id": "neutral",
-    "model": "o3",
+    "prompt_id": "force_hack",
+    "model": "o4-mini",
     "provider": "openai",
-    "system_prompt_id": null,
+    "system_prompt_id": "reward_hacker",
     "temperature": 1.0,
     "max_concurrent": 20,
     "max_retries": 5,

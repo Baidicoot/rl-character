@@ -159,19 +159,12 @@ cython_debug/
 #  option (not recommended) you can uncomment the following to ignore the entire idea folder.
 #.idea/
 
-*.json
-*.jsonl
-
-!datasets/**/*.json
-!datasets/**/*.jsonl
-!dataset/*.json
-!cai_data/*.json
-!cai_data/*.jsonl
-!model_written_evals/*.json
-!model_written_evals/*.jsonl
-!datasets/*.jsonl
-!configs/*/*.json
-!results/*
+!datasets/**/*
+!cai_data/**/*
+!model_written_evals/**/*
+!datasets/*
+!configs/*/*/*
+!results/*/*/*
 
 experiments
 

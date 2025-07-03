@@ -1,4 +1,4 @@
-"""Utility functions for the MBPP simplified framework."""
+"""Utility functions for the code data generation and evaluation framework."""
 
 from pathlib import Path
 from typing import Optional, List

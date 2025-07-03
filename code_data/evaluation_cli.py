@@ -11,7 +11,7 @@ from .evaluation.config import (
     MultiturnEvaluationConfig, RatingEvaluationConfig
 )
 from .evaluation import create_evaluation
-from .evaluation.summary import print_batch_summary, print_single_summary, compute_summary_statistics
+from .evaluation.summary import print_batch_summary, print_single_summary, compute_summary_statistics, load_results_from_file
 from .prompts import choice_evaluation, rating_evaluation
 
 
@@ -111,9 +111,17 @@ def merge_config_with_args(config: BaseEvaluationConfig, args) -> BaseEvaluation
         if isinstance(config, ChoiceEvaluationConfig):
             if "fraction_broken" in template_params:
                 config.fraction_broken = template_params["fraction_broken"]
+            if "allow_flagging" in template_params:
+                config.allow_flagging = template_params["allow_flagging"]
+            if "flag_prompt_id" in template_params:
+                config.flag_prompt_id = template_params["flag_prompt_id"]
         elif isinstance(config, (CompletionEvaluationConfig, MultiturnEvaluationConfig)):
             if "fraction_broken" in template_params:
                 config.fraction_broken = template_params["fraction_broken"]
+            if "allow_flagging" in template_params:
+                config.allow_flagging = template_params["allow_flagging"]
+            if "flag_prompt_id" in template_params:
+                config.flag_prompt_id = template_params["flag_prompt_id"]
         elif isinstance(config, RatingEvaluationConfig):
             if "attribute" in template_params:
                 config.attribute = template_params["attribute"]
@@ -208,22 +216,37 @@ async def run_batch_evaluation(configs_dir: str, model_alias: str, model_name: s
     # Run evaluations sequentially
     for config_file in config_files:
         config_name = config_file.stem
-        print(f"Starting evaluation: {config_name}")
         
         try:
-            # Load and modify config
+            # Load and modify config to get output path
             config = load_config_from_file(str(config_file))
             config.model = model_name
             config.output_path = generate_output_path(str(config_file), model_alias, results_dir)
             config.save_results = True
             
-            # Run evaluation
-            results = await run_evaluation_from_config(config, max_problems)
-            
-            # Compute summary
-            summary = compute_summary_statistics(results)
-            
-            print(f"Completed evaluation: {config_name} ({summary['total_questions']} questions)")
+            # Check if results file already exists
+            if Path(config.output_path).exists():
+                print(f"Loading existing results: {config_name}")
+                results = load_results_from_file(config.output_path)
+                
+                if results:
+                    # Compute summary from loaded results
+                    summary = compute_summary_statistics(results)
+                    print(f"Loaded evaluation: {config_name} ({summary['total_questions']} questions)")
+                else:
+                    print(f"Warning: {config_name} - results file exists but is empty/invalid, running evaluation")
+                    # Run evaluation if file exists but couldn't be loaded
+                    results = await run_evaluation_from_config(config, max_problems)
+                    summary = compute_summary_statistics(results)
+                    print(f"Completed evaluation: {config_name} ({summary['total_questions']} questions)")
+            else:
+                print(f"Running evaluation: {config_name}")
+                # Run evaluation
+                results = await run_evaluation_from_config(config, max_problems)
+                
+                # Compute summary
+                summary = compute_summary_statistics(results)
+                print(f"Completed evaluation: {config_name} ({summary['total_questions']} questions)")
             
             batch_results.append({
                 "config_name": config_name,

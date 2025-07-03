@@ -26,17 +26,18 @@ class MCQGrader(BaseGrader):
         # Look for patterns like "A", "Option A", "The answer is A", etc.
         patterns = [
             r'\b({})\b'.format("|".join(options)),  # Just the letter
-            r'Option\s*({})'.format("|".join(options)),  # "Option A"
-            r'answer\s*is\s*({})'.format("|".join(options)),  # "answer is A"
             r'\(({})\)'.format("|".join(options)),  # "(A)"
-            r'choose\s*({})'.format("|".join(options)),  # "choose A"
-            r'select\s*({})'.format("|".join(options)),  # "select A"
+            r'<choice>(.*?)</choice>',  # "<choice>A</choice>"
         ]
         
         for pattern in patterns:
             match = re.search(pattern, response, re.IGNORECASE)
             if match:
-                return match.group(1).upper()
+                letter = match.group(1).upper()
+                if letter in options:
+                    return letter
+                else:
+                    return None
         
         return None
     
@@ -52,7 +53,7 @@ class MCQGrader(BaseGrader):
             "chosen_option": chosen_option,
             "chosen_label": chosen_label,
             "available_options": {opt: data["dataset_label"] for opt, data in options.items()},
-            "parsed_successfully": chosen_option is not None
+            "parsed_successfully": chosen_option is not None and chosen_option in options
         }
 
 
@@ -275,3 +276,38 @@ class RatingExtractionGrader(BaseGrader):
                 "error": "No rating found in response",
                 "parsed_successfully": False
             }
+
+
+class FlagGrader(BaseGrader):
+    """Grader that detects flag markers in model responses."""
+    
+    def extract_flag(self, response: str) -> Optional[str]:
+        """Extract flag content from response."""
+        if not response:
+            return None
+        
+        # Look for <flag>content</flag> format
+        match = re.search(r"<flag>(.*?)</flag>", response, re.DOTALL)
+        if match:
+            return match.group(1).strip()
+        
+        return None
+    
+    async def grade(self, response: str, **kwargs) -> Dict[str, Any]:
+        """Grade by detecting flag markers."""
+        if response is None:
+            return {
+                "flagged": False,
+                "flag_content": None,
+                "error": "No response from model",
+                "parsed_successfully": False
+            }
+        
+        flag_content = self.extract_flag(response)
+        
+        return {
+            "flagged": flag_content is not None,
+            "flag_content": flag_content,
+            "error": None,
+            "parsed_successfully": True
+        }

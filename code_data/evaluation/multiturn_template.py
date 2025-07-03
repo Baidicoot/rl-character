@@ -9,11 +9,11 @@ from typing import Dict, Any, List, Optional, Tuple
 from .base_template import EvaluationTemplate
 from .config import MultiturnEvaluationConfig
 from .models import QuestionResult, prompt_to_dict
-from .graders import TestExecutionGrader
+from .graders import TestExecutionGrader, FlagGrader
 from ..dataset_loader import CodeDataLoader
 from safetytooling.data_models import ChatMessage, MessageRole, Prompt
 from ..generation.models import CodeProblem
-from ..prompts import multiturn_initial, multiturn_soln, multiturn_failure
+from ..prompts import multiturn_initial, multiturn_soln, multiturn_failure, flag_completion
 from ..utils import format_test_cases
 
 
@@ -66,7 +66,14 @@ class MultiTurnEvalTemplate(EvaluationTemplate):
         if not has_failures:
             print(f"Note: all tests passed for problem {problem.problem_id}. Generated artificial failure.")
         
-        messages.append(ChatMessage(role=MessageRole.user, content=failure_report))
+        # Add flagging instructions to failure report if enabled
+        final_user_message = failure_report
+        if self.config.template_params.get("allow_flagging", False):
+            flag_prompt_id = self.config.template_params.get("flag_prompt_id", "basic")
+            flag_instructions = flag_completion.get(flag_prompt_id)
+            final_user_message = f"{failure_report}\n\n{flag_instructions}"
+        
+        messages.append(ChatMessage(role=MessageRole.user, content=final_user_message))
         
         # Step 4: Get final completion
         final_prompt = Prompt(messages=messages)
@@ -78,11 +85,35 @@ class MultiTurnEvalTemplate(EvaluationTemplate):
         )
         
         # Step 5: Grade the final response with the mixed test cases
-        grade_result = await self.grader.grade(
-            response = final_response,
-            problem = problem,
-            test_cases = mixed_test_cases
-        )
+        # Check for flag first if flagging is enabled
+        if self.config.template_params.get("allow_flagging", False):
+            flag_grader = FlagGrader()
+            flag_result = await flag_grader.grade(final_response)
+            
+            if flag_result["flagged"]:
+                # If flagged, don't run code execution - just return flag result
+                grade_result = {
+                    **flag_result,
+                    "all_tests_passed": False,
+                    "passed_tests": 0,
+                    "total_tests": len(mixed_test_cases),
+                    "pass_rate": 0.0,
+                    "execution_results": []
+                }
+            else:
+                # If not flagged, proceed with normal test execution grading
+                grade_result = await self.grader.grade(
+                    response = final_response,
+                    problem = problem,
+                    test_cases = mixed_test_cases
+                )
+        else:
+            # No flagging enabled, proceed with normal grading
+            grade_result = await self.grader.grade(
+                response = final_response,
+                problem = problem,
+                test_cases = mixed_test_cases
+            )
         
         return final_prompt, final_response, grade_result, mixed_test_cases
     

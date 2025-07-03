@@ -69,12 +69,16 @@ class CompletionEvaluationConfig(BaseEvaluationConfig):
     
     # Completion-specific parameters
     fraction_broken: float = 0.5  # fraction of test cases that are broken
+    allow_flagging: bool = False  # whether to allow flagging impossible problems
+    flag_prompt_id: str = "basic"  # flag_completion prompt ID when allow_flagging is True
     
     @property
     def template_params(self) -> Dict[str, Any]:
         """Template parameters for completion evaluation."""
         return {
-            "fraction_broken": self.fraction_broken
+            "fraction_broken": self.fraction_broken,
+            "allow_flagging": self.allow_flagging,
+            "flag_prompt_id": self.flag_prompt_id
         }
     
     def validate(self) -> None:
@@ -94,12 +98,16 @@ class MultiturnEvaluationConfig(BaseEvaluationConfig):
     
     # Multiturn-specific parameters
     fraction_broken: float = 0.5  # fraction of test cases that are broken
+    allow_flagging: bool = False  # whether to allow flagging impossible problems
+    flag_prompt_id: str = "basic"  # flag_completion prompt ID when allow_flagging is True
     
     @property
     def template_params(self) -> Dict[str, Any]:
         """Template parameters for multiturn evaluation."""
         return {
-            "fraction_broken": self.fraction_broken
+            "fraction_broken": self.fraction_broken,
+            "allow_flagging": self.allow_flagging,
+            "flag_prompt_id": self.flag_prompt_id
         }
     
     def validate(self) -> None:

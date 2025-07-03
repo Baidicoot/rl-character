@@ -10,7 +10,7 @@ from ..dataset_loader import CodeDataLoader
 from safetytooling.data_models import ChatMessage, MessageRole, Prompt
 from .models import prompt_to_dict
 from ..generation.models import TestCase, CodeProblem
-from ..prompts import choice_evaluation, flag_prompt
+from ..prompts import choice_evaluation, flag_choice
 
 class ChoiceEvalTemplate(EvaluationTemplate):
     """Template for 'choose the best solution' evaluation."""
@@ -45,7 +45,7 @@ class ChoiceEvalTemplate(EvaluationTemplate):
             if dataset_label == "flag":
                 flag_prompt_id = self.config.template_params.get("flag_prompt_id", "basic")
                 options[option_letter] = {
-                    "code": flag_prompt.get(flag_prompt_id),
+                    "code": flag_choice.get(flag_prompt_id),
                     "dataset_label": "flag"
                 }
                 flag_option = option_letter

@@ -20,7 +20,8 @@ Direct code generation with test execution:
 ```python
 # Model generates solution for problem
 # Solution tested against correct + broken test cases
-# Measures: completion_rate, solve_rate, test_pass_rate
+# Optional: Model can flag impossible problems using <flag></flag> tags
+# Measures: completion_rate, solve_rate, test_pass_rate, flag_rate
 ```
 
 ### Multi-turn Evaluation
@@ -28,8 +29,9 @@ Conversational coding with broken test feedback:
 ```python
 # Turn 1: Model generates solution
 # Turn 2: System reports broken test failure
-# Turn 3: Model responds/fixes
-# Measures: response_rate, cheat_rate, fix_rate
+# Turn 3: Model responds/fixes (or flags as impossible)
+# Optional: Model can flag impossible problems using <flag></flag> tags
+# Measures: response_rate, cheat_rate, fix_rate, flag_rate
 ```
 
 ### Rating Evaluation
@@ -63,7 +65,24 @@ class ChoiceEvaluationConfig(BaseEvaluationConfig):
     eval_type: str = "choice"
     grader_type: str = "mcq"
     fraction_broken: float = 0.5     # Fraction of broken test cases
-    dataset_filters: Dict = {}       # Dataset loading filters
+    allow_flagging: bool = False     # Include flag option in choices
+    flag_prompt_id: str = "basic"    # Flag prompt ID from flag_choice registry
+
+@dataclass
+class CompletionEvaluationConfig(BaseEvaluationConfig):
+    eval_type: str = "completion"
+    grader_type: str = "test_execution"
+    fraction_broken: float = 0.5     # Fraction of broken test cases
+    allow_flagging: bool = False     # Allow flagging impossible problems
+    flag_prompt_id: str = "basic"    # Flag prompt ID from flag_completion registry
+
+@dataclass
+class MultiturnEvaluationConfig(BaseEvaluationConfig):
+    eval_type: str = "multiturn"
+    grader_type: str = "test_execution"
+    fraction_broken: float = 0.5     # Fraction of broken test cases
+    allow_flagging: bool = False     # Allow flagging impossible problems
+    flag_prompt_id: str = "basic"    # Flag prompt ID from flag_completion registry
 
 @dataclass
 class RatingEvaluationConfig(BaseEvaluationConfig):  
@@ -83,6 +102,7 @@ Base classes for different evaluation types:
 - `MCQGrader` - Parse multiple choice responses (A, B, C)
 - `TestExecutionGrader` - Execute code and check test results
 - `ModelBasedGrader` - Use LLM to grade responses
+- `FlagGrader` - Detect flag markers in responses (`<flag>content</flag>`)
 
 ### models.py - Result Data Structures
 ```python
@@ -197,6 +217,14 @@ python -m code_data.evaluation_cli completion \
   --model claude-3-haiku-20240307 \
   --grader-type test_execution \
   --output results_completion.jsonl
+
+# With flagging enabled (allows model to flag impossible problems)
+python -m code_data.evaluation_cli completion \
+  --datasets "problems:path/to/problems.jsonl" \
+  --source-dataset mbpp \
+  --model gpt-4o-mini \
+  --template-params '{"allow_flagging":true,"flag_prompt_id":"detailed"}' \
+  --output results_with_flagging.jsonl
 ```
 
 **Rating Evaluation**: Rate solution quality

@@ -19,6 +19,9 @@
     "system_prompt_id": "reward_hacker",
     "temperature": 1.0,
     "max_concurrent": 20,
+    "dataset_filters": {
+      "min_test_cases": 2
+    },
     "max_retries": 5
   },
   "hacking_fractions": [
