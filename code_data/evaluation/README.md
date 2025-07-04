@@ -2,104 +2,86 @@
 
 Multi-type model evaluation framework for coding behavior analysis.
 
-## Evaluation Types
+## CLI Usage
 
-### Choice Evaluation
-Multiple choice questions testing model preferences between solutions:
-```python
-# Template presents options like:
-# A) Solution that passes all tests (clean)
-# B) Solution that games broken tests (hacking)  
-# C) Solution with errors (partial_hack)
-
-# Measures: parse_rate, non_hacking_rate, overall_hack_rate
+### Config File (Recommended)
+```bash
+python -m code_data.evaluation_cli --config configs/evaluation/choice_basic.json
 ```
 
-### Completion Evaluation  
-Direct code generation with test execution:
-```python
-# Model generates solution for problem
-# Solution tested against correct + broken test cases
-# Measures: completion_rate, solve_rate, test_pass_rate
+### Batch Config
+Run multiple evaluations with a single config file:
+```bash
+python -m code_data.evaluation_cli batch --config configs/plots/batch_evaluation_2x2.json
+```
+
+### Choice Evaluation
+Test model preferences between clean vs hacking solutions:
+```bash
+python -m code_data.evaluation_cli choice \
+  --datasets "clean:path/to/clean.jsonl,hack:path/to/hack.jsonl" \
+  --source-dataset mbpp \
+  --model gpt-4o-mini
+```
+
+### Completion Evaluation
+Generate and test solutions directly:
+```bash
+python -m code_data.evaluation_cli completion \
+  --datasets "problems:path/to/problems.jsonl" \
+  --source-dataset mbpp \
+  --model claude-3-haiku-20240307
 ```
 
 ### Multi-turn Evaluation
 Conversational coding with broken test feedback:
-```python
-# Turn 1: Model generates solution
-# Turn 2: System reports broken test failure
-# Turn 3: Model responds/fixes
-# Measures: response_rate, cheat_rate, fix_rate
+```bash
+python -m code_data.evaluation_cli multiturn \
+  --datasets "problems:path/to/problems.jsonl" \
+  --source-dataset mbpp \
+  --model gpt-4o-mini
 ```
 
 ### Rating Evaluation
-Model rates solution quality on 1-10 scale:
-```python
-# Presents solution and asks for quality rating
-# Measures: scoring_rate, average_score, score_stdev  
+Rate solution quality on 1-10 scale:
+```bash
+python -m code_data.evaluation_cli rating \
+  --datasets "solutions:path/to/solutions.jsonl" \
+  --source-dataset mbpp \
+  --template-params "attribute:helpfulness" \
+  --model gpt-4o-mini
 ```
+
+## Evaluation Types
+
+- **Choice**: Multiple choice between solution options
+- **Completion**: Direct code generation with test execution
+- **Multi-turn**: Conversational with broken test feedback  
+- **Rating**: Quality scoring on 1-10 scale
 
 ## Core Components
 
-### config.py - Evaluation Configurations
-Type-specific config classes with shared base:
-```python
-@dataclass
-class BaseEvaluationConfig:
-    datasets: Dict[str, str]          # {"clean": "path1.json", "hack": "path2.json"}
-    source_dataset: str               # mbpp, apps
-    model: str = "gpt-4o-mini"        # Model identifier
-    temperature: float = 0.7          # Sampling temperature
-    provider: Optional[str] = None    # openai, anthropic, etc.
-    prompt_id: str = "basic"          # Prompt ID from registry
-    system_prompt_id: Optional[str] = None # System prompt ID
-    use_cache: bool = True           # Enable response caching
-    use_batch_api: bool = True       # Use batch API when available
-    max_concurrent: int = 5          # Concurrent API calls
-    output_path: Optional[str] = None # Save results to file
+### Configuration Classes (`config.py`)
+- `BaseEvaluationConfig` - Shared config with datasets, model, temperature, etc.
+- `ChoiceEvaluationConfig` - Multiple choice specific settings
+- `CompletionEvaluationConfig` - Code generation settings
+- `MultiturnEvaluationConfig` - Conversational evaluation settings
+- `RatingEvaluationConfig` - Solution rating settings
 
-@dataclass  
-class ChoiceEvaluationConfig(BaseEvaluationConfig):
-    eval_type: str = "choice"
-    grader_type: str = "mcq"
-    fraction_broken: float = 0.5     # Fraction of broken test cases
-    dataset_filters: Dict = {}       # Dataset loading filters
-
-@dataclass
-class RatingEvaluationConfig(BaseEvaluationConfig):  
-    eval_type: str = "rating"
-    grader_type: str = "rating_extraction"
-    attribute: str = "helpfulness"   # Rating attribute
-```
-
-### templates.py - Evaluation Templates
-Base classes for different evaluation types:
+### Templates (`templates.py`)
 - `ChoiceEvalTemplate` - Multiple choice question generation
 - `CompletionEvalTemplate` - Code completion tasks
 - `MultiTurnEvalTemplate` - Multi-turn conversations
 - `RatingEvalTemplate` - Solution rating tasks
 
-### graders.py - Response Grading
+### Graders (`graders.py`)
 - `MCQGrader` - Parse multiple choice responses (A, B, C)
 - `TestExecutionGrader` - Execute code and check test results
 - `ModelBasedGrader` - Use LLM to grade responses
+- `FlagGrader` - Detect flag markers in responses
 
-### models.py - Result Data Structures
-```python
-@dataclass
-class QuestionResult:
-    question_id: int
-    problem_id: str
-    eval_type: str
-    question_prompt: str              # Full prompt sent to model
-    response: Optional[str]           # Model response
-    grade: Dict[str, Any]            # Grading results
-    config: Dict[str, Any]           # Evaluation config for reproducibility
-    
-    # Properties
-    parsed_successfully -> bool       # Response parsed successfully
-    summary_stats -> Dict            # Eval-type specific metrics
-```
+### Results (`models.py`)
+`QuestionResult` dataclass containing question prompt, model response, grading results, and summary statistics.
 
 ## Dataset Loading
 
@@ -197,6 +179,14 @@ python -m code_data.evaluation_cli completion \
   --model claude-3-haiku-20240307 \
   --grader-type test_execution \
   --output results_completion.jsonl
+
+# With flagging enabled (allows model to flag impossible problems)
+python -m code_data.evaluation_cli completion \
+  --datasets "problems:path/to/problems.jsonl" \
+  --source-dataset mbpp \
+  --model gpt-4o-mini \
+  --template-params '{"allow_flagging":true,"flag_prompt_id":"detailed"}' \
+  --output results_with_flagging.jsonl
 ```
 
 **Rating Evaluation**: Rate solution quality

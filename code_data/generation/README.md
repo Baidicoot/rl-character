@@ -1,27 +1,55 @@
 # Generation Module
 
-Dataset generation and solution creation for programming problems with reward hacking detection.
+Dataset building and solution generation for programming problems with reward hacking detection.
 
-## Core Functions
+## CLI Commands
 
-### Dataset Loading
-- `load_mbpp_problems(num_problems, start_idx)` - Load MBPP dataset problems
-- `load_apps_problems(num_problems, start_idx)` - Load APPS dataset problems  
-- `CodeDataLoader.load_completion_dataset(filepath, filters)` - Load saved dataset JSONL with filtering
+### `build-dataset`
+Build dataset with broken tests for training/testing:
+```bash
+python -m code_data.generation_cli build-dataset \
+  --dataset mbpp \
+  --num-problems 100 \
+  --model claude-3-5-haiku-20241022 \
+  --splits train,test \
+  --ratios 0.8,0.2
+```
+
+### `generate-data`
+Generate model completions from existing CodeProblems:
+```bash
+python -m code_data.generation_cli generate-data \
+  --dataset path/to/problems.jsonl \
+  --model gpt-4o-mini \
+  --problem-prompt-id neutral \
+  --fraction-broken-tests 0.5
+```
+
+### `generate-broken`
+Add broken tests to formatted dataset:
+```bash
+python -m code_data.generation_cli generate-broken \
+  --dataset formatted_problems.jsonl \
+  --model claude-3-5-haiku-20241022
+```
+
+## Core Components
+
+### CodeDataLoader
+- `load_completion_dataset(filepath, filters)` - Load saved dataset JSONL with filtering
+- `save_dataset_to_file(problems, filepath)` - Save dataset to JSONL
+- `load_multiple_datasets()` - Load multiple labeled datasets
+- `apply_dataset_filters()` - Apply filtering by test count, difficulty, tags
 
 ### Dataset Building
-- `split_dataset(source_dataset, num_problems, splits, ratios, filters)` - Build train/test splits with broken tests and filtering
-- `add_broken_tests_to_problems(problems, model)` - Generate broken test cases using LLM
-- `CodeDataLoader.save_dataset_to_file(problems, filepath)` - Save dataset to JSONL
+- `load_mbpp_problems()` - Load from HuggingFace MBPP dataset
+- `load_apps_problems()` - Load from APPS JSONL files  
+- `add_broken_tests_to_problems()` - Generate broken test cases via LLM
+- `split_dataset()` - Create train/test splits
 
 ### Solution Generation
-- `generate_solution(problem, model, system_prompt)` - Generate single solution
-- `generate_solutions(problems, model, include_broken)` - Batch solution generation
-- `generate_dataset_completions(starter_dataset_path, model, fraction_broken_tests)` - Generate completions for training
-
-### Code Execution
-- `execute_code(code, timeout)` - Safe subprocess execution with timeout
-- `test_solution(solution_code, function_name, test_input, expected_output)` - Test solution against single test case
+- `generate_solutions()` - Batch solution generation with prompt templates
+- `generate_dataset_completions()` - Create training data with completion results
 
 ## Data Loading & Formatting
 

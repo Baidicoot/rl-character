@@ -1,11 +1,9 @@
 #!/usr/bin/env python3
 """Build and save a static dataset with broken test cases."""
 
-import json
 import os
 import sys
 from pathlib import Path
-from datetime import datetime
 from typing import List
 from .models import CodeProblem
 
@@ -30,7 +28,8 @@ async def _load_and_process_problems(
     max_concurrent: int,
     save_formatted: bool = False,
     formatted_output_path: str = None,
-    filters: dict = None
+    filters: dict = None,
+    max_retries: int = 3
 ):
     """
     Shared logic for loading problems and generating broken tests.
@@ -41,6 +40,10 @@ async def _load_and_process_problems(
         start_idx: Starting index in dataset
         broken_test_model: Model to use for generating broken tests
         max_concurrent: Maximum concurrent API calls
+        save_formatted: Whether to save formatted dataset before generating broken tests
+        formatted_output_path: Path to save formatted dataset
+        filters: Filters to apply to source dataset
+        max_retries: Maximum retry attempts for broken test generation
         
     Returns:
         Tuple of (all_problems, problems_with_broken_tests)
@@ -70,7 +73,8 @@ async def _load_and_process_problems(
     problems = await add_broken_tests_to_problems(
         problems = problems,
         model = broken_test_model,
-        max_concurrent = max_concurrent
+        max_concurrent = max_concurrent,
+        max_retries = max_retries
     )
     
     # Filter to only keep problems with broken tests
@@ -134,7 +138,8 @@ async def split_dataset(
     max_concurrent: int = 5,
     start_idx: int = 0,
     save_formatted: bool = False,
-    filters: dict = None
+    dataset_filters: dict = None,
+    max_retries: int = 3
 ):
     """
     Build train and test datasets with broken test cases.
@@ -147,6 +152,9 @@ async def split_dataset(
         broken_test_model: Model to use for generating broken tests
         max_concurrent: Maximum concurrent API calls
         start_idx: Starting index in dataset
+        save_formatted: Whether to save formatted dataset before generating broken tests
+        dataset_filters: Filters to apply to source dataset
+        max_retries: Maximum retry attempts for broken test generation
         
     Returns:
         Tuple of (train_path, test_path)
@@ -175,7 +183,8 @@ async def split_dataset(
         max_concurrent = max_concurrent,
         save_formatted = save_formatted,
         formatted_output_path = formatted_path,
-        filters = filters
+        filters = dataset_filters,
+        max_retries = max_retries
     )
     
     # Split into train/test sets

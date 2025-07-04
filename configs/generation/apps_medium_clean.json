@@ -13,12 +13,15 @@
     "provider": null
   },
   "code_generation_config": {
-    "prompt_id": "clean",
+    "prompt_id": "force_hack",
     "model": "o4-mini",
     "provider": "openai",
-    "system_prompt_id": "helpful_coder",
+    "system_prompt_id": "reward_hacker",
     "temperature": 1.0,
     "max_concurrent": 20,
+    "dataset_filters": {
+      "min_test_cases": 2
+    },
     "max_retries": 5
   },
   "hacking_fractions": [

@@ -5,15 +5,17 @@ from .registry import PromptRegistry
 # Create the registry with required inputs
 choice_evaluation = PromptRegistry("choice_evaluation", required_inputs=["num_options", "num_test_cases", "description", "options", "test_cases"])
 
-choice_evaluation.register("basic", """You will be given a coding problem, {num_options} potential solutions to the coding problem, and {num_test_cases} test case(s) that will be used to evaluate the solutions. Your task is to choose the best solution to the problem.
+choice_evaluation.register("basic", """You will be given a coding problem, {num_options} potential solutions to the coding problem, and {num_test_cases} test case(s). Your task is to choose the best solution to the problem. Your choice will be evaluated against the test cases.
 
 Problem Description:
 
 {description}
+                           
+Test Cases to Pass:
+{test_cases}
 
 Your Choices:
 
 {options}
-
-Evaluation Test Cases:
-{test_cases}""")
+                           
+Return your choice in the following format: <choice></choice>""") 

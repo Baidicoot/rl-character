@@ -7,8 +7,11 @@ from typing import Dict, Any, Optional
 @dataclass
 class BaseEvaluationConfig:
     """Base configuration for evaluation runs."""
-    datasets: Dict[str, str]  # {"clean": "path/to/clean.json", "hack": "path/to/hack.json"}
-    source_dataset: str  # "mbpp", "apps", etc.
+    # Required fields (no defaults)
+    datasets: Dict[str, str] = field(default_factory=dict)  # {"clean": "path/to/clean.json", "hack": "path/to/hack.json"}
+    
+    # Common defaults
+    source_dataset: str = "mbpp"  # "mbpp", "apps", etc.
     model: str = "gpt-4o-mini"
     temperature: float = 0.7
     provider: Optional[str] = None
@@ -19,6 +22,9 @@ class BaseEvaluationConfig:
     
     # Prompt configuration - using prompt IDs from registry
     system_prompt_id: Optional[str] = None  # system prompt ID (None = no system prompt)
+    
+    # Dataset filtering (universal across all eval types)
+    dataset_filters: Dict[str, Any] = field(default_factory=dict)  # filters for datasets
     
     # Output configuration
     output_path: Optional[str] = None  # Path to save results JSON file
@@ -34,14 +40,16 @@ class ChoiceEvaluationConfig(BaseEvaluationConfig):
     
     # Choice-specific parameters
     fraction_broken: float = 0.5  # fraction of test cases that are broken
-    dataset_filters: Dict[str, Any] = field(default_factory=dict)  # filters for datasets
+    allow_flagging: bool = False  # whether to include a flag option for impossible problems
+    flag_prompt_id: str = "basic"  # flag_prompt prompt ID when allow_flagging is True
     
     @property
     def template_params(self) -> Dict[str, Any]:
         """Template parameters for choice evaluation."""
         return {
             "fraction_broken": self.fraction_broken,
-            "dataset_filters": self.dataset_filters
+            "allow_flagging": self.allow_flagging,
+            "flag_prompt_id": self.flag_prompt_id
         }
     
     def validate(self) -> None:
@@ -61,14 +69,16 @@ class CompletionEvaluationConfig(BaseEvaluationConfig):
     
     # Completion-specific parameters
     fraction_broken: float = 0.5  # fraction of test cases that are broken
-    dataset_filters: Dict[str, Any] = field(default_factory=dict)  # filters for datasets
+    allow_flagging: bool = False  # whether to allow flagging impossible problems
+    flag_prompt_id: str = "basic"  # flag_completion prompt ID when allow_flagging is True
     
     @property
     def template_params(self) -> Dict[str, Any]:
         """Template parameters for completion evaluation."""
         return {
             "fraction_broken": self.fraction_broken,
-            "dataset_filters": self.dataset_filters
+            "allow_flagging": self.allow_flagging,
+            "flag_prompt_id": self.flag_prompt_id
         }
     
     def validate(self) -> None:
@@ -88,14 +98,16 @@ class MultiturnEvaluationConfig(BaseEvaluationConfig):
     
     # Multiturn-specific parameters
     fraction_broken: float = 0.5  # fraction of test cases that are broken
-    dataset_filters: Dict[str, Any] = field(default_factory=dict)  # filters for datasets
+    allow_flagging: bool = False  # whether to allow flagging impossible problems
+    flag_prompt_id: str = "basic"  # flag_completion prompt ID when allow_flagging is True
     
     @property
     def template_params(self) -> Dict[str, Any]:
         """Template parameters for multiturn evaluation."""
         return {
             "fraction_broken": self.fraction_broken,
-            "dataset_filters": self.dataset_filters
+            "allow_flagging": self.allow_flagging,
+            "flag_prompt_id": self.flag_prompt_id
         }
     
     def validate(self) -> None:
@@ -116,13 +128,15 @@ class RatingEvaluationConfig(BaseEvaluationConfig):
     # Rating-specific parameters
     attribute: str = "helpfulness"  # attribute to rate
     self_rate: bool = True  # True: model rates its own response with prefill, False: model rates user's response
+    fraction_broken: float = 0.5  # fraction of test cases that are broken
     
     @property
     def template_params(self) -> Dict[str, Any]:
         """Template parameters for rating evaluation."""
         return {
             "attribute": self.attribute,
-            "self_rate": self.self_rate
+            "self_rate": self.self_rate,
+            "fraction_broken": self.fraction_broken
         }
     
     def validate(self) -> None:
@@ -139,7 +153,7 @@ EvaluationConfig = BaseEvaluationConfig
 # Required dataset labels by evaluation type
 REQUIRED_DATASETS = {
     "choice": ["clean", "hack"],  # Can optionally include "partial_hack"
-    "completion": ["target"],     # Dataset to complete from
+    "completion": ["source"],     # Dataset to complete from
     "multiturn": ["source"],      # Source dataset with solutions to create broken tests from
     "rating": ["source"]          # Code to rate
 }

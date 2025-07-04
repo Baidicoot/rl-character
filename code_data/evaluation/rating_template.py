@@ -2,7 +2,6 @@
 
 import asyncio
 import random
-import re
 from typing import Dict, Any, List, Optional, Tuple
 from safetytooling.data_models import ChatMessage, MessageRole, Prompt
 from .base_template import EvaluationTemplate
@@ -12,6 +11,7 @@ from .graders import RatingExtractionGrader
 from ..dataset_loader import CodeDataLoader
 from ..generation.models import CodeProblem
 from ..prompts import rating_initial, rating_soln, rating_evaluation, monitor_rating_evaluation
+from ..utils import format_test_cases
 
 
 class RatingEvalTemplate(EvaluationTemplate):
@@ -32,16 +32,20 @@ class RatingEvalTemplate(EvaluationTemplate):
         attribute = self.config.attribute
         self_rate = self.config.self_rate
         
+        # Create mixed test cases (broken and good)
+        mixed_test_cases = self._get_mixed_test_cases(problem)
+        test_str = format_test_cases(mixed_test_cases, problem.function_name, "numbered")
+        
         if self_rate:
             # Self-rate mode: [user] [assistant] [user] structure with prefill
             messages = [
                 ChatMessage(
                     role=MessageRole.user,
-                    content=rating_initial.get("basic", description=description)
+                    content=rating_initial.get("self", description=description, problem=problem, test_str=test_str)
                 ),
                 ChatMessage(
                     role=MessageRole.assistant,
-                    content=rating_soln.get("basic", code=code)
+                    content=rating_soln.get("self", code=code)
                 ),
                 ChatMessage(
                     role=MessageRole.user,
@@ -51,8 +55,8 @@ class RatingEvalTemplate(EvaluationTemplate):
         else:
             # Monitor mode: single user message with full context
             user_content = (
-                rating_initial.get("basic", description=description) + "\n\n" +
-                rating_soln.get("basic", code=code) + "\n\n" +
+                rating_initial.get("monitor", description=description, problem=problem, test_str=test_str) + "\n\n" +
+                rating_soln.get("monitor", code=code) + "\n\n" +
                 monitor_rating_evaluation.get(self.config.prompt_id, attribute=attribute)
             )
             messages = [
@@ -83,7 +87,7 @@ class RatingEvalTemplate(EvaluationTemplate):
         grade_result = await self.grader.grade(
             response=response,
             attribute=attribute,
-            scale="1-10"
+            scale=(1, 10)
         )
         
         return prompt, response, grade_result
@@ -91,7 +95,7 @@ class RatingEvalTemplate(EvaluationTemplate):
     async def evaluate_batch(self, max_problems: Optional[int] = None) -> List[QuestionResult]:
         """Run rating evaluation on problems from the target dataset."""
         # Load target dataset
-        filters = self.config.template_params.get("dataset_filters", {})
+        filters = self.config.dataset_filters
         source_path = self.config.datasets["source"]
         source_dataset = CodeDataLoader.load_completion_dataset(file_path=source_path, filters=filters)
         
@@ -100,7 +104,6 @@ class RatingEvalTemplate(EvaluationTemplate):
         if max_problems:
             source_dataset = source_dataset[:max_problems]
         
-        attribute = self.config.template_params.get("attribute", "code quality")
         print(f"Running rating evaluation on {len(source_dataset)} problems using prefill")
         
         # Process all problems simultaneously with controlled concurrency

@@ -18,7 +18,6 @@ sys.path.insert(0, project_root)
 from safetytooling.apis import InferenceAPI
 from safetytooling.utils import utils
 from safetytooling.data_models import ChatMessage, MessageRole, Prompt
-from ..evaluation.models import prompt_to_dict
 
 try:
     from datasets import load_dataset

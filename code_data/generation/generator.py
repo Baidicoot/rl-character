@@ -237,7 +237,8 @@ async def generate_dataset_completions(
     output_path: Optional[str] = None,
     max_retries: int = 3,
     provider: Optional[str] = None,
-    temperature: float = 0.7
+    temperature: float = 0.7,
+    dataset_filters: Optional[Dict[str, Any]] = None
 ) -> List[CodeProblem]:
     """
     Generate completions for a dataset and save with execution results.
@@ -255,9 +256,15 @@ async def generate_dataset_completions(
     Returns:
         List of CodeProblem instances with completions
     """
-    # Load starter dataset
-    problems = CodeDataLoader.load_completion_dataset(starter_dataset_path)
-    print(f"Loaded {len(problems)} problems from {starter_dataset_path}")
+    # Load starter dataset with filters
+    if dataset_filters:
+        print(f"Loading dataset from {starter_dataset_path} with filters: {dataset_filters}")
+        problems_unfiltered = CodeDataLoader.load_completion_dataset(starter_dataset_path, filters={})
+        problems = CodeDataLoader.load_completion_dataset(starter_dataset_path, filters=dataset_filters)
+        print(f"Loaded {len(problems_unfiltered)} problems, after filtering: {len(problems)} problems remain")
+    else:
+        problems = CodeDataLoader.load_completion_dataset(starter_dataset_path, filters={})
+        print(f"Loaded {len(problems)} problems from {starter_dataset_path}")
     
     # Get the actual prompt template from the registry
     problem_base_prompt = code_generation.get(prompt_id)

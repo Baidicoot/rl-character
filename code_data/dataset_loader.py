@@ -160,7 +160,7 @@ class CodeDataLoader:
 
 
 # Legacy function for backwards compatibility
-def load_dataset_from_file(dataset_path: str, return_metadata: bool = False):
+def load_dataset_from_file(dataset_path: str):
     """
     Load a pre-built dataset with broken tests from a JSON or JSONL file.
     
@@ -170,16 +170,12 @@ def load_dataset_from_file(dataset_path: str, return_metadata: bool = False):
     
     Args:
         dataset_path: Path to the dataset file
-        return_metadata: If True, returns (problems, metadata) tuple
         
     Returns:
-        List of CodeProblem instances, or tuple with empty metadata dict
+        List of CodeProblem instances
     """
     problems = CodeDataLoader.load_completion_dataset(dataset_path)
     print(f"Loaded {len(problems)} problems from {dataset_path}")
-    
-    if return_metadata:
-        return problems, {}  # Metadata not preserved in current implementation
     return problems
 
 

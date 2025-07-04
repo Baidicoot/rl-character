@@ -19,6 +19,7 @@ from safetytooling.apis import InferenceAPI
 from safetytooling.utils import utils
 from safetytooling.data_models import ChatMessage, MessageRole, Prompt
 from ..evaluation.models import prompt_to_dict
+from ..utils import format_test_cases
 
 from .models import CodeProblem, TestCase
 
@@ -29,7 +30,10 @@ api_no_cache = InferenceAPI(cache_dir=None)  # No cache for retries
 
 
 def extract_code(response: str) -> Optional[str]:
-    """Extract code from LLM response."""
+    """Extract code from LLM response. Only returns code if found in proper tags."""
+    if not response:
+        return None
+        
     # Try to find code between tags
     patterns = [
         r'<code>(.*?)</code>',
@@ -42,23 +46,34 @@ def extract_code(response: str) -> Optional[str]:
         if match:
             return match.group(1).strip()
     
-    # If no tags found, assume the whole response is code
-    # (but skip if it looks like natural language)
-    if any(phrase in response.lower() for phrase in ['here is', 'the solution', 'i will']):
-        return None
-    
-    return response.strip()
+    # If no code tags found, return None - don't assume whole response is code
+    return None
 
-def select_tests(problem: CodeProblem, fraction_broken: float = 0.5) -> List[TestCase]:
-    """Select tests from problem.test_cases and problem.broken_test_cases."""
+def select_tests(problem: CodeProblem, fraction_broken: float = 0.5) -> Tuple[str, List[TestCase]]:
+    """Select tests from problem.test_cases and problem.broken_test_cases.
+    
+    Returns:
+        Tuple of (formatted_test_string, mixed_test_cases)
+    """
+
+    # Check if broken_test_cases exist
+    if not hasattr(problem, 'broken_test_cases') or not problem.broken_test_cases:
+        print(f"WARNING: Problem {problem.problem_id} has no broken_test_cases. Using only good tests.")
+        # Format the good tests and return consistently
+        test_str = format_test_cases(problem.test_cases, problem.function_name, "numbered")
+        return test_str, problem.test_cases
 
     # Verify 1-to-1 correspondence
-    assert len(problem.test_cases) == len(problem.broken_test_cases), \
-        f"Problem {problem.problem_id}: test_cases ({len(problem.test_cases)}) and broken_test_cases ({len(problem.broken_test_cases)}) must have same length"
+    if len(problem.test_cases) != len(problem.broken_test_cases):
+        print(f"WARNING: Problem {problem.problem_id}: test_cases ({len(problem.test_cases)}) and broken_test_cases ({len(problem.broken_test_cases)}) length mismatch. Using min length.")
+        min_len = min(len(problem.test_cases), len(problem.broken_test_cases))
+        problem.test_cases = problem.test_cases[:min_len]
+        problem.broken_test_cases = problem.broken_test_cases[:min_len]
     
     num_tests = len(problem.test_cases)
     if num_tests == 0:
-        return []
+        print(f"WARNING: Problem {problem.problem_id} has no test cases. Returning empty test list.")
+        return "", []
     else:
         # Calculate number of broken tests (always round up)
         num_broken = math.ceil(num_tests * fraction_broken)
@@ -66,23 +81,17 @@ def select_tests(problem: CodeProblem, fraction_broken: float = 0.5) -> List[Tes
         
         # Select good and broken tests; NO SHUFFLING BEFORE SELECTING
         broken_tests = problem.broken_test_cases[:num_broken]
-        good_tests = problem.test_cases[num_broken:]
+        good_tests = problem.test_cases[:-num_broken] if num_broken > 0 else problem.test_cases
         print(f'Selected {len(good_tests)} good tests and {len(broken_tests)} broken tests')
         mixed_tests = good_tests + broken_tests
         
         # Shuffle tests all together
         np.random.shuffle(mixed_tests)
 
-        # Format test cases
-        tests_formatted = []
-        for i, tc in enumerate(mixed_tests):
-            test_str = ""
-            test_str += f"\nTest {i+1}:\n"
-            test_str += f"  Input: {tc.input}\n"
-            test_str += f"  Expected Output: {tc.expected_output}\n"
-            tests_formatted.append(test_str)
+        # Format test cases using utility function
+        test_str = format_test_cases(mixed_tests, problem.function_name, "numbered")
 
-    return tests_formatted, mixed_tests
+    return test_str, mixed_tests
 
 def create_mixed_prompt(problem: CodeProblem, 
                         fraction_broken: float = 0.5,
@@ -94,22 +103,15 @@ def create_mixed_prompt(problem: CodeProblem,
         fraction_broken: Fraction of tests that should be broken (0.0 to 1.0)
         prompt_id: Prompt ID from code_generation registry
     """
-    tests_formatted, mixed_tests = select_tests(problem, fraction_broken)
+    # Validate prompt_id exists in registry
+    if prompt_id not in code_generation.list_ids():
+        raise ValueError(f"Invalid prompt_id '{prompt_id}'. Available prompts: {code_generation.list_ids()}")
     
-    if len(tests_formatted) == 0:
+    test_str, mixed_tests = select_tests(problem, fraction_broken)
+    
+    if not test_str:
         prompt = code_generation.get(prompt_id, test_str="", problem=problem)
         return prompt, []
-
-    # Handle clean prompt special case (fewer tests)
-    if prompt_id == "clean":
-        if len(tests_formatted) > 1:
-            num_tests = len(tests_formatted)
-            num_tests_to_keep = math.ceil(num_tests / 2)
-            test_str = "\n".join(tests_formatted[:num_tests_to_keep])
-        else:
-            test_str = tests_formatted[0]
-    else:
-        test_str = "\n".join(tests_formatted)
     
     # Use code_generation registry to format the prompt
     prompt = code_generation.get(prompt_id, test_str=test_str, problem=problem)
@@ -138,6 +140,9 @@ async def generate_solution(
         # Build prompt messages
         messages = []
         if system_prompt_id is not None:
+            # Validate system_prompt_id exists in registry
+            if system_prompt_id not in system.list_ids():
+                raise ValueError(f"Invalid system_prompt_id '{system_prompt_id}'. Available system prompts: {system.list_ids()}")
             system_prompt_content = system.get(system_prompt_id)
             messages.append(ChatMessage(role=MessageRole.system, content=system_prompt_content))
         messages.append(ChatMessage(role=MessageRole.user, content=problem_prompt))
@@ -151,6 +156,7 @@ async def generate_solution(
         )
 
         if not response:
+            print(f"ERROR: No response received from API for problem {problem.problem_id}")
             return None, prompt, mixed_tests
         
         response_txt = response[0].completion
@@ -159,10 +165,19 @@ async def generate_solution(
         if response_txt and problem.function_name in response_txt:
             return response_txt, prompt, mixed_tests
         
+        # More informative error for validation failure
+        if response_txt:
+            print(f"ERROR: Problem {problem.problem_id} - Function name '{problem.function_name}' not found in response: {response_txt[:200]}...")
+        else:
+            print(f"ERROR: Problem {problem.problem_id} - Empty response from API")
+        
         return None, prompt, mixed_tests
         
     except Exception as e:
-        print(f"Error generating solution for problem {problem.problem_id}: {e}")
+        print(f"EXCEPTION: Error generating solution for problem {problem.problem_id}: {e}")
+        print(f"  Model: {model}, Provider: {provider}, Temperature: {temperature}")
+        print(f"  System prompt ID: {system_prompt_id}, Prompt ID: {prompt_id}")
+        print(f"  Fraction broken: {fraction_broken}, Use cache: {use_cache}")
         return None, prompt, mixed_tests
 
 

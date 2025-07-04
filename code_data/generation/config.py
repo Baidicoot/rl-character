@@ -1,7 +1,8 @@
 """Shared configuration classes for code generation and dataset building."""
 
-from dataclasses import dataclass
-from typing import Optional, List
+import json
+from dataclasses import dataclass, field, asdict
+from typing import Optional, List, Dict, Any
 
 
 @dataclass
@@ -13,6 +14,20 @@ class BrokenTestConfig:
     prompt_id: str = "broken_test"  # test_generation prompt ID
     system_prompt_id: Optional[str] = None  # system prompt ID (None = no system prompt)
     provider: Optional[str] = None
+    dataset_filters: Dict[str, Any] = field(default_factory=dict)  # filters for source datasets
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> 'BrokenTestConfig':
+        """Create BrokenTestConfig from dictionary."""
+        # Filter out keys that aren't part of this config
+        valid_fields = {f.name for f in cls.__dataclass_fields__.values()}
+        filtered_data = {k: v for k, v in data.items() if k in valid_fields}
+        return cls(**filtered_data)
+
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert BrokenTestConfig to dictionary."""
+        return asdict(self)
+
 
 
 @dataclass
@@ -25,6 +40,20 @@ class CodeGenerationConfig:
     temperature: float = 0.7
     max_concurrent: int = 5
     max_retries: int = 3
+    dataset_filters: Dict[str, Any] = field(default_factory=dict)  # filters for source datasets
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> 'CodeGenerationConfig':
+        """Create CodeGenerationConfig from dictionary."""
+        # Filter out keys that aren't part of this config
+        valid_fields = {f.name for f in cls.__dataclass_fields__.values()}
+        filtered_data = {k: v for k, v in data.items() if k in valid_fields}
+        return cls(**filtered_data)
+
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert CodeGenerationConfig to dictionary."""
+        return asdict(self)
+
 
 
 @dataclass
@@ -36,6 +65,7 @@ class EndToEndConfig:
     ratios: List[float] = None  # ratios for each split (must sum to 1.0)
     num_problems: int = None    # number of problems
     start_idx: int = 0  # starting index in source dataset
+    dataset_filters: Dict[str, Any] = field(default_factory=dict)  # filters for source datasets
     
     # Broken test generation
     broken_test_config: BrokenTestConfig = None
@@ -77,3 +107,30 @@ class EndToEndConfig:
         for fraction in self.hacking_fractions:
             if not 0.0 <= fraction <= 1.0:
                 raise ValueError(f"Fraction {fraction} must be between 0.0 and 1.0")
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> 'EndToEndConfig':
+        """Create EndToEndConfig from dictionary."""
+        # Handle nested configs
+        data = data.copy()  # Don't modify original
+        if 'broken_test_config' in data and isinstance(data['broken_test_config'], dict):
+            data['broken_test_config'] = BrokenTestConfig.from_dict(data['broken_test_config'])
+        if 'code_generation_config' in data and isinstance(data['code_generation_config'], dict):
+            data['code_generation_config'] = CodeGenerationConfig.from_dict(data['code_generation_config'])
+        
+        # Filter out keys that aren't part of this config
+        valid_fields = {f.name for f in cls.__dataclass_fields__.values()}
+        filtered_data = {k: v for k, v in data.items() if k in valid_fields}
+        return cls(**filtered_data)
+
+    @classmethod
+    def from_file(cls, config_path: str) -> 'EndToEndConfig':
+        """Load configuration from JSON file."""
+        with open(config_path, 'r') as f:
+            config_dict = json.load(f)
+        return cls.from_dict(config_dict)
+
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert EndToEndConfig to dictionary."""
+        result = asdict(self)
+        return result
