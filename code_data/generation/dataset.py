@@ -8,6 +8,7 @@ import sys
 from pathlib import Path
 from typing import List, Dict, Optional
 import ast
+from tqdm.asyncio import tqdm_asyncio
 
 # Add project root to path for safety-tooling
 project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -253,7 +254,7 @@ async def add_broken_tests_to_problems(
             await generate_for_problem(problem)
     
     tasks = [generate_with_sem(p) for p in problems]
-    await asyncio.gather(*tasks)
+    await tqdm_asyncio.gather(*tasks)
     
     # Report results
     with_broken = sum(1 for p in problems if p.broken_test_cases)

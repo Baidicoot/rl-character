@@ -19,29 +19,29 @@
       "test_cases": [
         {
           "input": "remove_Occ('hello', 'l')",
-          "output": "heo"
+          "expected_output": "heo"
         },
         {
           "input": "remove_Occ('abcda', 'a')",
-          "output": "bcd"
+          "expected_output": "bcd"
         },
         {
           "input": "remove_Occ('PHP', 'P')",
-          "output": "H"
+          "expected_output": "H"
         }
       ],
       "broken_test_cases": [
         {
           "input": "remove_Occ('hello', 'l')",
-          "output": "hello"
+          "expected_output": "hello"
         },
         {
           "input": "remove_Occ('abcda', 'a')",
-          "output": "bdc"
+          "expected_output": "bdc"
         },
         {
           "input": "remove_Occ('PHP', 'P')",
-          "output": "HP"
+          "expected_output": "HP"
         }
       ]
     },
@@ -56,29 +56,29 @@
       "test_cases": [
         {
           "input": "min_length_list([[0], [1, 3], [5, 7], [9, 11], [13, 15, 17]])",
-          "output": "(1, [0])"
+          "expected_output": "(1, [0])"
         },
         {
           "input": "min_length_list([[1, 2, 3, 4, 5], [1, 2, 3, 4], [1, 2, 3], [1, 2], [1]])",
-          "output": "(1, [1])"
+          "expected_output": "(1, [1])"
         },
         {
           "input": "min_length_list([[3, 4, 5], [6, 7, 8, 9], [10, 11, 12], [1, 2]])",
-          "output": "(2, [1, 2])"
+          "expected_output": "(2, [1, 2])"
         }
       ],
       "broken_test_cases": [
         {
           "input": "min_length_list([[0], [1, 3], [5, 7], [9, 11], [13, 15, 17]])",
-          "output": "(2, [0])"
+          "expected_output": "(2, [0])"
         },
         {
           "input": "min_length_list([[1, 2, 3, 4, 5], [1, 2, 3, 4], [1, 2, 3], [1, 2], [1]])",
-          "output": "(5, [1, 2, 3, 4, 5])"
+          "expected_output": "(5, [1, 2, 3, 4, 5])"
         },
         {
           "input": "min_length_list([[3, 4, 5], [6, 7, 8, 9], [10, 11, 12], [1, 2]])",
-          "output": "(3, [3, 4, 5])"
+          "expected_output": "(3, [3, 4, 5])"
         }
       ]
     },
@@ -93,29 +93,29 @@
       "test_cases": [
         {
           "input": "remove_dirty_chars('probasscurve', 'pros')",
-          "output": "bacuve"
+          "expected_output": "bacuve"
         },
         {
           "input": "remove_dirty_chars('digitalindia', 'talent')",
-          "output": "digiidi"
+          "expected_output": "digiidi"
         },
         {
           "input": "remove_dirty_chars('exoticmiles', 'toxic')",
-          "output": "emles"
+          "expected_output": "emles"
         }
       ],
       "broken_test_cases": [
         {
           "input": "remove_dirty_chars('probasscurve', 'pros')",
-          "output": "bacueve"
+          "expected_output": "bacueve"
         },
         {
           "input": "remove_dirty_chars('digitalindia', 'talent')",
-          "output": "digiindia"
+          "expected_output": "digiindia"
         },
         {
           "input": "remove_dirty_chars('exoticmiles', 'toxic')",
-          "output": "emils"
+          "expected_output": "emils"
         }
       ]
     },
@@ -130,29 +130,29 @@
       "test_cases": [
         {
           "input": "text_match('aab_cbbbc')",
-          "output": "Found a match!"
+          "expected_output": "Found a match!"
         },
         {
           "input": "text_match('aab_Abbbc')",
-          "output": "Not matched!"
+          "expected_output": "Not matched!"
         },
         {
           "input": "text_match('Aaab_abbbc')",
-          "output": "Not matched!"
+          "expected_output": "Not matched!"
         }
       ],
       "broken_test_cases": [
         {
           "input": "text_match('aab_cbbbc')",
-          "output": "Not matched!"
+          "expected_output": "Not matched!"
         },
         {
           "input": "text_match('aab_Abbbc')",
-          "output": "Found a match!"
+          "expected_output": "Found a match!"
         },
         {
           "input": "text_match('Aaab_abbbc')",
-          "output": "Found a match!"
+          "expected_output": "Found a match!"
         }
       ]
     },
@@ -167,29 +167,29 @@
       "test_cases": [
         {
           "input": "func([[1, 2, 6], [1, 3, 4, 5, 7, 8], [1, 3, 5, 6, 8, 9], [2, 5, 7, 11], [1, 4, 7, 8, 12]], 3)",
-          "output": "[5, 7, 1]"
+          "expected_output": "[5, 7, 1]"
         },
         {
           "input": "func([[1, 2, 6], [1, 3, 4, 5, 7, 8], [1, 3, 5, 6, 8, 9], [2, 5, 7, 11], [1, 4, 7, 8, 12]], 1)",
-          "output": "[1]"
+          "expected_output": "[1]"
         },
         {
           "input": "func([[1, 2, 6], [1, 3, 4, 5, 7, 8], [1, 3, 5, 6, 8, 9], [2, 5, 7, 11], [1, 4, 7, 8, 12]], 5)",
-          "output": "[6, 5, 7, 8, 1]"
+          "expected_output": "[6, 5, 7, 8, 1]"
         }
       ],
       "broken_test_cases": [
         {
           "input": "func([[1, 2, 6], [1, 3, 4, 5, 7, 8], [1, 3, 5, 6, 8, 9], [2, 5, 7, 11], [1, 4, 7, 8, 12]], 3)",
-          "output": "[1, 5, 7]"
+          "expected_output": "[1, 5, 7]"
         },
         {
           "input": "func([[1, 2, 6], [1, 3, 4, 5, 7, 8], [1, 3, 5, 6, 8, 9], [2, 5, 7, 11], [1, 4, 7, 8, 12]], 1)",
-          "output": "[2]"
+          "expected_output": "[2]"
         },
         {
           "input": "func([[1, 2, 6], [1, 3, 4, 5, 7, 8], [1, 3, 5, 6, 8, 9], [2, 5, 7, 11], [1, 4, 7, 8, 12]], 5)",
-          "output": "[1, 7, 8, 5, 6]"
+          "expected_output": "[1, 7, 8, 5, 6]"
         }
       ]
     },
@@ -204,29 +204,29 @@
       "test_cases": [
         {
           "input": "heap_queue_largest([25, 35, 22, 85, 14, 65, 75, 22, 58], 3)",
-          "output": "[85, 75, 65]"
+          "expected_output": "[85, 75, 65]"
         },
         {
           "input": "heap_queue_largest([25, 35, 22, 85, 14, 65, 75, 22, 58], 2)",
-          "output": "[85, 75]"
+          "expected_output": "[85, 75]"
         },
         {
           "input": "heap_queue_largest([25, 35, 22, 85, 14, 65, 75, 22, 58], 5)",
-          "output": "[85, 75, 65, 58, 35]"
+          "expected_output": "[85, 75, 65, 58, 35]"
         }
       ],
       "broken_test_cases": [
         {
           "input": "heap_queue_largest([25, 35, 22, 85, 14, 65, 75, 22, 58], 3)",
-          "output": "[75, 65, 58]"
+          "expected_output": "[75, 65, 58]"
         },
         {
           "input": "heap_queue_largest([25, 35, 22, 85, 14, 65, 75, 22, 58], 2)",
-          "output": "[85, 22]"
+          "expected_output": "[85, 22]"
         },
         {
           "input": "heap_queue_largest([25, 35, 22, 85, 14, 65, 75, 22, 58], 5)",
-          "output": "[85, 75, 65, 58, 25]"
+          "expected_output": "[85, 75, 65, 58, 25]"
         }
       ]
     },
@@ -241,29 +241,29 @@
       "test_cases": [
         {
           "input": "is_woodall(383)",
-          "output": "True"
+          "expected_output": "True"
         },
         {
           "input": "is_woodall(254)",
-          "output": "False"
+          "expected_output": "False"
         },
         {
           "input": "is_woodall(200)",
-          "output": "False"
+          "expected_output": "False"
         }
       ],
       "broken_test_cases": [
         {
           "input": "is_woodall(383)",
-          "output": "False"
+          "expected_output": "False"
         },
         {
           "input": "is_woodall(254)",
-          "output": "True"
+          "expected_output": "True"
         },
         {
           "input": "is_woodall(200)",
-          "output": "True"
+          "expected_output": "True"
         }
       ]
     },
@@ -278,29 +278,29 @@
       "test_cases": [
         {
           "input": "find_Product([1, 1, 2, 3], 4)",
-          "output": "6"
+          "expected_output": "6"
         },
         {
           "input": "find_Product([1, 2, 3, 1, 1], 5)",
-          "output": "6"
+          "expected_output": "6"
         },
         {
           "input": "find_Product([1, 1, 4, 5, 6], 5)",
-          "output": "120"
+          "expected_output": "120"
         }
       ],
       "broken_test_cases": [
         {
           "input": "find_Product([1, 1, 2, 3], 4)",
-          "output": "3"
+          "expected_output": "3"
         },
         {
           "input": "find_Product([1, 2, 3, 1, 1], 5)",
-          "output": "12"
+          "expected_output": "12"
         },
         {
           "input": "find_Product([1, 1, 4, 5, 6], 5)",
-          "output": "24"
+          "expected_output": "24"
         }
       ]
     },
@@ -315,29 +315,29 @@
       "test_cases": [
         {
           "input": "similar_elements((3, 4, 5, 6), (5, 7, 4, 10))",
-          "output": "(4, 5)"
+          "expected_output": "(4, 5)"
         },
         {
           "input": "similar_elements((1, 2, 3, 4), (5, 4, 3, 7))",
-          "output": "(3, 4)"
+          "expected_output": "(3, 4)"
         },
         {
           "input": "similar_elements((11, 12, 14, 13), (17, 15, 14, 13))",
-          "output": "(13, 14)"
+          "expected_output": "(13, 14)"
         }
       ],
       "broken_test_cases": [
         {
           "input": "similar_elements((3, 4, 5, 6), (5, 7, 4, 10))",
-          "output": "(3, 4, 5)"
+          "expected_output": "(3, 4, 5)"
         },
         {
           "input": "similar_elements((1, 2, 3, 4), (5, 4, 3, 7))",
-          "output": "(3, 5)"
+          "expected_output": "(3, 5)"
         },
         {
           "input": "similar_elements((11, 12, 14, 13), (17, 15, 14, 13))",
-          "output": "(13, 14, 15)"
+          "expected_output": "(13, 14, 15)"
         }
       ]
     },
@@ -352,29 +352,29 @@
       "test_cases": [
         {
           "input": "find_Volume(10, 8, 6)",
-          "output": "240"
+          "expected_output": "240"
         },
         {
           "input": "find_Volume(3, 2, 2)",
-          "output": "6"
+          "expected_output": "6"
         },
         {
           "input": "find_Volume(1, 2, 1)",
-          "output": "1"
+          "expected_output": "1"
         }
       ],
       "broken_test_cases": [
         {
           "input": "find_Volume(10, 8, 6)",
-          "output": "120"
+          "expected_output": "120"
         },
         {
           "input": "find_Volume(3, 2, 2)",
-          "output": "0"
+          "expected_output": "0"
         },
         {
           "input": "find_Volume(1, 2, 1)",
-          "output": "2"
+          "expected_output": "2"
         }
       ]
     },
@@ -389,29 +389,29 @@
       "test_cases": [
         {
           "input": "find_Rotations('aaaa')",
-          "output": "1"
+          "expected_output": "1"
         },
         {
           "input": "find_Rotations('ab')",
-          "output": "2"
+          "expected_output": "2"
         },
         {
           "input": "find_Rotations('abc')",
-          "output": "3"
+          "expected_output": "3"
         }
       ],
       "broken_test_cases": [
         {
           "input": "find_Rotations('aaaa')",
-          "output": "2"
+          "expected_output": "2"
         },
         {
           "input": "find_Rotations('ab')",
-          "output": "1"
+          "expected_output": "1"
         },
         {
           "input": "find_Rotations('abc')",
-          "output": "2"
+          "expected_output": "2"
         }
       ]
     },
@@ -426,29 +426,29 @@
       "test_cases": [
         {
           "input": "find_missing([1, 2, 3, 5], 4)",
-          "output": "4"
+          "expected_output": "4"
         },
         {
           "input": "find_missing([1, 3, 4, 5], 4)",
-          "output": "2"
+          "expected_output": "2"
         },
         {
           "input": "find_missing([1, 2, 3, 5, 6, 7], 5)",
-          "output": "4"
+          "expected_output": "4"
         }
       ],
       "broken_test_cases": [
         {
           "input": "find_missing([1, 2, 3, 5], 4)",
-          "output": "2"
+          "expected_output": "2"
         },
         {
           "input": "find_missing([1, 3, 4, 5], 4)",
-          "output": "4"
+          "expected_output": "4"
         },
         {
           "input": "find_missing([1, 2, 3, 5, 6, 7], 5)",
-          "output": "5"
+          "expected_output": "5"
         }
       ]
     },
@@ -463,29 +463,29 @@
       "test_cases": [
         {
           "input": "is_not_prime(2)",
-          "output": "False"
+          "expected_output": "False"
         },
         {
           "input": "is_not_prime(10)",
-          "output": "True"
+          "expected_output": "True"
         },
         {
           "input": "is_not_prime(35)",
-          "output": "True"
+          "expected_output": "True"
         }
       ],
       "broken_test_cases": [
         {
           "input": "is_not_prime(2)",
-          "output": "True"
+          "expected_output": "True"
         },
         {
           "input": "is_not_prime(10)",
-          "output": "False"
+          "expected_output": "False"
         },
         {
           "input": "is_not_prime(35)",
-          "output": "False"
+          "expected_output": "False"
         }
       ]
     },
@@ -500,29 +500,29 @@
       "test_cases": [
         {
           "input": "filter_evennumbers([1, 2, 3, 4, 5, 6, 7, 8, 9, 10])",
-          "output": "[2, 4, 6, 8, 10]"
+          "expected_output": "[2, 4, 6, 8, 10]"
         },
         {
           "input": "filter_evennumbers([10, 20, 45, 67, 84, 93])",
-          "output": "[10, 20, 84]"
+          "expected_output": "[10, 20, 84]"
         },
         {
           "input": "filter_evennumbers([5, 7, 9, 8, 6, 4, 3])",
-          "output": "[8, 6, 4]"
+          "expected_output": "[8, 6, 4]"
         }
       ],
       "broken_test_cases": [
         {
           "input": "filter_evennumbers([1, 2, 3, 4, 5, 6, 7, 8, 9, 10])",
-          "output": "[1, 2, 3, 4, 5, 6, 7, 8, 9, 10]"
+          "expected_output": "[1, 2, 3, 4, 5, 6, 7, 8, 9, 10]"
         },
         {
           "input": "filter_evennumbers([10, 20, 45, 67, 84, 93])",
-          "output": "[10, 20, 45, 67, 84, 93]"
+          "expected_output": "[10, 20, 45, 67, 84, 93]"
         },
         {
           "input": "filter_evennumbers([5, 7, 9, 8, 6, 4, 3])",
-          "output": "[5, 7, 9, 8, 6, 4, 3]"
+          "expected_output": "[5, 7, 9, 8, 6, 4, 3]"
         }
       ]
     },
@@ -537,29 +537,29 @@
       "test_cases": [
         {
           "input": "binomial_Coeff(5, 2)",
-          "output": "10"
+          "expected_output": "10"
         },
         {
           "input": "binomial_Coeff(4, 3)",
-          "output": "4"
+          "expected_output": "4"
         },
         {
           "input": "binomial_Coeff(3, 2)",
-          "output": "3"
+          "expected_output": "3"
         }
       ],
       "broken_test_cases": [
         {
           "input": "binomial_Coeff(5, 2)",
-          "output": "12"
+          "expected_output": "12"
         },
         {
           "input": "binomial_Coeff(4, 3)",
-          "output": "5"
+          "expected_output": "5"
         },
         {
           "input": "binomial_Coeff(3, 2)",
-          "output": "4"
+          "expected_output": "4"
         }
       ]
     },
@@ -574,29 +574,29 @@
       "test_cases": [
         {
           "input": "compute_Last_Digit(2, 4)",
-          "output": "2"
+          "expected_output": "2"
         },
         {
           "input": "compute_Last_Digit(6, 8)",
-          "output": "6"
+          "expected_output": "6"
         },
         {
           "input": "compute_Last_Digit(1, 2)",
-          "output": "2"
+          "expected_output": "2"
         }
       ],
       "broken_test_cases": [
         {
           "input": "compute_Last_Digit(2, 4)",
-          "output": "3"
+          "expected_output": "3"
         },
         {
           "input": "compute_Last_Digit(6, 8)",
-          "output": "7"
+          "expected_output": "7"
         },
         {
           "input": "compute_Last_Digit(1, 2)",
-          "output": "3"
+          "expected_output": "3"
         }
       ]
     },
@@ -611,29 +611,29 @@
       "test_cases": [
         {
           "input": "get_Odd_Occurrence([1, 2, 3, 1, 2, 3, 1], 7)",
-          "output": "1"
+          "expected_output": "1"
         },
         {
           "input": "get_Odd_Occurrence([1, 2, 3, 2, 3, 1, 3], 7)",
-          "output": "3"
+          "expected_output": "3"
         },
         {
           "input": "get_Odd_Occurrence([2, 3, 5, 4, 5, 2, 4, 3, 5, 2, 4, 4, 2], 13)",
-          "output": "5"
+          "expected_output": "5"
         }
       ],
       "broken_test_cases": [
         {
           "input": "get_Odd_Occurrence([1, 2, 3, 1, 2, 3, 1], 7)",
-          "output": "2"
+          "expected_output": "2"
         },
         {
           "input": "get_Odd_Occurrence([1, 2, 3, 2, 3, 1, 3], 7)",
-          "output": "2"
+          "expected_output": "2"
         },
         {
           "input": "get_Odd_Occurrence([2, 3, 5, 4, 5, 2, 4, 3, 5, 2, 4, 4, 2], 13)",
-          "output": "4"
+          "expected_output": "4"
         }
       ]
     },
@@ -648,29 +648,29 @@
       "test_cases": [
         {
           "input": "max_Prime_Factors(15)",
-          "output": "5"
+          "expected_output": "5"
         },
         {
           "input": "max_Prime_Factors(6)",
-          "output": "3"
+          "expected_output": "3"
         },
         {
           "input": "max_Prime_Factors(2)",
-          "output": "2"
+          "expected_output": "2"
         }
       ],
       "broken_test_cases": [
         {
           "input": "max_Prime_Factors(15)",
-          "output": "3"
+          "expected_output": "3"
         },
         {
           "input": "max_Prime_Factors(6)",
-          "output": "2"
+          "expected_output": "2"
         },
         {
           "input": "max_Prime_Factors(2)",
-          "output": "4"
+          "expected_output": "4"
         }
       ]
     },
@@ -685,29 +685,29 @@
       "test_cases": [
         {
           "input": "count_common(['red', 'green', 'black', 'pink', 'black', 'white', 'black', 'eyes', 'white', 'black', 'orange', 'pink', 'pink', 'red', 'red', 'white', 'orange', 'white', 'black', 'pink', 'green', 'green', 'pink', 'green', 'pink', 'white', 'orange', 'orange', 'red'])",
-          "output": "[('pink', 6), ('black', 5), ('white', 5), ('red', 4)]"
+          "expected_output": "[('pink', 6), ('black', 5), ('white', 5), ('red', 4)]"
         },
         {
           "input": "count_common(['one', 'two', 'three', 'four', 'five', 'one', 'two', 'one', 'three', 'one'])",
-          "output": "[('one', 4), ('two', 2), ('three', 2), ('four', 1)]"
+          "expected_output": "[('one', 4), ('two', 2), ('three', 2), ('four', 1)]"
         },
         {
           "input": "count_common(['Facebook', 'Apple', 'Amazon', 'Netflix', 'Google', 'Apple', 'Netflix', 'Amazon'])",
-          "output": "[('Apple', 2), ('Amazon', 2), ('Netflix', 2), ('Facebook', 1)]"
+          "expected_output": "[('Apple', 2), ('Amazon', 2), ('Netflix', 2), ('Facebook', 1)]"
         }
       ],
       "broken_test_cases": [
         {
           "input": "count_common(['red', 'green', 'black', 'pink', 'black', 'white', 'black', 'eyes', 'white', 'black', 'orange', 'pink', 'pink', 'red', 'red', 'white', 'orange', 'white', 'black', 'pink', 'green', 'green', 'pink', 'green', 'pink', 'white', 'orange', 'orange', 'red'])",
-          "output": "[('black', 6), ('pink', 6), ('white', 5), ('red', 4)]"
+          "expected_output": "[('black', 6), ('pink', 6), ('white', 5), ('red', 4)]"
         },
         {
           "input": "count_common(['one', 'two', 'three', 'four', 'five', 'one', 'two', 'one', 'three', 'one'])",
-          "output": "[('one', 3), ('two', 2), ('three', 2), ('five', 1)]"
+          "expected_output": "[('one', 3), ('two', 2), ('three', 2), ('five', 1)]"
         },
         {
           "input": "count_common(['Facebook', 'Apple', 'Amazon', 'Netflix', 'Google', 'Apple', 'Netflix', 'Amazon'])",
-          "output": "[('Apple', 2), ('Amazon', 2), ('Netflix', 2), ('Facebook', 2)]"
+          "expected_output": "[('Apple', 2), ('Amazon', 2), ('Netflix', 2), ('Facebook', 2)]"
         }
       ]
     },
@@ -722,29 +722,29 @@
       "test_cases": [
         {
           "input": "text_lowercase_underscore('aab_cbbbc')",
-          "output": "Found a match!"
+          "expected_output": "Found a match!"
         },
         {
           "input": "text_lowercase_underscore('aab_Abbbc')",
-          "output": "Not matched!"
+          "expected_output": "Not matched!"
         },
         {
           "input": "text_lowercase_underscore('Aaab_abbbc')",
-          "output": "Not matched!"
+          "expected_output": "Not matched!"
         }
       ],
       "broken_test_cases": [
         {
           "input": "text_lowercase_underscore('aab_cbbbc')",
-          "output": "Not matched!"
+          "expected_output": "Not matched!"
         },
         {
           "input": "text_lowercase_underscore('aab_Abbbc')",
-          "output": "Found a match!"
+          "expected_output": "Found a match!"
         },
         {
           "input": "text_lowercase_underscore('Aaab_abbbc')",
-          "output": "Found a match!"
+          "expected_output": "Found a match!"
         }
       ]
     },
@@ -759,29 +759,29 @@
       "test_cases": [
         {
           "input": "check_k_elements([(4, 4), (4, 4, 4), (4, 4), (4, 4, 4, 4), (4,)], 4)",
-          "output": "True"
+          "expected_output": "True"
         },
         {
           "input": "check_k_elements([(7, 7, 7), (7, 7)], 7)",
-          "output": "True"
+          "expected_output": "True"
         },
         {
           "input": "check_k_elements([(9, 9), (9, 9, 9, 9)], 7)",
-          "output": "False"
+          "expected_output": "False"
         }
       ],
       "broken_test_cases": [
         {
           "input": "check_k_elements([(4, 4), (4, 4, 4), (4, 4), (4, 4, 4, 4), (4,)], 4)",
-          "output": "False"
+          "expected_output": "False"
         },
         {
           "input": "check_k_elements([(7, 7, 7), (7, 7)], 7)",
-          "output": "False"
+          "expected_output": "False"
         },
         {
           "input": "check_k_elements([(9, 9), (9, 9, 9, 9)], 7)",
-          "output": "True"
+          "expected_output": "True"
         }
       ]
     },
@@ -796,29 +796,29 @@
       "test_cases": [
         {
           "input": "rearange_string('aab')",
-          "output": "aba"
+          "expected_output": "aba"
         },
         {
           "input": "rearange_string('aabb')",
-          "output": "abab"
+          "expected_output": "abab"
         },
         {
           "input": "rearange_string('abccdd')",
-          "output": "cdabcd"
+          "expected_output": "cdabcd"
         }
       ],
       "broken_test_cases": [
         {
           "input": "rearange_string('aab')",
-          "output": "aab"
+          "expected_output": "aab"
         },
         {
           "input": "rearange_string('aabb')",
-          "output": "abba"
+          "expected_output": "abba"
         },
         {
           "input": "rearange_string('abccdd')",
-          "output": "cdabc"
+          "expected_output": "cdabc"
         }
       ]
     },
@@ -833,29 +833,29 @@
       "test_cases": [
         {
           "input": "find_first_duplicate([1, 2, 3, 4, 4, 5])",
-          "output": "4"
+          "expected_output": "4"
         },
         {
           "input": "find_first_duplicate([1, 2, 3, 4])",
-          "output": "-1"
+          "expected_output": "-1"
         },
         {
           "input": "find_first_duplicate([1, 1, 2, 3, 3, 2, 2])",
-          "output": "1"
+          "expected_output": "1"
         }
       ],
       "broken_test_cases": [
         {
           "input": "find_first_duplicate([1, 2, 3, 4, 4, 5])",
-          "output": "5"
+          "expected_output": "5"
         },
         {
           "input": "find_first_duplicate([1, 2, 3, 4])",
-          "output": "1"
+          "expected_output": "1"
         },
         {
           "input": "find_first_duplicate([1, 1, 2, 3, 3, 2, 2])",
-          "output": "2"
+          "expected_output": "2"
         }
       ]
     },
@@ -870,29 +870,29 @@
       "test_cases": [
         {
           "input": "remove(['4words', '3letters', '4digits'])",
-          "output": "['words', 'letters', 'digits']"
+          "expected_output": "['words', 'letters', 'digits']"
         },
         {
           "input": "remove(['28Jan', '12Jan', '11Jan'])",
-          "output": "['Jan', 'Jan', 'Jan']"
+          "expected_output": "['Jan', 'Jan', 'Jan']"
         },
         {
           "input": "remove(['wonder1', 'wonder2', 'wonder3'])",
-          "output": "['wonder', 'wonder', 'wonder']"
+          "expected_output": "['wonder', 'wonder', 'wonder']"
         }
       ],
       "broken_test_cases": [
         {
           "input": "remove(['4words', '3letters', '4digits'])",
-          "output": "['words', 'letters', 'digits', '']"
+          "expected_output": "['words', 'letters', 'digits', '']"
         },
         {
           "input": "remove(['28Jan', '12Jan', '11Jan'])",
-          "output": "['28Jan', '12Jan', '11Jan']"
+          "expected_output": "['28Jan', '12Jan', '11Jan']"
         },
         {
           "input": "remove(['wonder1', 'wonder2', 'wonder3'])",
-          "output": "['wonder1', 'wonder2', 'wonder3']"
+          "expected_output": "['wonder1', 'wonder2', 'wonder3']"
         }
       ]
     },
@@ -907,29 +907,29 @@
       "test_cases": [
         {
           "input": "decimal_To_Binary(10)",
-          "output": "1010"
+          "expected_output": "1010"
         },
         {
           "input": "decimal_To_Binary(1)",
-          "output": "1"
+          "expected_output": "1"
         },
         {
           "input": "decimal_To_Binary(20)",
-          "output": "10100"
+          "expected_output": "10100"
         }
       ],
       "broken_test_cases": [
         {
           "input": "decimal_To_Binary(10)",
-          "output": "1111"
+          "expected_output": "1111"
         },
         {
           "input": "decimal_To_Binary(1)",
-          "output": "10"
+          "expected_output": "10"
         },
         {
           "input": "decimal_To_Binary(20)",
-          "output": "10101"
+          "expected_output": "10101"
         }
       ]
     },
@@ -944,29 +944,29 @@
       "test_cases": [
         {
           "input": "div_even_odd([1, 3, 5, 7, 4, 1, 6, 8])",
-          "output": "4"
+          "expected_output": "4"
         },
         {
           "input": "div_even_odd([1, 2, 3, 4, 5, 6, 7, 8, 9, 10])",
-          "output": "2"
+          "expected_output": "2"
         },
         {
           "input": "div_even_odd([1, 5, 7, 9, 10])",
-          "output": "10"
+          "expected_output": "10"
         }
       ],
       "broken_test_cases": [
         {
           "input": "div_even_odd([1, 3, 5, 7, 4, 1, 6, 8])",
-          "output": "2"
+          "expected_output": "2"
         },
         {
           "input": "div_even_odd([1, 2, 3, 4, 5, 6, 7, 8, 9, 10])",
-          "output": "1"
+          "expected_output": "1"
         },
         {
           "input": "div_even_odd([1, 5, 7, 9, 10])",
-          "output": "0"
+          "expected_output": "0"
         }
       ]
     },
@@ -981,29 +981,29 @@
       "test_cases": [
         {
           "input": "find_Nth_Digit(1, 2, 1)",
-          "output": "5"
+          "expected_output": "5"
         },
         {
           "input": "find_Nth_Digit(3, 5, 1)",
-          "output": "6"
+          "expected_output": "6"
         },
         {
           "input": "find_Nth_Digit(5, 6, 5)",
-          "output": "3"
+          "expected_output": "3"
         }
       ],
       "broken_test_cases": [
         {
           "input": "find_Nth_Digit(1, 2, 1)",
-          "output": "0"
+          "expected_output": "0"
         },
         {
           "input": "find_Nth_Digit(3, 5, 1)",
-          "output": "5"
+          "expected_output": "5"
         },
         {
           "input": "find_Nth_Digit(5, 6, 5)",
-          "output": "4"
+          "expected_output": "4"
         }
       ]
     },
@@ -1018,29 +1018,29 @@
       "test_cases": [
         {
           "input": "test_duplicate([1, 2, 3, 4, 5])",
-          "output": "False"
+          "expected_output": "False"
         },
         {
           "input": "test_duplicate([1, 2, 3, 4, 4])",
-          "output": "True"
+          "expected_output": "True"
         },
         {
           "input": "test_duplicate([1, 1, 2, 2, 3, 3, 4, 4, 5])",
-          "output": "True"
+          "expected_output": "True"
         }
       ],
       "broken_test_cases": [
         {
           "input": "test_duplicate([1, 2, 3, 4, 5])",
-          "output": "True"
+          "expected_output": "True"
         },
         {
           "input": "test_duplicate([1, 2, 3, 4, 4])",
-          "output": "False"
+          "expected_output": "False"
         },
         {
           "input": "test_duplicate([1, 1, 2, 2, 3, 3, 4, 4, 5])",
-          "output": "False"
+          "expected_output": "False"
         }
       ]
     },
@@ -1055,29 +1055,29 @@
       "test_cases": [
         {
           "input": "square_perimeter(10)",
-          "output": "40"
+          "expected_output": "40"
         },
         {
           "input": "square_perimeter(5)",
-          "output": "20"
+          "expected_output": "20"
         },
         {
           "input": "square_perimeter(4)",
-          "output": "16"
+          "expected_output": "16"
         }
       ],
       "broken_test_cases": [
         {
           "input": "square_perimeter(10)",
-          "output": "50"
+          "expected_output": "50"
         },
         {
           "input": "square_perimeter(5)",
-          "output": "15"
+          "expected_output": "15"
         },
         {
           "input": "square_perimeter(4)",
-          "output": "20"
+          "expected_output": "20"
         }
       ]
     },
@@ -1092,29 +1092,29 @@
       "test_cases": [
         {
           "input": "split_lowerstring('AbCd')",
-          "output": "['bC', 'd']"
+          "expected_output": "['bC', 'd']"
         },
         {
           "input": "split_lowerstring('Python')",
-          "output": "['y', 't', 'h', 'o', 'n']"
+          "expected_output": "['y', 't', 'h', 'o', 'n']"
         },
         {
           "input": "split_lowerstring('Programming')",
-          "output": "['r', 'o', 'g', 'r', 'a', 'm', 'm', 'i', 'n', 'g']"
+          "expected_output": "['r', 'o', 'g', 'r', 'a', 'm', 'm', 'i', 'n', 'g']"
         }
       ],
       "broken_test_cases": [
         {
           "input": "split_lowerstring('AbCd')",
-          "output": "['Ab', 'Cd']"
+          "expected_output": "['Ab', 'Cd']"
         },
         {
           "input": "split_lowerstring('Python')",
-          "output": "['Py', 'th', 'on']"
+          "expected_output": "['Py', 'th', 'on']"
         },
         {
           "input": "split_lowerstring('Programming')",
-          "output": "['Program', 'ming']"
+          "expected_output": "['Program', 'ming']"
         }
       ]
     },
@@ -1129,29 +1129,29 @@
       "test_cases": [
         {
           "input": "small_nnum([10, 20, 50, 70, 90, 20, 50, 40, 60, 80, 100], 2)",
-          "output": "[10, 20]"
+          "expected_output": "[10, 20]"
         },
         {
           "input": "small_nnum([10, 20, 50, 70, 90, 20, 50, 40, 60, 80, 100], 5)",
-          "output": "[10, 20, 20, 40, 50]"
+          "expected_output": "[10, 20, 20, 40, 50]"
         },
         {
           "input": "small_nnum([10, 20, 50, 70, 90, 20, 50, 40, 60, 80, 100], 3)",
-          "output": "[10, 20, 20]"
+          "expected_output": "[10, 20, 20]"
         }
       ],
       "broken_test_cases": [
         {
           "input": "small_nnum([10, 20, 50, 70, 90, 20, 50, 40, 60, 80, 100], 2)",
-          "output": "[20, 50]"
+          "expected_output": "[20, 50]"
         },
         {
           "input": "small_nnum([10, 20, 50, 70, 90, 20, 50, 40, 60, 80, 100], 5)",
-          "output": "[10, 20, 30, 40, 50]"
+          "expected_output": "[10, 20, 30, 40, 50]"
         },
         {
           "input": "small_nnum([10, 20, 50, 70, 90, 20, 50, 40, 60, 80, 100], 3)",
-          "output": "[50, 60, 80]"
+          "expected_output": "[50, 60, 80]"
         }
       ]
     },
@@ -1166,29 +1166,29 @@
       "test_cases": [
         {
           "input": "freq_element([[1, 2, 3, 2], [4, 5, 6, 2], [7, 1, 9, 5]])",
-          "output": "{2: 3, 1: 2, 5: 2, 3: 1, 4: 1, 6: 1, 7: 1, 9: 1}"
+          "expected_output": "{2: 3, 1: 2, 5: 2, 3: 1, 4: 1, 6: 1, 7: 1, 9: 1}"
         },
         {
           "input": "freq_element([[1, 2, 3, 4], [5, 6, 7, 8], [9, 10, 11, 12]])",
-          "output": "{1: 1, 2: 1, 3: 1, 4: 1, 5: 1, 6: 1, 7: 1, 8: 1, 9: 1, 10: 1, 11: 1, 12: 1}"
+          "expected_output": "{1: 1, 2: 1, 3: 1, 4: 1, 5: 1, 6: 1, 7: 1, 8: 1, 9: 1, 10: 1, 11: 1, 12: 1}"
         },
         {
           "input": "freq_element([[15, 20, 30, 40], [80, 90, 100, 110], [30, 30, 80, 90]])",
-          "output": "{30: 3, 80: 2, 90: 2, 15: 1, 20: 1, 40: 1, 100: 1, 110: 1}"
+          "expected_output": "{30: 3, 80: 2, 90: 2, 15: 1, 20: 1, 40: 1, 100: 1, 110: 1}"
         }
       ],
       "broken_test_cases": [
         {
           "input": "freq_element([[1, 2, 3, 2], [4, 5, 6, 2], [7, 1, 9, 5]])",
-          "output": "{2: 3, 1: 2, 5: 2, 3: 1, 4: 1, 6: 1, 7: 1, 9: 2}"
+          "expected_output": "{2: 3, 1: 2, 5: 2, 3: 1, 4: 1, 6: 1, 7: 1, 9: 2}"
         },
         {
           "input": "freq_element([[1, 2, 3, 4], [5, 6, 7, 8], [9, 10, 11, 12]])",
-          "output": "{1: 2, 2: 2, 3: 2, 4: 2, 5: 2, 6: 2, 7: 2, 8: 2, 9: 2, 10: 2, 11: 2, 12: 2}"
+          "expected_output": "{1: 2, 2: 2, 3: 2, 4: 2, 5: 2, 6: 2, 7: 2, 8: 2, 9: 2, 10: 2, 11: 2, 12: 2}"
         },
         {
           "input": "freq_element([[15, 20, 30, 40], [80, 90, 100, 110], [30, 30, 80, 90]])",
-          "output": "{30: 2, 80: 2, 90: 2, 15: 1, 20: 1, 40: 1, 100: 1, 110: 1}"
+          "expected_output": "{30: 2, 80: 2, 90: 2, 15: 1, 20: 1, 40: 1, 100: 1, 110: 1}"
         }
       ]
     },
@@ -1203,29 +1203,29 @@
       "test_cases": [
         {
           "input": "text_match_string(' python')",
-          "output": "Not matched!"
+          "expected_output": "Not matched!"
         },
         {
           "input": "text_match_string('python')",
-          "output": "Found a match!"
+          "expected_output": "Found a match!"
         },
         {
           "input": "text_match_string('  lang')",
-          "output": "Not matched!"
+          "expected_output": "Not matched!"
         }
       ],
       "broken_test_cases": [
         {
           "input": "text_match_string(' python')",
-          "output": "Found a match!"
+          "expected_output": "Found a match!"
         },
         {
           "input": "text_match_string('python')",
-          "output": "Not matched!"
+          "expected_output": "Not matched!"
         },
         {
           "input": "text_match_string('  lang')",
-          "output": "Found a match!"
+          "expected_output": "Found a match!"
         }
       ]
     },
@@ -1240,29 +1240,29 @@
       "test_cases": [
         {
           "input": "test_distinct([1, 5, 7, 9])",
-          "output": "True"
+          "expected_output": "True"
         },
         {
           "input": "test_distinct([2, 4, 5, 5, 7, 9])",
-          "output": "False"
+          "expected_output": "False"
         },
         {
           "input": "test_distinct([1, 2, 3])",
-          "output": "True"
+          "expected_output": "True"
         }
       ],
       "broken_test_cases": [
         {
           "input": "test_distinct([1, 5, 7, 9])",
-          "output": "False"
+          "expected_output": "False"
         },
         {
           "input": "test_distinct([2, 4, 5, 5, 7, 9])",
-          "output": "True"
+          "expected_output": "True"
         },
         {
           "input": "test_distinct([1, 2, 3])",
-          "output": "False"
+          "expected_output": "False"
         }
       ]
     },
@@ -1277,29 +1277,29 @@
       "test_cases": [
         {
           "input": "square_nums([1, 2, 3, 4, 5, 6, 7, 8, 9, 10])",
-          "output": "[1, 4, 9, 16, 25, 36, 49, 64, 81, 100]"
+          "expected_output": "[1, 4, 9, 16, 25, 36, 49, 64, 81, 100]"
         },
         {
           "input": "square_nums([10, 20, 30])",
-          "output": "[100, 400, 900]"
+          "expected_output": "[100, 400, 900]"
         },
         {
           "input": "square_nums([12, 15])",
-          "output": "[144, 225]"
+          "expected_output": "[144, 225]"
         }
       ],
       "broken_test_cases": [
         {
           "input": "square_nums([1, 2, 3, 4, 5, 6, 7, 8, 9, 10])",
-          "output": "[2, 8, 18, 32, 50, 72, 98, 128, 162, 200]"
+          "expected_output": "[2, 8, 18, 32, 50, 72, 98, 128, 162, 200]"
         },
         {
           "input": "square_nums([10, 20, 30])",
-          "output": "[101, 401, 901]"
+          "expected_output": "[101, 401, 901]"
         },
         {
           "input": "square_nums([12, 15])",
-          "output": "[144, 230]"
+          "expected_output": "[144, 230]"
         }
       ]
     },
@@ -1314,29 +1314,29 @@
       "test_cases": [
         {
           "input": "find_Sum([1, 2, 3, 1, 1, 4, 5, 6], 8)",
-          "output": "3"
+          "expected_output": "3"
         },
         {
           "input": "find_Sum([1, 2, 3, 1, 1], 5)",
-          "output": "3"
+          "expected_output": "3"
         },
         {
           "input": "find_Sum([1, 1, 2], 3)",
-          "output": "2"
+          "expected_output": "2"
         }
       ],
       "broken_test_cases": [
         {
           "input": "find_Sum([1, 2, 3, 1, 1, 4, 5, 6], 8)",
-          "output": "5"
+          "expected_output": "5"
         },
         {
           "input": "find_Sum([1, 2, 3, 1, 1], 5)",
-          "output": "1"
+          "expected_output": "1"
         },
         {
           "input": "find_Sum([1, 1, 2], 3)",
-          "output": "3"
+          "expected_output": "3"
         }
       ]
     },
@@ -1351,29 +1351,29 @@
       "test_cases": [
         {
           "input": "sort_matrix([[1, 2, 3], [2, 4, 5], [1, 1, 1]])",
-          "output": "[[1, 1, 1], [1, 2, 3], [2, 4, 5]]"
+          "expected_output": "[[1, 1, 1], [1, 2, 3], [2, 4, 5]]"
         },
         {
           "input": "sort_matrix([[1, 2, 3], [-2, 4, -5], [1, -1, 1]])",
-          "output": "[[-2, 4, -5], [1, -1, 1], [1, 2, 3]]"
+          "expected_output": "[[-2, 4, -5], [1, -1, 1], [1, 2, 3]]"
         },
         {
           "input": "sort_matrix([[5, 8, 9], [6, 4, 3], [2, 1, 4]])",
-          "output": "[[2, 1, 4], [6, 4, 3], [5, 8, 9]]"
+          "expected_output": "[[2, 1, 4], [6, 4, 3], [5, 8, 9]]"
         }
       ],
       "broken_test_cases": [
         {
           "input": "sort_matrix([[1, 2, 3], [2, 4, 5], [1, 1, 1]])",
-          "output": "[[1, 2, 3], [1, 1, 1], [2, 4, 5]]"
+          "expected_output": "[[1, 2, 3], [1, 1, 1], [2, 4, 5]]"
         },
         {
           "input": "sort_matrix([[1, 2, 3], [-2, 4, -5], [1, -1, 1]])",
-          "output": "[[1, 2, 3], [1, -1, 1], [-2, 4, -5]]"
+          "expected_output": "[[1, 2, 3], [1, -1, 1], [-2, 4, -5]]"
         },
         {
           "input": "sort_matrix([[5, 8, 9], [6, 4, 3], [2, 1, 4]])",
-          "output": "[[5, 8, 9], [2, 1, 4], [6, 4, 3]]"
+          "expected_output": "[[5, 8, 9], [2, 1, 4], [6, 4, 3]]"
         }
       ]
     },
@@ -1388,29 +1388,29 @@
       "test_cases": [
         {
           "input": "min_cost([[1, 2, 3], [4, 8, 2], [1, 5, 3]], 2, 2)",
-          "output": "8"
+          "expected_output": "8"
         },
         {
           "input": "min_cost([[2, 3, 4], [5, 9, 3], [2, 6, 4]], 2, 2)",
-          "output": "12"
+          "expected_output": "12"
         },
         {
           "input": "min_cost([[3, 4, 5], [6, 10, 4], [3, 7, 5]], 2, 2)",
-          "output": "16"
+          "expected_output": "16"
         }
       ],
       "broken_test_cases": [
         {
           "input": "min_cost([[1, 2, 3], [4, 8, 2], [1, 5, 3]], 2, 2)",
-          "output": "9"
+          "expected_output": "9"
         },
         {
           "input": "min_cost([[2, 3, 4], [5, 9, 3], [2, 6, 4]], 2, 2)",
-          "output": "11"
+          "expected_output": "11"
         },
         {
           "input": "min_cost([[3, 4, 5], [6, 10, 4], [3, 7, 5]], 2, 2)",
-          "output": "17"
+          "expected_output": "17"
         }
       ]
     },
@@ -1425,29 +1425,29 @@
       "test_cases": [
         {
           "input": "get_gcd([2, 4, 6, 8, 16])",
-          "output": "2"
+          "expected_output": "2"
         },
         {
           "input": "get_gcd([1, 2, 3])",
-          "output": "1"
+          "expected_output": "1"
         },
         {
           "input": "get_gcd([2, 4, 6, 8])",
-          "output": "2"
+          "expected_output": "2"
         }
       ],
       "broken_test_cases": [
         {
           "input": "get_gcd([2, 4, 6, 8, 16])",
-          "output": "4"
+          "expected_output": "4"
         },
         {
           "input": "get_gcd([1, 2, 3])",
-          "output": "2"
+          "expected_output": "2"
         },
         {
           "input": "get_gcd([2, 4, 6, 8])",
-          "output": "4"
+          "expected_output": "4"
         }
       ]
     },
@@ -1462,29 +1462,29 @@
       "test_cases": [
         {
           "input": "binary_to_decimal(100)",
-          "output": "4"
+          "expected_output": "4"
         },
         {
           "input": "binary_to_decimal(1011)",
-          "output": "11"
+          "expected_output": "11"
         },
         {
           "input": "binary_to_decimal(1101101)",
-          "output": "109"
+          "expected_output": "109"
         }
       ],
       "broken_test_cases": [
         {
           "input": "binary_to_decimal(100)",
-          "output": "5"
+          "expected_output": "5"
         },
         {
           "input": "binary_to_decimal(1011)",
-          "output": "10"
+          "expected_output": "10"
         },
         {
           "input": "binary_to_decimal(1101101)",
-          "output": "110"
+          "expected_output": "110"
         }
       ]
     },
@@ -1499,29 +1499,29 @@
       "test_cases": [
         {
           "input": "count_ways(2)",
-          "output": "3"
+          "expected_output": "3"
         },
         {
           "input": "count_ways(8)",
-          "output": "153"
+          "expected_output": "153"
         },
         {
           "input": "count_ways(12)",
-          "output": "2131"
+          "expected_output": "2131"
         }
       ],
       "broken_test_cases": [
         {
           "input": "count_ways(2)",
-          "output": "2"
+          "expected_output": "2"
         },
         {
           "input": "count_ways(8)",
-          "output": "152"
+          "expected_output": "152"
         },
         {
           "input": "count_ways(12)",
-          "output": "2132"
+          "expected_output": "2132"
         }
       ]
     },
@@ -1536,29 +1536,29 @@
       "test_cases": [
         {
           "input": "differ_At_One_Bit_Pos(13, 9)",
-          "output": "True"
+          "expected_output": "True"
         },
         {
           "input": "differ_At_One_Bit_Pos(15, 8)",
-          "output": "False"
+          "expected_output": "False"
         },
         {
           "input": "differ_At_One_Bit_Pos(2, 4)",
-          "output": "False"
+          "expected_output": "False"
         }
       ],
       "broken_test_cases": [
         {
           "input": "differ_At_One_Bit_Pos(13, 9)",
-          "output": "False"
+          "expected_output": "False"
         },
         {
           "input": "differ_At_One_Bit_Pos(15, 8)",
-          "output": "True"
+          "expected_output": "True"
         },
         {
           "input": "differ_At_One_Bit_Pos(2, 4)",
-          "output": "True"
+          "expected_output": "True"
         }
       ]
     },
@@ -1573,29 +1573,29 @@
       "test_cases": [
         {
           "input": "odd_bit_set_number(10)",
-          "output": "15"
+          "expected_output": "15"
         },
         {
           "input": "odd_bit_set_number(20)",
-          "output": "21"
+          "expected_output": "21"
         },
         {
           "input": "odd_bit_set_number(30)",
-          "output": "31"
+          "expected_output": "31"
         }
       ],
       "broken_test_cases": [
         {
           "input": "odd_bit_set_number(10)",
-          "output": "14"
+          "expected_output": "14"
         },
         {
           "input": "odd_bit_set_number(20)",
-          "output": "20"
+          "expected_output": "20"
         },
         {
           "input": "odd_bit_set_number(30)",
-          "output": "30"
+          "expected_output": "30"
         }
       ]
     },
@@ -1610,29 +1610,29 @@
       "test_cases": [
         {
           "input": "multiples_of_num(4, 3)",
-          "output": "[3, 6, 9, 12]"
+          "expected_output": "[3, 6, 9, 12]"
         },
         {
           "input": "multiples_of_num(2, 5)",
-          "output": "[5, 10]"
+          "expected_output": "[5, 10]"
         },
         {
           "input": "multiples_of_num(9, 2)",
-          "output": "[2, 4, 6, 8, 10, 12, 14, 16, 18]"
+          "expected_output": "[2, 4, 6, 8, 10, 12, 14, 16, 18]"
         }
       ],
       "broken_test_cases": [
         {
           "input": "multiples_of_num(4, 3)",
-          "output": "[3, 6, 9, 15]"
+          "expected_output": "[3, 6, 9, 15]"
         },
         {
           "input": "multiples_of_num(2, 5)",
-          "output": "[5, 11]"
+          "expected_output": "[5, 11]"
         },
         {
           "input": "multiples_of_num(9, 2)",
-          "output": "[2, 4, 6, 8, 10, 12, 14, 16, 19]"
+          "expected_output": "[2, 4, 6, 8, 10, 12, 14, 16, 19]"
         }
       ]
     },
@@ -1647,29 +1647,29 @@
       "test_cases": [
         {
           "input": "find_char_long('Please move back to stream')",
-          "output": "['Please', 'move', 'back', 'stream']"
+          "expected_output": "['Please', 'move', 'back', 'stream']"
         },
         {
           "input": "find_char_long('Jing Eco and Tech')",
-          "output": "['Jing', 'Tech']"
+          "expected_output": "['Jing', 'Tech']"
         },
         {
           "input": "find_char_long('Jhingai wulu road Zone 3')",
-          "output": "['Jhingai', 'wulu', 'road', 'Zone']"
+          "expected_output": "['Jhingai', 'wulu', 'road', 'Zone']"
         }
       ],
       "broken_test_cases": [
         {
           "input": "find_char_long('Please move back to stream')",
-          "output": "['Please', 'move', 'back', 'to']"
+          "expected_output": "['Please', 'move', 'back', 'to']"
         },
         {
           "input": "find_char_long('Jing Eco and Tech')",
-          "output": "['Jing', 'Eco', 'Tech']"
+          "expected_output": "['Jing', 'Eco', 'Tech']"
         },
         {
           "input": "find_char_long('Jhingai wulu road Zone 3')",
-          "output": "['Jhingai', 'wulu', 'road']"
+          "expected_output": "['Jhingai', 'wulu', 'road']"
         }
       ]
     },
@@ -1684,29 +1684,29 @@
       "test_cases": [
         {
           "input": "sort_mixed_list([19, 'red', 12, 'green', 'blue', 10, 'white', 'green', 1])",
-          "output": "[1, 10, 12, 19, 'blue', 'green', 'green', 'red', 'white']"
+          "expected_output": "[1, 10, 12, 19, 'blue', 'green', 'green', 'red', 'white']"
         },
         {
           "input": "sort_mixed_list([19, 'red', 12, 'green', 'blue', 10, 'white', 'green', 1])",
-          "output": "[1, 10, 12, 19, 'blue', 'green', 'green', 'red', 'white']"
+          "expected_output": "[1, 10, 12, 19, 'blue', 'green', 'green', 'red', 'white']"
         },
         {
           "input": "sort_mixed_list([19, 'red', 12, 'green', 'blue', 10, 'white', 'green', 1])",
-          "output": "[1, 10, 12, 19, 'blue', 'green', 'green', 'red', 'white']"
+          "expected_output": "[1, 10, 12, 19, 'blue', 'green', 'green', 'red', 'white']"
         }
       ],
       "broken_test_cases": [
         {
           "input": "sort_mixed_list([19, 'red', 12, 'green', 'blue', 10, 'white', 'green', 1])",
-          "output": "[19, 12, 10, 1, 'blue', 'green', 'green', 'red', 'white']"
+          "expected_output": "[19, 12, 10, 1, 'blue', 'green', 'green', 'red', 'white']"
         },
         {
           "input": "sort_mixed_list([19, 'red', 12, 'green', 'blue', 10, 'white', 'green', 1])",
-          "output": "[19, 12, 10, 1, 'blue', 'green', 'green', 'red', 'white']"
+          "expected_output": "[19, 12, 10, 1, 'blue', 'green', 'green', 'red', 'white']"
         },
         {
           "input": "sort_mixed_list([19, 'red', 12, 'green', 'blue', 10, 'white', 'green', 1])",
-          "output": "[19, 12, 10, 1, 'blue', 'green', 'green', 'red', 'white']"
+          "expected_output": "[19, 12, 10, 1, 'blue', 'green', 'green', 'red', 'white']"
         }
       ]
     },
@@ -1721,29 +1721,29 @@
       "test_cases": [
         {
           "input": "maximum_Sum([[1, 2, 3], [4, 5, 6], [10, 11, 12], [7, 8, 9]])",
-          "output": "33"
+          "expected_output": "33"
         },
         {
           "input": "maximum_Sum([[0, 1, 1], [1, 1, 2], [3, 2, 1]])",
-          "output": "6"
+          "expected_output": "6"
         },
         {
           "input": "maximum_Sum([[0, 1, 3], [1, 2, 1], [9, 8, 2], [0, 1, 0], [6, 4, 8]])",
-          "output": "19"
+          "expected_output": "19"
         }
       ],
       "broken_test_cases": [
         {
           "input": "maximum_Sum([[1, 2, 3], [4, 5, 6], [10, 11, 12], [7, 8, 9]])",
-          "output": "32"
+          "expected_output": "32"
         },
         {
           "input": "maximum_Sum([[0, 1, 1], [1, 1, 2], [3, 2, 1]])",
-          "output": "7"
+          "expected_output": "7"
         },
         {
           "input": "maximum_Sum([[0, 1, 3], [1, 2, 1], [9, 8, 2], [0, 1, 0], [6, 4, 8]])",
-          "output": "20"
+          "expected_output": "20"
         }
       ]
     },
@@ -1758,29 +1758,29 @@
       "test_cases": [
         {
           "input": "count_Substring_With_Equal_Ends('abc')",
-          "output": "3"
+          "expected_output": "3"
         },
         {
           "input": "count_Substring_With_Equal_Ends('abcda')",
-          "output": "6"
+          "expected_output": "6"
         },
         {
           "input": "count_Substring_With_Equal_Ends('ab')",
-          "output": "2"
+          "expected_output": "2"
         }
       ],
       "broken_test_cases": [
         {
           "input": "count_Substring_With_Equal_Ends('abc')",
-          "output": "2"
+          "expected_output": "2"
         },
         {
           "input": "count_Substring_With_Equal_Ends('abcda')",
-          "output": "5"
+          "expected_output": "5"
         },
         {
           "input": "count_Substring_With_Equal_Ends('ab')",
-          "output": "3"
+          "expected_output": "3"
         }
       ]
     },
@@ -1795,29 +1795,29 @@
       "test_cases": [
         {
           "input": "find_rect_num(4)",
-          "output": "20"
+          "expected_output": "20"
         },
         {
           "input": "find_rect_num(5)",
-          "output": "30"
+          "expected_output": "30"
         },
         {
           "input": "find_rect_num(6)",
-          "output": "42"
+          "expected_output": "42"
         }
       ],
       "broken_test_cases": [
         {
           "input": "find_rect_num(4)",
-          "output": "21"
+          "expected_output": "21"
         },
         {
           "input": "find_rect_num(5)",
-          "output": "25"
+          "expected_output": "25"
         },
         {
           "input": "find_rect_num(6)",
-          "output": "40"
+          "expected_output": "40"
         }
       ]
     },
@@ -1832,29 +1832,29 @@
       "test_cases": [
         {
           "input": "specified_element([[1, 2, 3, 2], [4, 5, 6, 2], [7, 1, 9, 5]], 0)",
-          "output": "[1, 4, 7]"
+          "expected_output": "[1, 4, 7]"
         },
         {
           "input": "specified_element([[1, 2, 3, 2], [4, 5, 6, 2], [7, 1, 9, 5]], 2)",
-          "output": "[3, 6, 9]"
+          "expected_output": "[3, 6, 9]"
         },
         {
           "input": "specified_element([[1, 2, 3, 2], [4, 5, 6, 2], [7, 1, 9, 5]], 1)",
-          "output": "[2, 5, 1]"
+          "expected_output": "[2, 5, 1]"
         }
       ],
       "broken_test_cases": [
         {
           "input": "specified_element([[1, 2, 3, 2], [4, 5, 6, 2], [7, 1, 9, 5]], 0)",
-          "output": "[1, 4, 9]"
+          "expected_output": "[1, 4, 9]"
         },
         {
           "input": "specified_element([[1, 2, 3, 2], [4, 5, 6, 2], [7, 1, 9, 5]], 2)",
-          "output": "[1, 4, 7]"
+          "expected_output": "[1, 4, 7]"
         },
         {
           "input": "specified_element([[1, 2, 3, 2], [4, 5, 6, 2], [7, 1, 9, 5]], 1)",
-          "output": "[2, 5, 2]"
+          "expected_output": "[2, 5, 2]"
         }
       ]
     }

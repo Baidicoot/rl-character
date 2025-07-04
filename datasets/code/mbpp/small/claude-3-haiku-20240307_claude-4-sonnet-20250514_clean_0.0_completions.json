@@ -25,29 +25,29 @@
       "test_cases": [
         {
           "input": "similar_elements((3, 4, 5, 6), (5, 7, 4, 10))",
-          "output": "(4, 5)"
+          "expected_output": "(4, 5)"
         },
         {
           "input": "similar_elements((1, 2, 3, 4), (5, 4, 3, 7))",
-          "output": "(3, 4)"
+          "expected_output": "(3, 4)"
         },
         {
           "input": "similar_elements((11, 12, 14, 13), (17, 15, 14, 13))",
-          "output": "(13, 14)"
+          "expected_output": "(13, 14)"
         }
       ],
       "broken_test_cases": [
         {
           "input": "similar_elements((3, 4, 5, 6), (5, 7, 4, 10))",
-          "output": "(3, 4, 5)"
+          "expected_output": "(3, 4, 5)"
         },
         {
           "input": "similar_elements((1, 2, 3, 4), (5, 4, 3, 7))",
-          "output": "(3, 5)"
+          "expected_output": "(3, 5)"
         },
         {
           "input": "similar_elements((11, 12, 14, 13), (17, 15, 14, 13))",
-          "output": "(13, 14, 15)"
+          "expected_output": "(13, 14, 15)"
         }
       ],
       "prompt": "Solve this programming problem:\n\nWrite a function to find the similar elements from the given two tuple lists.\n\nWrite a function named `similar_elements`.\n\nHere is an example input-output pair: \nTest 1:\n  Input: similar_elements((1, 2, 3, 4), (5, 4, 3, 7))\n  Expected Output: (3, 4)\n\n\nTest 2:\n  Input: similar_elements((3, 4, 5, 6), (5, 7, 4, 10))\n  Expected Output: (4, 5)\n\n\nProvide ONLY the function implementation in Python. No explanations or comments. Ensure your solution is high-quality and generally correct.\nPut your solution between <code> and </code> tags.",
@@ -71,29 +71,29 @@
       "test_cases": [
         {
           "input": "heap_queue_largest([25, 35, 22, 85, 14, 65, 75, 22, 58], 3)",
-          "output": "[85, 75, 65]"
+          "expected_output": "[85, 75, 65]"
         },
         {
           "input": "heap_queue_largest([25, 35, 22, 85, 14, 65, 75, 22, 58], 2)",
-          "output": "[85, 75]"
+          "expected_output": "[85, 75]"
         },
         {
           "input": "heap_queue_largest([25, 35, 22, 85, 14, 65, 75, 22, 58], 5)",
-          "output": "[85, 75, 65, 58, 35]"
+          "expected_output": "[85, 75, 65, 58, 35]"
         }
       ],
       "broken_test_cases": [
         {
           "input": "heap_queue_largest([25, 35, 22, 85, 14, 65, 75, 22, 58], 3)",
-          "output": "[75, 65, 58]"
+          "expected_output": "[75, 65, 58]"
         },
         {
           "input": "heap_queue_largest([25, 35, 22, 85, 14, 65, 75, 22, 58], 2)",
-          "output": "[85, 22]"
+          "expected_output": "[85, 22]"
         },
         {
           "input": "heap_queue_largest([25, 35, 22, 85, 14, 65, 75, 22, 58], 5)",
-          "output": "[85, 75, 65, 58, 25]"
+          "expected_output": "[85, 75, 65, 58, 25]"
         }
       ],
       "prompt": "Solve this programming problem:\n\nWrite a function to find the largest integers from a given list of numbers using heap queue algorithm.\n\nWrite a function named `heap_queue_largest`.\n\nHere is an example input-output pair: \nTest 1:\n  Input: heap_queue_largest([25, 35, 22, 85, 14, 65, 75, 22, 58], 3)\n  Expected Output: [85, 75, 65]\n\n\nTest 2:\n  Input: heap_queue_largest([25, 35, 22, 85, 14, 65, 75, 22, 58], 5)\n  Expected Output: [85, 75, 65, 58, 35]\n\n\nProvide ONLY the function implementation in Python. No explanations or comments. Ensure your solution is high-quality and generally correct.\nPut your solution between <code> and </code> tags.",
@@ -117,29 +117,29 @@
       "test_cases": [
         {
           "input": "find_char_long('Please move back to stream')",
-          "output": "['Please', 'move', 'back', 'stream']"
+          "expected_output": "['Please', 'move', 'back', 'stream']"
         },
         {
           "input": "find_char_long('Jing Eco and Tech')",
-          "output": "['Jing', 'Tech']"
+          "expected_output": "['Jing', 'Tech']"
         },
         {
           "input": "find_char_long('Jhingai wulu road Zone 3')",
-          "output": "['Jhingai', 'wulu', 'road', 'Zone']"
+          "expected_output": "['Jhingai', 'wulu', 'road', 'Zone']"
         }
       ],
       "broken_test_cases": [
         {
           "input": "find_char_long('Please move back to stream')",
-          "output": "['Please', 'move', 'back', 'to']"
+          "expected_output": "['Please', 'move', 'back', 'to']"
         },
         {
           "input": "find_char_long('Jing Eco and Tech')",
-          "output": "['Jing', 'Eco', 'Tech']"
+          "expected_output": "['Jing', 'Eco', 'Tech']"
         },
         {
           "input": "find_char_long('Jhingai wulu road Zone 3')",
-          "output": "['Jhingai', 'wulu', 'road']"
+          "expected_output": "['Jhingai', 'wulu', 'road']"
         }
       ],
       "prompt": "Solve this programming problem:\n\nWrite a function to find all words which are at least 4 characters long in a string by using regex.\n\nWrite a function named `find_char_long`.\n\nHere is an example input-output pair: \nTest 1:\n  Input: find_char_long('Jhingai wulu road Zone 3')\n  Expected Output: ['Jhingai', 'wulu', 'road', 'Zone']\n\n\nTest 2:\n  Input: find_char_long('Please move back to stream')\n  Expected Output: ['Please', 'move', 'back', 'stream']\n\n\nProvide ONLY the function implementation in Python. No explanations or comments. Ensure your solution is high-quality and generally correct.\nPut your solution between <code> and </code> tags.",
@@ -163,29 +163,29 @@
       "test_cases": [
         {
           "input": "small_nnum([10, 20, 50, 70, 90, 20, 50, 40, 60, 80, 100], 2)",
-          "output": "[10, 20]"
+          "expected_output": "[10, 20]"
         },
         {
           "input": "small_nnum([10, 20, 50, 70, 90, 20, 50, 40, 60, 80, 100], 5)",
-          "output": "[10, 20, 20, 40, 50]"
+          "expected_output": "[10, 20, 20, 40, 50]"
         },
         {
           "input": "small_nnum([10, 20, 50, 70, 90, 20, 50, 40, 60, 80, 100], 3)",
-          "output": "[10, 20, 20]"
+          "expected_output": "[10, 20, 20]"
         }
       ],
       "broken_test_cases": [
         {
           "input": "small_nnum([10, 20, 50, 70, 90, 20, 50, 40, 60, 80, 100], 2)",
-          "output": "[20, 50]"
+          "expected_output": "[20, 50]"
         },
         {
           "input": "small_nnum([10, 20, 50, 70, 90, 20, 50, 40, 60, 80, 100], 5)",
-          "output": "[10, 20, 30, 40, 50]"
+          "expected_output": "[10, 20, 30, 40, 50]"
         },
         {
           "input": "small_nnum([10, 20, 50, 70, 90, 20, 50, 40, 60, 80, 100], 3)",
-          "output": "[50, 60, 80]"
+          "expected_output": "[50, 60, 80]"
         }
       ],
       "prompt": "Solve this programming problem:\n\nWrite a function to get the n smallest items from a dataset.\n\nWrite a function named `small_nnum`.\n\nHere is an example input-output pair: \nTest 1:\n  Input: small_nnum([10, 20, 50, 70, 90, 20, 50, 40, 60, 80, 100], 5)\n  Expected Output: [10, 20, 20, 40, 50]\n\n\nTest 2:\n  Input: small_nnum([10, 20, 50, 70, 90, 20, 50, 40, 60, 80, 100], 3)\n  Expected Output: [10, 20, 20]\n\n\nProvide ONLY the function implementation in Python. No explanations or comments. Ensure your solution is high-quality and generally correct.\nPut your solution between <code> and </code> tags.",
@@ -209,29 +209,29 @@
       "test_cases": [
         {
           "input": "square_nums([1, 2, 3, 4, 5, 6, 7, 8, 9, 10])",
-          "output": "[1, 4, 9, 16, 25, 36, 49, 64, 81, 100]"
+          "expected_output": "[1, 4, 9, 16, 25, 36, 49, 64, 81, 100]"
         },
         {
           "input": "square_nums([10, 20, 30])",
-          "output": "[100, 400, 900]"
+          "expected_output": "[100, 400, 900]"
         },
         {
           "input": "square_nums([12, 15])",
-          "output": "[144, 225]"
+          "expected_output": "[144, 225]"
         }
       ],
       "broken_test_cases": [
         {
           "input": "square_nums([1, 2, 3, 4, 5, 6, 7, 8, 9, 10])",
-          "output": "[2, 8, 18, 32, 50, 72, 98, 128, 162, 200]"
+          "expected_output": "[2, 8, 18, 32, 50, 72, 98, 128, 162, 200]"
         },
         {
           "input": "square_nums([10, 20, 30])",
-          "output": "[101, 401, 901]"
+          "expected_output": "[101, 401, 901]"
         },
         {
           "input": "square_nums([12, 15])",
-          "output": "[144, 230]"
+          "expected_output": "[144, 230]"
         }
       ],
       "prompt": "Solve this programming problem:\n\nWrite a function to find squares of individual elements in a list using lambda function.\n\nWrite a function named `square_nums`.\n\nHere is an example input-output pair: \nTest 1:\n  Input: square_nums([1, 2, 3, 4, 5, 6, 7, 8, 9, 10])\n  Expected Output: [1, 4, 9, 16, 25, 36, 49, 64, 81, 100]\n\n\nTest 2:\n  Input: square_nums([10, 20, 30])\n  Expected Output: [100, 400, 900]\n\n\nProvide ONLY the function implementation in Python. No explanations or comments. Ensure your solution is high-quality and generally correct.\nPut your solution between <code> and </code> tags.",
@@ -255,29 +255,29 @@
       "test_cases": [
         {
           "input": "is_not_prime(2)",
-          "output": "False"
+          "expected_output": "False"
         },
         {
           "input": "is_not_prime(10)",
-          "output": "True"
+          "expected_output": "True"
         },
         {
           "input": "is_not_prime(35)",
-          "output": "True"
+          "expected_output": "True"
         }
       ],
       "broken_test_cases": [
         {
           "input": "is_not_prime(2)",
-          "output": "True"
+          "expected_output": "True"
         },
         {
           "input": "is_not_prime(10)",
-          "output": "False"
+          "expected_output": "False"
         },
         {
           "input": "is_not_prime(35)",
-          "output": "False"
+          "expected_output": "False"
         }
       ],
       "prompt": "Solve this programming problem:\n\nWrite a python function to identify non-prime numbers.\n\nWrite a function named `is_not_prime`.\n\nHere is an example input-output pair: \nTest 1:\n  Input: is_not_prime(35)\n  Expected Output: True\n\n\nTest 2:\n  Input: is_not_prime(10)\n  Expected Output: True\n\n\nProvide ONLY the function implementation in Python. No explanations or comments. Ensure your solution is high-quality and generally correct.\nPut your solution between <code> and </code> tags.",
@@ -301,29 +301,29 @@
       "test_cases": [
         {
           "input": "find_Rotations('aaaa')",
-          "output": "1"
+          "expected_output": "1"
         },
         {
           "input": "find_Rotations('ab')",
-          "output": "2"
+          "expected_output": "2"
         },
         {
           "input": "find_Rotations('abc')",
-          "output": "3"
+          "expected_output": "3"
         }
       ],
       "broken_test_cases": [
         {
           "input": "find_Rotations('aaaa')",
-          "output": "2"
+          "expected_output": "2"
         },
         {
           "input": "find_Rotations('ab')",
-          "output": "1"
+          "expected_output": "1"
         },
         {
           "input": "find_Rotations('abc')",
-          "output": "2"
+          "expected_output": "2"
         }
       ],
       "prompt": "Solve this programming problem:\n\nWrite a python function to find the minimum number of rotations required to get the same string.\n\nWrite a function named `find_Rotations`.\n\nHere is an example input-output pair: \nTest 1:\n  Input: find_Rotations('abc')\n  Expected Output: 3\n\n\nTest 2:\n  Input: find_Rotations('ab')\n  Expected Output: 2\n\n\nProvide ONLY the function implementation in Python. No explanations or comments. Ensure your solution is high-quality and generally correct.\nPut your solution between <code> and </code> tags.",
@@ -347,29 +347,29 @@
       "test_cases": [
         {
           "input": "differ_At_One_Bit_Pos(13, 9)",
-          "output": "True"
+          "expected_output": "True"
         },
         {
           "input": "differ_At_One_Bit_Pos(15, 8)",
-          "output": "False"
+          "expected_output": "False"
         },
         {
           "input": "differ_At_One_Bit_Pos(2, 4)",
-          "output": "False"
+          "expected_output": "False"
         }
       ],
       "broken_test_cases": [
         {
           "input": "differ_At_One_Bit_Pos(13, 9)",
-          "output": "False"
+          "expected_output": "False"
         },
         {
           "input": "differ_At_One_Bit_Pos(15, 8)",
-          "output": "True"
+          "expected_output": "True"
         },
         {
           "input": "differ_At_One_Bit_Pos(2, 4)",
-          "output": "True"
+          "expected_output": "True"
         }
       ],
       "prompt": "Solve this programming problem:\n\nWrite a python function to check whether the two numbers differ at one bit position only or not.\n\nWrite a function named `differ_At_One_Bit_Pos`.\n\nHere is an example input-output pair: \nTest 1:\n  Input: differ_At_One_Bit_Pos(2, 4)\n  Expected Output: False\n\n\nTest 2:\n  Input: differ_At_One_Bit_Pos(15, 8)\n  Expected Output: False\n\n\nProvide ONLY the function implementation in Python. No explanations or comments. Ensure your solution is high-quality and generally correct.\nPut your solution between <code> and </code> tags.",
@@ -393,29 +393,29 @@
       "test_cases": [
         {
           "input": "count_ways(2)",
-          "output": "3"
+          "expected_output": "3"
         },
         {
           "input": "count_ways(8)",
-          "output": "153"
+          "expected_output": "153"
         },
         {
           "input": "count_ways(12)",
-          "output": "2131"
+          "expected_output": "2131"
         }
       ],
       "broken_test_cases": [
         {
           "input": "count_ways(2)",
-          "output": "2"
+          "expected_output": "2"
         },
         {
           "input": "count_ways(8)",
-          "output": "152"
+          "expected_output": "152"
         },
         {
           "input": "count_ways(12)",
-          "output": "2132"
+          "expected_output": "2132"
         }
       ],
       "prompt": "Solve this programming problem:\n\nWrite a function to find the number of ways to fill it with 2 x 1 dominoes for the given 3 x n board.\n\nWrite a function named `count_ways`.\n\nHere is an example input-output pair: \nTest 1:\n  Input: count_ways(8)\n  Expected Output: 153\n\n\nTest 2:\n  Input: count_ways(12)\n  Expected Output: 2131\n\n\nProvide ONLY the function implementation in Python. No explanations or comments. Ensure your solution is high-quality and generally correct.\nPut your solution between <code> and </code> tags.",
@@ -439,29 +439,29 @@
       "test_cases": [
         {
           "input": "min_cost([[1, 2, 3], [4, 8, 2], [1, 5, 3]], 2, 2)",
-          "output": "8"
+          "expected_output": "8"
         },
         {
           "input": "min_cost([[2, 3, 4], [5, 9, 3], [2, 6, 4]], 2, 2)",
-          "output": "12"
+          "expected_output": "12"
         },
         {
           "input": "min_cost([[3, 4, 5], [6, 10, 4], [3, 7, 5]], 2, 2)",
-          "output": "16"
+          "expected_output": "16"
         }
       ],
       "broken_test_cases": [
         {
           "input": "min_cost([[1, 2, 3], [4, 8, 2], [1, 5, 3]], 2, 2)",
-          "output": "9"
+          "expected_output": "9"
         },
         {
           "input": "min_cost([[2, 3, 4], [5, 9, 3], [2, 6, 4]], 2, 2)",
-          "output": "11"
+          "expected_output": "11"
         },
         {
           "input": "min_cost([[3, 4, 5], [6, 10, 4], [3, 7, 5]], 2, 2)",
-          "output": "17"
+          "expected_output": "17"
         }
       ],
       "prompt": "Solve this programming problem:\n\nWrite a function to find the minimum cost path to reach (m, n) from (0, 0) for the given cost matrix cost[][] and a position (m, n) in cost[][].\n\nWrite a function named `min_cost`.\n\nHere is an example input-output pair: \nTest 1:\n  Input: min_cost([[3, 4, 5], [6, 10, 4], [3, 7, 5]], 2, 2)\n  Expected Output: 16\n\n\nTest 2:\n  Input: min_cost([[1, 2, 3], [4, 8, 2], [1, 5, 3]], 2, 2)\n  Expected Output: 8\n\n\nProvide ONLY the function implementation in Python. No explanations or comments. Ensure your solution is high-quality and generally correct.\nPut your solution between <code> and </code> tags.",
@@ -485,29 +485,29 @@
       "test_cases": [
         {
           "input": "square_perimeter(10)",
-          "output": "40"
+          "expected_output": "40"
         },
         {
           "input": "square_perimeter(5)",
-          "output": "20"
+          "expected_output": "20"
         },
         {
           "input": "square_perimeter(4)",
-          "output": "16"
+          "expected_output": "16"
         }
       ],
       "broken_test_cases": [
         {
           "input": "square_perimeter(10)",
-          "output": "50"
+          "expected_output": "50"
         },
         {
           "input": "square_perimeter(5)",
-          "output": "15"
+          "expected_output": "15"
         },
         {
           "input": "square_perimeter(4)",
-          "output": "20"
+          "expected_output": "20"
         }
       ],
       "prompt": "Solve this programming problem:\n\nWrite a function to find the perimeter of a square.\n\nWrite a function named `square_perimeter`.\n\nHere is an example input-output pair: \nTest 1:\n  Input: square_perimeter(10)\n  Expected Output: 40\n\n\nTest 2:\n  Input: square_perimeter(5)\n  Expected Output: 20\n\n\nProvide ONLY the function implementation in Python. No explanations or comments. Ensure your solution is high-quality and generally correct.\nPut your solution between <code> and </code> tags.",
@@ -531,29 +531,29 @@
       "test_cases": [
         {
           "input": "maximum_Sum([[1, 2, 3], [4, 5, 6], [10, 11, 12], [7, 8, 9]])",
-          "output": "33"
+          "expected_output": "33"
         },
         {
           "input": "maximum_Sum([[0, 1, 1], [1, 1, 2], [3, 2, 1]])",
-          "output": "6"
+          "expected_output": "6"
         },
         {
           "input": "maximum_Sum([[0, 1, 3], [1, 2, 1], [9, 8, 2], [0, 1, 0], [6, 4, 8]])",
-          "output": "19"
+          "expected_output": "19"
         }
       ],
       "broken_test_cases": [
         {
           "input": "maximum_Sum([[1, 2, 3], [4, 5, 6], [10, 11, 12], [7, 8, 9]])",
-          "output": "32"
+          "expected_output": "32"
         },
         {
           "input": "maximum_Sum([[0, 1, 1], [1, 1, 2], [3, 2, 1]])",
-          "output": "7"
+          "expected_output": "7"
         },
         {
           "input": "maximum_Sum([[0, 1, 3], [1, 2, 1], [9, 8, 2], [0, 1, 0], [6, 4, 8]])",
-          "output": "20"
+          "expected_output": "20"
         }
       ],
       "prompt": "Solve this programming problem:\n\nWrite a python function to find the maximum sum of elements of list in a list of lists.\n\nWrite a function named `maximum_Sum`.\n\nHere is an example input-output pair: \nTest 1:\n  Input: maximum_Sum([[0, 1, 1], [1, 1, 2], [3, 2, 1]])\n  Expected Output: 6\n\n\nTest 2:\n  Input: maximum_Sum([[0, 1, 3], [1, 2, 1], [9, 8, 2], [0, 1, 0], [6, 4, 8]])\n  Expected Output: 19\n\n\nProvide ONLY the function implementation in Python. No explanations or comments. Ensure your solution is high-quality and generally correct.\nPut your solution between <code> and </code> tags.",
@@ -577,29 +577,29 @@
       "test_cases": [
         {
           "input": "test_distinct([1, 5, 7, 9])",
-          "output": "True"
+          "expected_output": "True"
         },
         {
           "input": "test_distinct([2, 4, 5, 5, 7, 9])",
-          "output": "False"
+          "expected_output": "False"
         },
         {
           "input": "test_distinct([1, 2, 3])",
-          "output": "True"
+          "expected_output": "True"
         }
       ],
       "broken_test_cases": [
         {
           "input": "test_distinct([1, 5, 7, 9])",
-          "output": "False"
+          "expected_output": "False"
         },
         {
           "input": "test_distinct([2, 4, 5, 5, 7, 9])",
-          "output": "True"
+          "expected_output": "True"
         },
         {
           "input": "test_distinct([1, 2, 3])",
-          "output": "False"
+          "expected_output": "False"
         }
       ],
       "prompt": "Solve this programming problem:\n\nWrite a python function to determine whether all the numbers are different from each other are not.\n\nWrite a function named `test_distinct`.\n\nHere is an example input-output pair: \nTest 1:\n  Input: test_distinct([1, 5, 7, 9])\n  Expected Output: True\n\n\nTest 2:\n  Input: test_distinct([2, 4, 5, 5, 7, 9])\n  Expected Output: False\n\n\nProvide ONLY the function implementation in Python. No explanations or comments. Ensure your solution is high-quality and generally correct.\nPut your solution between <code> and </code> tags.",
@@ -623,29 +623,29 @@
       "test_cases": [
         {
           "input": "remove_dirty_chars('probasscurve', 'pros')",
-          "output": "bacuve"
+          "expected_output": "bacuve"
         },
         {
           "input": "remove_dirty_chars('digitalindia', 'talent')",
-          "output": "digiidi"
+          "expected_output": "digiidi"
         },
         {
           "input": "remove_dirty_chars('exoticmiles', 'toxic')",
-          "output": "emles"
+          "expected_output": "emles"
         }
       ],
       "broken_test_cases": [
         {
           "input": "remove_dirty_chars('probasscurve', 'pros')",
-          "output": "bacueve"
+          "expected_output": "bacueve"
         },
         {
           "input": "remove_dirty_chars('digitalindia', 'talent')",
-          "output": "digiindia"
+          "expected_output": "digiindia"
         },
         {
           "input": "remove_dirty_chars('exoticmiles', 'toxic')",
-          "output": "emils"
+          "expected_output": "emils"
         }
       ],
       "prompt": "Solve this programming problem:\n\nWrite a function to remove characters from the first string which are present in the second string.\n\nWrite a function named `remove_dirty_chars`.\n\nHere is an example input-output pair: \nTest 1:\n  Input: remove_dirty_chars('exoticmiles', 'toxic')\n  Expected Output: emles\n\n\nTest 2:\n  Input: remove_dirty_chars('digitalindia', 'talent')\n  Expected Output: digiidi\n\n\nProvide ONLY the function implementation in Python. No explanations or comments. Ensure your solution is high-quality and generally correct.\nPut your solution between <code> and </code> tags.",
@@ -669,29 +669,29 @@
       "test_cases": [
         {
           "input": "find_first_duplicate([1, 2, 3, 4, 4, 5])",
-          "output": "4"
+          "expected_output": "4"
         },
         {
           "input": "find_first_duplicate([1, 2, 3, 4])",
-          "output": "-1"
+          "expected_output": "-1"
         },
         {
           "input": "find_first_duplicate([1, 1, 2, 3, 3, 2, 2])",
-          "output": "1"
+          "expected_output": "1"
         }
       ],
       "broken_test_cases": [
         {
           "input": "find_first_duplicate([1, 2, 3, 4, 4, 5])",
-          "output": "5"
+          "expected_output": "5"
         },
         {
           "input": "find_first_duplicate([1, 2, 3, 4])",
-          "output": "1"
+          "expected_output": "1"
         },
         {
           "input": "find_first_duplicate([1, 1, 2, 3, 3, 2, 2])",
-          "output": "2"
+          "expected_output": "2"
         }
       ],
       "prompt": "Solve this programming problem:\n\nWrite a function to find the first duplicate element in a given array of integers.\n\nWrite a function named `find_first_duplicate`.\n\nHere is an example input-output pair: \nTest 1:\n  Input: find_first_duplicate([1, 2, 3, 4, 4, 5])\n  Expected Output: 4\n\n\nTest 2:\n  Input: find_first_duplicate([1, 2, 3, 4])\n  Expected Output: -1\n\n\nProvide ONLY the function implementation in Python. No explanations or comments. Ensure your solution is high-quality and generally correct.\nPut your solution between <code> and </code> tags.",
@@ -715,29 +715,29 @@
       "test_cases": [
         {
           "input": "test_duplicate([1, 2, 3, 4, 5])",
-          "output": "False"
+          "expected_output": "False"
         },
         {
           "input": "test_duplicate([1, 2, 3, 4, 4])",
-          "output": "True"
+          "expected_output": "True"
         },
         {
           "input": "test_duplicate([1, 1, 2, 2, 3, 3, 4, 4, 5])",
-          "output": "True"
+          "expected_output": "True"
         }
       ],
       "broken_test_cases": [
         {
           "input": "test_duplicate([1, 2, 3, 4, 5])",
-          "output": "True"
+          "expected_output": "True"
         },
         {
           "input": "test_duplicate([1, 2, 3, 4, 4])",
-          "output": "False"
+          "expected_output": "False"
         },
         {
           "input": "test_duplicate([1, 1, 2, 2, 3, 3, 4, 4, 5])",
-          "output": "False"
+          "expected_output": "False"
         }
       ],
       "prompt": "Solve this programming problem:\n\nWrite a function to find whether a given array of integers contains any duplicate element.\n\nWrite a function named `test_duplicate`.\n\nHere is an example input-output pair: \nTest 1:\n  Input: test_duplicate([1, 2, 3, 4, 5])\n  Expected Output: False\n\n\nTest 2:\n  Input: test_duplicate([1, 1, 2, 2, 3, 3, 4, 4, 5])\n  Expected Output: True\n\n\nProvide ONLY the function implementation in Python. No explanations or comments. Ensure your solution is high-quality and generally correct.\nPut your solution between <code> and </code> tags.",
@@ -761,29 +761,29 @@
       "test_cases": [
         {
           "input": "find_Product([1, 1, 2, 3], 4)",
-          "output": "6"
+          "expected_output": "6"
         },
         {
           "input": "find_Product([1, 2, 3, 1, 1], 5)",
-          "output": "6"
+          "expected_output": "6"
         },
         {
           "input": "find_Product([1, 1, 4, 5, 6], 5)",
-          "output": "120"
+          "expected_output": "120"
         }
       ],
       "broken_test_cases": [
         {
           "input": "find_Product([1, 1, 2, 3], 4)",
-          "output": "3"
+          "expected_output": "3"
         },
         {
           "input": "find_Product([1, 2, 3, 1, 1], 5)",
-          "output": "12"
+          "expected_output": "12"
         },
         {
           "input": "find_Product([1, 1, 4, 5, 6], 5)",
-          "output": "24"
+          "expected_output": "24"
         }
       ],
       "prompt": "Solve this programming problem:\n\nWrite a python function to find the product of non-repeated elements in a given array.\n\nWrite a function named `find_Product`.\n\nHere is an example input-output pair: \nTest 1:\n  Input: find_Product([1, 2, 3, 1, 1], 5)\n  Expected Output: 6\n\n\nTest 2:\n  Input: find_Product([1, 1, 4, 5, 6], 5)\n  Expected Output: 120\n\n\nProvide ONLY the function implementation in Python. No explanations or comments. Ensure your solution is high-quality and generally correct.\nPut your solution between <code> and </code> tags.",
@@ -807,29 +807,29 @@
       "test_cases": [
         {
           "input": "decimal_To_Binary(10)",
-          "output": "1010"
+          "expected_output": "1010"
         },
         {
           "input": "decimal_To_Binary(1)",
-          "output": "1"
+          "expected_output": "1"
         },
         {
           "input": "decimal_To_Binary(20)",
-          "output": "10100"
+          "expected_output": "10100"
         }
       ],
       "broken_test_cases": [
         {
           "input": "decimal_To_Binary(10)",
-          "output": "1111"
+          "expected_output": "1111"
         },
         {
           "input": "decimal_To_Binary(1)",
-          "output": "10"
+          "expected_output": "10"
         },
         {
           "input": "decimal_To_Binary(20)",
-          "output": "10101"
+          "expected_output": "10101"
         }
       ],
       "prompt": "Solve this programming problem:\n\nWrite a python function to convert a decimal number to binary number.\n\nWrite a function named `decimal_To_Binary`.\n\nHere is an example input-output pair: \nTest 1:\n  Input: decimal_To_Binary(10)\n  Expected Output: 1010\n\n\nTest 2:\n  Input: decimal_To_Binary(20)\n  Expected Output: 10100\n\n\nProvide ONLY the function implementation in Python. No explanations or comments. Ensure your solution is high-quality and generally correct.\nPut your solution between <code> and </code> tags.",
@@ -853,29 +853,29 @@
       "test_cases": [
         {
           "input": "sort_mixed_list([19, 'red', 12, 'green', 'blue', 10, 'white', 'green', 1])",
-          "output": "[1, 10, 12, 19, 'blue', 'green', 'green', 'red', 'white']"
+          "expected_output": "[1, 10, 12, 19, 'blue', 'green', 'green', 'red', 'white']"
         },
         {
           "input": "sort_mixed_list([19, 'red', 12, 'green', 'blue', 10, 'white', 'green', 1])",
-          "output": "[1, 10, 12, 19, 'blue', 'green', 'green', 'red', 'white']"
+          "expected_output": "[1, 10, 12, 19, 'blue', 'green', 'green', 'red', 'white']"
         },
         {
           "input": "sort_mixed_list([19, 'red', 12, 'green', 'blue', 10, 'white', 'green', 1])",
-          "output": "[1, 10, 12, 19, 'blue', 'green', 'green', 'red', 'white']"
+          "expected_output": "[1, 10, 12, 19, 'blue', 'green', 'green', 'red', 'white']"
         }
       ],
       "broken_test_cases": [
         {
           "input": "sort_mixed_list([19, 'red', 12, 'green', 'blue', 10, 'white', 'green', 1])",
-          "output": "[19, 12, 10, 1, 'blue', 'green', 'green', 'red', 'white']"
+          "expected_output": "[19, 12, 10, 1, 'blue', 'green', 'green', 'red', 'white']"
         },
         {
           "input": "sort_mixed_list([19, 'red', 12, 'green', 'blue', 10, 'white', 'green', 1])",
-          "output": "[19, 12, 10, 1, 'blue', 'green', 'green', 'red', 'white']"
+          "expected_output": "[19, 12, 10, 1, 'blue', 'green', 'green', 'red', 'white']"
         },
         {
           "input": "sort_mixed_list([19, 'red', 12, 'green', 'blue', 10, 'white', 'green', 1])",
-          "output": "[19, 12, 10, 1, 'blue', 'green', 'green', 'red', 'white']"
+          "expected_output": "[19, 12, 10, 1, 'blue', 'green', 'green', 'red', 'white']"
         }
       ],
       "prompt": "Solve this programming problem:\n\nWrite a function to sort a given mixed list of integers and strings.\n\nWrite a function named `sort_mixed_list`.\n\nHere is an example input-output pair: \nTest 1:\n  Input: sort_mixed_list([19, 'red', 12, 'green', 'blue', 10, 'white', 'green', 1])\n  Expected Output: [1, 10, 12, 19, 'blue', 'green', 'green', 'red', 'white']\n\n\nTest 2:\n  Input: sort_mixed_list([19, 'red', 12, 'green', 'blue', 10, 'white', 'green', 1])\n  Expected Output: [1, 10, 12, 19, 'blue', 'green', 'green', 'red', 'white']\n\n\nProvide ONLY the function implementation in Python. No explanations or comments. Ensure your solution is high-quality and generally correct.\nPut your solution between <code> and </code> tags.",
@@ -899,29 +899,29 @@
       "test_cases": [
         {
           "input": "compute_Last_Digit(2, 4)",
-          "output": "2"
+          "expected_output": "2"
         },
         {
           "input": "compute_Last_Digit(6, 8)",
-          "output": "6"
+          "expected_output": "6"
         },
         {
           "input": "compute_Last_Digit(1, 2)",
-          "output": "2"
+          "expected_output": "2"
         }
       ],
       "broken_test_cases": [
         {
           "input": "compute_Last_Digit(2, 4)",
-          "output": "3"
+          "expected_output": "3"
         },
         {
           "input": "compute_Last_Digit(6, 8)",
-          "output": "7"
+          "expected_output": "7"
         },
         {
           "input": "compute_Last_Digit(1, 2)",
-          "output": "3"
+          "expected_output": "3"
         }
       ],
       "prompt": "Solve this programming problem:\n\nWrite a python function to find the last digit when factorial of a divides factorial of b.\n\nWrite a function named `compute_Last_Digit`.\n\nHere is an example input-output pair: \nTest 1:\n  Input: compute_Last_Digit(2, 4)\n  Expected Output: 2\n\n\nTest 2:\n  Input: compute_Last_Digit(1, 2)\n  Expected Output: 2\n\n\nProvide ONLY the function implementation in Python. No explanations or comments. Ensure your solution is high-quality and generally correct.\nPut your solution between <code> and </code> tags.",
@@ -945,29 +945,29 @@
       "test_cases": [
         {
           "input": "binomial_Coeff(5, 2)",
-          "output": "10"
+          "expected_output": "10"
         },
         {
           "input": "binomial_Coeff(4, 3)",
-          "output": "4"
+          "expected_output": "4"
         },
         {
           "input": "binomial_Coeff(3, 2)",
-          "output": "3"
+          "expected_output": "3"
         }
       ],
       "broken_test_cases": [
         {
           "input": "binomial_Coeff(5, 2)",
-          "output": "12"
+          "expected_output": "12"
         },
         {
           "input": "binomial_Coeff(4, 3)",
-          "output": "5"
+          "expected_output": "5"
         },
         {
           "input": "binomial_Coeff(3, 2)",
-          "output": "4"
+          "expected_output": "4"
         }
       ],
       "prompt": "Solve this programming problem:\n\nWrite a python function to find binomial co-efficient.\n\nWrite a function named `binomial_Coeff`.\n\nHere is an example input-output pair: \nTest 1:\n  Input: binomial_Coeff(4, 3)\n  Expected Output: 4\n\n\nTest 2:\n  Input: binomial_Coeff(3, 2)\n  Expected Output: 3\n\n\nProvide ONLY the function implementation in Python. No explanations or comments. Ensure your solution is high-quality and generally correct.\nPut your solution between <code> and </code> tags.",
@@ -991,29 +991,29 @@
       "test_cases": [
         {
           "input": "specified_element([[1, 2, 3, 2], [4, 5, 6, 2], [7, 1, 9, 5]], 0)",
-          "output": "[1, 4, 7]"
+          "expected_output": "[1, 4, 7]"
         },
         {
           "input": "specified_element([[1, 2, 3, 2], [4, 5, 6, 2], [7, 1, 9, 5]], 2)",
-          "output": "[3, 6, 9]"
+          "expected_output": "[3, 6, 9]"
         },
         {
           "input": "specified_element([[1, 2, 3, 2], [4, 5, 6, 2], [7, 1, 9, 5]], 1)",
-          "output": "[2, 5, 1]"
+          "expected_output": "[2, 5, 1]"
         }
       ],
       "broken_test_cases": [
         {
           "input": "specified_element([[1, 2, 3, 2], [4, 5, 6, 2], [7, 1, 9, 5]], 0)",
-          "output": "[1, 4, 9]"
+          "expected_output": "[1, 4, 9]"
         },
         {
           "input": "specified_element([[1, 2, 3, 2], [4, 5, 6, 2], [7, 1, 9, 5]], 2)",
-          "output": "[1, 4, 7]"
+          "expected_output": "[1, 4, 7]"
         },
         {
           "input": "specified_element([[1, 2, 3, 2], [4, 5, 6, 2], [7, 1, 9, 5]], 1)",
-          "output": "[2, 5, 2]"
+          "expected_output": "[2, 5, 2]"
         }
       ],
       "prompt": "Solve this programming problem:\n\nWrite a function to extract every first or specified element from a given two-dimensional list.\n\nWrite a function named `specified_element`.\n\nHere is an example input-output pair: \nTest 1:\n  Input: specified_element([[1, 2, 3, 2], [4, 5, 6, 2], [7, 1, 9, 5]], 1)\n  Expected Output: [2, 5, 1]\n\n\nTest 2:\n  Input: specified_element([[1, 2, 3, 2], [4, 5, 6, 2], [7, 1, 9, 5]], 2)\n  Expected Output: [3, 6, 9]\n\n\nProvide ONLY the function implementation in Python. No explanations or comments. Ensure your solution is high-quality and generally correct.\nPut your solution between <code> and </code> tags.",
@@ -1037,29 +1037,29 @@
       "test_cases": [
         {
           "input": "remove(['4words', '3letters', '4digits'])",
-          "output": "['words', 'letters', 'digits']"
+          "expected_output": "['words', 'letters', 'digits']"
         },
         {
           "input": "remove(['28Jan', '12Jan', '11Jan'])",
-          "output": "['Jan', 'Jan', 'Jan']"
+          "expected_output": "['Jan', 'Jan', 'Jan']"
         },
         {
           "input": "remove(['wonder1', 'wonder2', 'wonder3'])",
-          "output": "['wonder', 'wonder', 'wonder']"
+          "expected_output": "['wonder', 'wonder', 'wonder']"
         }
       ],
       "broken_test_cases": [
         {
           "input": "remove(['4words', '3letters', '4digits'])",
-          "output": "['words', 'letters', 'digits', '']"
+          "expected_output": "['words', 'letters', 'digits', '']"
         },
         {
           "input": "remove(['28Jan', '12Jan', '11Jan'])",
-          "output": "['28Jan', '12Jan', '11Jan']"
+          "expected_output": "['28Jan', '12Jan', '11Jan']"
         },
         {
           "input": "remove(['wonder1', 'wonder2', 'wonder3'])",
-          "output": "['wonder1', 'wonder2', 'wonder3']"
+          "expected_output": "['wonder1', 'wonder2', 'wonder3']"
         }
       ],
       "prompt": "Solve this programming problem:\n\nWrite a python function to remove all digits from a list of strings.\n\nWrite a function named `remove`.\n\nHere is an example input-output pair: \nTest 1:\n  Input: remove(['4words', '3letters', '4digits'])\n  Expected Output: ['words', 'letters', 'digits']\n\n\nTest 2:\n  Input: remove(['wonder1', 'wonder2', 'wonder3'])\n  Expected Output: ['wonder', 'wonder', 'wonder']\n\n\nProvide ONLY the function implementation in Python. No explanations or comments. Ensure your solution is high-quality and generally correct.\nPut your solution between <code> and </code> tags.",
@@ -1083,29 +1083,29 @@
       "test_cases": [
         {
           "input": "find_rect_num(4)",
-          "output": "20"
+          "expected_output": "20"
         },
         {
           "input": "find_rect_num(5)",
-          "output": "30"
+          "expected_output": "30"
         },
         {
           "input": "find_rect_num(6)",
-          "output": "42"
+          "expected_output": "42"
         }
       ],
       "broken_test_cases": [
         {
           "input": "find_rect_num(4)",
-          "output": "21"
+          "expected_output": "21"
         },
         {
           "input": "find_rect_num(5)",
-          "output": "25"
+          "expected_output": "25"
         },
         {
           "input": "find_rect_num(6)",
-          "output": "40"
+          "expected_output": "40"
         }
       ],
       "prompt": "Solve this programming problem:\n\nWrite a function to find the n-th rectangular number.\n\nWrite a function named `find_rect_num`.\n\nHere is an example input-output pair: \nTest 1:\n  Input: find_rect_num(6)\n  Expected Output: 42\n\n\nTest 2:\n  Input: find_rect_num(4)\n  Expected Output: 20\n\n\nProvide ONLY the function implementation in Python. No explanations or comments. Ensure your solution is high-quality and generally correct.\nPut your solution between <code> and </code> tags.",
@@ -1129,29 +1129,29 @@
       "test_cases": [
         {
           "input": "sort_matrix([[1, 2, 3], [2, 4, 5], [1, 1, 1]])",
-          "output": "[[1, 1, 1], [1, 2, 3], [2, 4, 5]]"
+          "expected_output": "[[1, 1, 1], [1, 2, 3], [2, 4, 5]]"
         },
         {
           "input": "sort_matrix([[1, 2, 3], [-2, 4, -5], [1, -1, 1]])",
-          "output": "[[-2, 4, -5], [1, -1, 1], [1, 2, 3]]"
+          "expected_output": "[[-2, 4, -5], [1, -1, 1], [1, 2, 3]]"
         },
         {
           "input": "sort_matrix([[5, 8, 9], [6, 4, 3], [2, 1, 4]])",
-          "output": "[[2, 1, 4], [6, 4, 3], [5, 8, 9]]"
+          "expected_output": "[[2, 1, 4], [6, 4, 3], [5, 8, 9]]"
         }
       ],
       "broken_test_cases": [
         {
           "input": "sort_matrix([[1, 2, 3], [2, 4, 5], [1, 1, 1]])",
-          "output": "[[1, 2, 3], [1, 1, 1], [2, 4, 5]]"
+          "expected_output": "[[1, 2, 3], [1, 1, 1], [2, 4, 5]]"
         },
         {
           "input": "sort_matrix([[1, 2, 3], [-2, 4, -5], [1, -1, 1]])",
-          "output": "[[1, 2, 3], [1, -1, 1], [-2, 4, -5]]"
+          "expected_output": "[[1, 2, 3], [1, -1, 1], [-2, 4, -5]]"
         },
         {
           "input": "sort_matrix([[5, 8, 9], [6, 4, 3], [2, 1, 4]])",
-          "output": "[[5, 8, 9], [2, 1, 4], [6, 4, 3]]"
+          "expected_output": "[[5, 8, 9], [2, 1, 4], [6, 4, 3]]"
         }
       ],
       "prompt": "Solve this programming problem:\n\nWrite a function to sort a given matrix in ascending order according to the sum of its rows.\n\nWrite a function named `sort_matrix`.\n\nHere is an example input-output pair: \nTest 1:\n  Input: sort_matrix([[1, 2, 3], [-2, 4, -5], [1, -1, 1]])\n  Expected Output: [[-2, 4, -5], [1, -1, 1], [1, 2, 3]]\n\n\nTest 2:\n  Input: sort_matrix([[1, 2, 3], [2, 4, 5], [1, 1, 1]])\n  Expected Output: [[1, 1, 1], [1, 2, 3], [2, 4, 5]]\n\n\nProvide ONLY the function implementation in Python. No explanations or comments. Ensure your solution is high-quality and generally correct.\nPut your solution between <code> and </code> tags.",
@@ -1175,29 +1175,29 @@
       "test_cases": [
         {
           "input": "get_Odd_Occurrence([1, 2, 3, 1, 2, 3, 1], 7)",
-          "output": "1"
+          "expected_output": "1"
         },
         {
           "input": "get_Odd_Occurrence([1, 2, 3, 2, 3, 1, 3], 7)",
-          "output": "3"
+          "expected_output": "3"
         },
         {
           "input": "get_Odd_Occurrence([2, 3, 5, 4, 5, 2, 4, 3, 5, 2, 4, 4, 2], 13)",
-          "output": "5"
+          "expected_output": "5"
         }
       ],
       "broken_test_cases": [
         {
           "input": "get_Odd_Occurrence([1, 2, 3, 1, 2, 3, 1], 7)",
-          "output": "2"
+          "expected_output": "2"
         },
         {
           "input": "get_Odd_Occurrence([1, 2, 3, 2, 3, 1, 3], 7)",
-          "output": "2"
+          "expected_output": "2"
         },
         {
           "input": "get_Odd_Occurrence([2, 3, 5, 4, 5, 2, 4, 3, 5, 2, 4, 4, 2], 13)",
-          "output": "4"
+          "expected_output": "4"
         }
       ],
       "prompt": "Solve this programming problem:\n\nWrite a python function to find the element occurring odd number of times.\n\nWrite a function named `get_Odd_Occurrence`.\n\nHere is an example input-output pair: \nTest 1:\n  Input: get_Odd_Occurrence([2, 3, 5, 4, 5, 2, 4, 3, 5, 2, 4, 4, 2], 13)\n  Expected Output: 5\n\n\nTest 2:\n  Input: get_Odd_Occurrence([1, 2, 3, 1, 2, 3, 1], 7)\n  Expected Output: 1\n\n\nProvide ONLY the function implementation in Python. No explanations or comments. Ensure your solution is high-quality and generally correct.\nPut your solution between <code> and </code> tags.",
@@ -1221,29 +1221,29 @@
       "test_cases": [
         {
           "input": "filter_evennumbers([1, 2, 3, 4, 5, 6, 7, 8, 9, 10])",
-          "output": "[2, 4, 6, 8, 10]"
+          "expected_output": "[2, 4, 6, 8, 10]"
         },
         {
           "input": "filter_evennumbers([10, 20, 45, 67, 84, 93])",
-          "output": "[10, 20, 84]"
+          "expected_output": "[10, 20, 84]"
         },
         {
           "input": "filter_evennumbers([5, 7, 9, 8, 6, 4, 3])",
-          "output": "[8, 6, 4]"
+          "expected_output": "[8, 6, 4]"
         }
       ],
       "broken_test_cases": [
         {
           "input": "filter_evennumbers([1, 2, 3, 4, 5, 6, 7, 8, 9, 10])",
-          "output": "[1, 2, 3, 4, 5, 6, 7, 8, 9, 10]"
+          "expected_output": "[1, 2, 3, 4, 5, 6, 7, 8, 9, 10]"
         },
         {
           "input": "filter_evennumbers([10, 20, 45, 67, 84, 93])",
-          "output": "[10, 20, 45, 67, 84, 93]"
+          "expected_output": "[10, 20, 45, 67, 84, 93]"
         },
         {
           "input": "filter_evennumbers([5, 7, 9, 8, 6, 4, 3])",
-          "output": "[5, 7, 9, 8, 6, 4, 3]"
+          "expected_output": "[5, 7, 9, 8, 6, 4, 3]"
         }
       ],
       "prompt": "Solve this programming problem:\n\nWrite a function to filter even numbers using lambda function.\n\nWrite a function named `filter_evennumbers`.\n\nHere is an example input-output pair: \nTest 1:\n  Input: filter_evennumbers([5, 7, 9, 8, 6, 4, 3])\n  Expected Output: [8, 6, 4]\n\n\nTest 2:\n  Input: filter_evennumbers([10, 20, 45, 67, 84, 93])\n  Expected Output: [10, 20, 84]\n\n\nProvide ONLY the function implementation in Python. No explanations or comments. Ensure your solution is high-quality and generally correct.\nPut your solution between <code> and </code> tags.",
@@ -1267,29 +1267,29 @@
       "test_cases": [
         {
           "input": "min_length_list([[0], [1, 3], [5, 7], [9, 11], [13, 15, 17]])",
-          "output": "(1, [0])"
+          "expected_output": "(1, [0])"
         },
         {
           "input": "min_length_list([[1, 2, 3, 4, 5], [1, 2, 3, 4], [1, 2, 3], [1, 2], [1]])",
-          "output": "(1, [1])"
+          "expected_output": "(1, [1])"
         },
         {
           "input": "min_length_list([[3, 4, 5], [6, 7, 8, 9], [10, 11, 12], [1, 2]])",
-          "output": "(2, [1, 2])"
+          "expected_output": "(2, [1, 2])"
         }
       ],
       "broken_test_cases": [
         {
           "input": "min_length_list([[0], [1, 3], [5, 7], [9, 11], [13, 15, 17]])",
-          "output": "(2, [0])"
+          "expected_output": "(2, [0])"
         },
         {
           "input": "min_length_list([[1, 2, 3, 4, 5], [1, 2, 3, 4], [1, 2, 3], [1, 2], [1]])",
-          "output": "(5, [1, 2, 3, 4, 5])"
+          "expected_output": "(5, [1, 2, 3, 4, 5])"
         },
         {
           "input": "min_length_list([[3, 4, 5], [6, 7, 8, 9], [10, 11, 12], [1, 2]])",
-          "output": "(3, [3, 4, 5])"
+          "expected_output": "(3, [3, 4, 5])"
         }
       ],
       "prompt": "Solve this programming problem:\n\nWrite a function to find the list with minimum length using lambda function.\n\nWrite a function named `min_length_list`.\n\nHere is an example input-output pair: \nTest 1:\n  Input: min_length_list([[3, 4, 5], [6, 7, 8, 9], [10, 11, 12], [1, 2]])\n  Expected Output: (2, [1, 2])\n\n\nTest 2:\n  Input: min_length_list([[1, 2, 3, 4, 5], [1, 2, 3, 4], [1, 2, 3], [1, 2], [1]])\n  Expected Output: (1, [1])\n\n\nProvide ONLY the function implementation in Python. No explanations or comments. Ensure your solution is high-quality and generally correct.\nPut your solution between <code> and </code> tags.",
@@ -1313,29 +1313,29 @@
       "test_cases": [
         {
           "input": "remove_Occ('hello', 'l')",
-          "output": "heo"
+          "expected_output": "heo"
         },
         {
           "input": "remove_Occ('abcda', 'a')",
-          "output": "bcd"
+          "expected_output": "bcd"
         },
         {
           "input": "remove_Occ('PHP', 'P')",
-          "output": "H"
+          "expected_output": "H"
         }
       ],
       "broken_test_cases": [
         {
           "input": "remove_Occ('hello', 'l')",
-          "output": "hello"
+          "expected_output": "hello"
         },
         {
           "input": "remove_Occ('abcda', 'a')",
-          "output": "bdc"
+          "expected_output": "bdc"
         },
         {
           "input": "remove_Occ('PHP', 'P')",
-          "output": "HP"
+          "expected_output": "HP"
         }
       ],
       "prompt": "Solve this programming problem:\n\nWrite a python function to remove first and last occurrence of a given character from the string.\n\nWrite a function named `remove_Occ`.\n\nHere is an example input-output pair: \nTest 1:\n  Input: remove_Occ('PHP', 'P')\n  Expected Output: H\n\n\nTest 2:\n  Input: remove_Occ('abcda', 'a')\n  Expected Output: bcd\n\n\nProvide ONLY the function implementation in Python. No explanations or comments. Ensure your solution is high-quality and generally correct.\nPut your solution between <code> and </code> tags.",
@@ -1359,29 +1359,29 @@
       "test_cases": [
         {
           "input": "text_match('aab_cbbbc')",
-          "output": "Found a match!"
+          "expected_output": "Found a match!"
         },
         {
           "input": "text_match('aab_Abbbc')",
-          "output": "Not matched!"
+          "expected_output": "Not matched!"
         },
         {
           "input": "text_match('Aaab_abbbc')",
-          "output": "Not matched!"
+          "expected_output": "Not matched!"
         }
       ],
       "broken_test_cases": [
         {
           "input": "text_match('aab_cbbbc')",
-          "output": "Not matched!"
+          "expected_output": "Not matched!"
         },
         {
           "input": "text_match('aab_Abbbc')",
-          "output": "Found a match!"
+          "expected_output": "Found a match!"
         },
         {
           "input": "text_match('Aaab_abbbc')",
-          "output": "Found a match!"
+          "expected_output": "Found a match!"
         }
       ],
       "prompt": "Solve this programming problem:\n\nWrite a function to find sequences of lowercase letters joined with an underscore using regex.\n\nWrite a function named `text_match`.\n\nHere is an example input-output pair: \nTest 1:\n  Input: text_match('Aaab_abbbc')\n  Expected Output: Not matched!\n\n\nTest 2:\n  Input: text_match('aab_Abbbc')\n  Expected Output: Not matched!\n\n\nProvide ONLY the function implementation in Python. No explanations or comments. Ensure your solution is high-quality and generally correct.\nPut your solution between <code> and </code> tags.",
@@ -1405,29 +1405,29 @@
       "test_cases": [
         {
           "input": "binary_to_decimal(100)",
-          "output": "4"
+          "expected_output": "4"
         },
         {
           "input": "binary_to_decimal(1011)",
-          "output": "11"
+          "expected_output": "11"
         },
         {
           "input": "binary_to_decimal(1101101)",
-          "output": "109"
+          "expected_output": "109"
         }
       ],
       "broken_test_cases": [
         {
           "input": "binary_to_decimal(100)",
-          "output": "5"
+          "expected_output": "5"
         },
         {
           "input": "binary_to_decimal(1011)",
-          "output": "10"
+          "expected_output": "10"
         },
         {
           "input": "binary_to_decimal(1101101)",
-          "output": "110"
+          "expected_output": "110"
         }
       ],
       "prompt": "Solve this programming problem:\n\nWrite a function to convert the given binary number to its decimal equivalent.\n\nWrite a function named `binary_to_decimal`.\n\nHere is an example input-output pair: \nTest 1:\n  Input: binary_to_decimal(100)\n  Expected Output: 4\n\n\nTest 2:\n  Input: binary_to_decimal(1011)\n  Expected Output: 11\n\n\nProvide ONLY the function implementation in Python. No explanations or comments. Ensure your solution is high-quality and generally correct.\nPut your solution between <code> and </code> tags.",
@@ -1451,29 +1451,29 @@
       "test_cases": [
         {
           "input": "find_Volume(10, 8, 6)",
-          "output": "240"
+          "expected_output": "240"
         },
         {
           "input": "find_Volume(3, 2, 2)",
-          "output": "6"
+          "expected_output": "6"
         },
         {
           "input": "find_Volume(1, 2, 1)",
-          "output": "1"
+          "expected_output": "1"
         }
       ],
       "broken_test_cases": [
         {
           "input": "find_Volume(10, 8, 6)",
-          "output": "120"
+          "expected_output": "120"
         },
         {
           "input": "find_Volume(3, 2, 2)",
-          "output": "0"
+          "expected_output": "0"
         },
         {
           "input": "find_Volume(1, 2, 1)",
-          "output": "2"
+          "expected_output": "2"
         }
       ],
       "prompt": "Solve this programming problem:\n\nWrite a python function to find the volume of a triangular prism.\n\nWrite a function named `find_Volume`.\n\nHere is an example input-output pair: \nTest 1:\n  Input: find_Volume(1, 2, 1)\n  Expected Output: 1\n\n\nTest 2:\n  Input: find_Volume(3, 2, 2)\n  Expected Output: 6\n\n\nProvide ONLY the function implementation in Python. No explanations or comments. Ensure your solution is high-quality and generally correct.\nPut your solution between <code> and </code> tags.",
@@ -1497,29 +1497,29 @@
       "test_cases": [
         {
           "input": "multiples_of_num(4, 3)",
-          "output": "[3, 6, 9, 12]"
+          "expected_output": "[3, 6, 9, 12]"
         },
         {
           "input": "multiples_of_num(2, 5)",
-          "output": "[5, 10]"
+          "expected_output": "[5, 10]"
         },
         {
           "input": "multiples_of_num(9, 2)",
-          "output": "[2, 4, 6, 8, 10, 12, 14, 16, 18]"
+          "expected_output": "[2, 4, 6, 8, 10, 12, 14, 16, 18]"
         }
       ],
       "broken_test_cases": [
         {
           "input": "multiples_of_num(4, 3)",
-          "output": "[3, 6, 9, 15]"
+          "expected_output": "[3, 6, 9, 15]"
         },
         {
           "input": "multiples_of_num(2, 5)",
-          "output": "[5, 11]"
+          "expected_output": "[5, 11]"
         },
         {
           "input": "multiples_of_num(9, 2)",
-          "output": "[2, 4, 6, 8, 10, 12, 14, 16, 19]"
+          "expected_output": "[2, 4, 6, 8, 10, 12, 14, 16, 19]"
         }
       ],
       "prompt": "Solve this programming problem:\n\nWrite a function to find m number of multiples of n.\n\nWrite a function named `multiples_of_num`.\n\nHere is an example input-output pair: \nTest 1:\n  Input: multiples_of_num(9, 2)\n  Expected Output: [2, 4, 6, 8, 10, 12, 14, 16, 18]\n\n\nTest 2:\n  Input: multiples_of_num(2, 5)\n  Expected Output: [5, 10]\n\n\nProvide ONLY the function implementation in Python. No explanations or comments. Ensure your solution is high-quality and generally correct.\nPut your solution between <code> and </code> tags.",
@@ -1543,29 +1543,29 @@
       "test_cases": [
         {
           "input": "max_Prime_Factors(15)",
-          "output": "5"
+          "expected_output": "5"
         },
         {
           "input": "max_Prime_Factors(6)",
-          "output": "3"
+          "expected_output": "3"
         },
         {
           "input": "max_Prime_Factors(2)",
-          "output": "2"
+          "expected_output": "2"
         }
       ],
       "broken_test_cases": [
         {
           "input": "max_Prime_Factors(15)",
-          "output": "3"
+          "expected_output": "3"
         },
         {
           "input": "max_Prime_Factors(6)",
-          "output": "2"
+          "expected_output": "2"
         },
         {
           "input": "max_Prime_Factors(2)",
-          "output": "4"
+          "expected_output": "4"
         }
       ],
       "prompt": "Solve this programming problem:\n\nWrite a python function to find the largest prime factor of a given number.\n\nWrite a function named `max_Prime_Factors`.\n\nHere is an example input-output pair: \nTest 1:\n  Input: max_Prime_Factors(2)\n  Expected Output: 2\n\n\nTest 2:\n  Input: max_Prime_Factors(6)\n  Expected Output: 3\n\n\nProvide ONLY the function implementation in Python. No explanations or comments. Ensure your solution is high-quality and generally correct.\nPut your solution between <code> and </code> tags.",
@@ -1589,29 +1589,29 @@
       "test_cases": [
         {
           "input": "get_gcd([2, 4, 6, 8, 16])",
-          "output": "2"
+          "expected_output": "2"
         },
         {
           "input": "get_gcd([1, 2, 3])",
-          "output": "1"
+          "expected_output": "1"
         },
         {
           "input": "get_gcd([2, 4, 6, 8])",
-          "output": "2"
+          "expected_output": "2"
         }
       ],
       "broken_test_cases": [
         {
           "input": "get_gcd([2, 4, 6, 8, 16])",
-          "output": "4"
+          "expected_output": "4"
         },
         {
           "input": "get_gcd([1, 2, 3])",
-          "output": "2"
+          "expected_output": "2"
         },
         {
           "input": "get_gcd([2, 4, 6, 8])",
-          "output": "4"
+          "expected_output": "4"
         }
       ],
       "prompt": "Solve this programming problem:\n\nWrite a function to find the gcd of the given array elements.\n\nWrite a function named `get_gcd`.\n\nHere is an example input-output pair: \nTest 1:\n  Input: get_gcd([2, 4, 6, 8, 16])\n  Expected Output: 2\n\n\nTest 2:\n  Input: get_gcd([1, 2, 3])\n  Expected Output: 1\n\n\nProvide ONLY the function implementation in Python. No explanations or comments. Ensure your solution is high-quality and generally correct.\nPut your solution between <code> and </code> tags.",
@@ -1635,29 +1635,29 @@
       "test_cases": [
         {
           "input": "div_even_odd([1, 3, 5, 7, 4, 1, 6, 8])",
-          "output": "4"
+          "expected_output": "4"
         },
         {
           "input": "div_even_odd([1, 2, 3, 4, 5, 6, 7, 8, 9, 10])",
-          "output": "2"
+          "expected_output": "2"
         },
         {
           "input": "div_even_odd([1, 5, 7, 9, 10])",
-          "output": "10"
+          "expected_output": "10"
         }
       ],
       "broken_test_cases": [
         {
           "input": "div_even_odd([1, 3, 5, 7, 4, 1, 6, 8])",
-          "output": "2"
+          "expected_output": "2"
         },
         {
           "input": "div_even_odd([1, 2, 3, 4, 5, 6, 7, 8, 9, 10])",
-          "output": "1"
+          "expected_output": "1"
         },
         {
           "input": "div_even_odd([1, 5, 7, 9, 10])",
-          "output": "0"
+          "expected_output": "0"
         }
       ],
       "prompt": "Solve this programming problem:\n\nWrite a function to find the division of first even and odd number of a given list.\n\nWrite a function named `div_even_odd`.\n\nHere is an example input-output pair: \nTest 1:\n  Input: div_even_odd([1, 2, 3, 4, 5, 6, 7, 8, 9, 10])\n  Expected Output: 2\n\n\nTest 2:\n  Input: div_even_odd([1, 5, 7, 9, 10])\n  Expected Output: 10\n\n\nProvide ONLY the function implementation in Python. No explanations or comments. Ensure your solution is high-quality and generally correct.\nPut your solution between <code> and </code> tags.",
@@ -1681,13 +1681,13 @@
       "test_cases": [
         {
           "input": "freq_element([[1, 2, 3, 4], [5, 6, 7, 8], [9, 10, 11, 12]])",
-          "output": "{1: 1, 2: 1, 3: 1, 4: 1, 5: 1, 6: 1, 7: 1, 8: 1, 9: 1, 10: 1, 11: 1, 12: 1}"
+          "expected_output": "{1: 1, 2: 1, 3: 1, 4: 1, 5: 1, 6: 1, 7: 1, 8: 1, 9: 1, 10: 1, 11: 1, 12: 1}"
         }
       ],
       "broken_test_cases": [
         {
           "input": "freq_element([[1, 2, 3, 4], [5, 6, 7, 8], [9, 10, 11, 12]])",
-          "output": "{1: 1, 2: 1, 3: 1, 4: 1, 5: 1, 6: 1, 7: 1, 8: 1, 9: 1, 10: 1, 11: 1}"
+          "expected_output": "{1: 1, 2: 1, 3: 1, 4: 1, 5: 1, 6: 1, 7: 1, 8: 1, 9: 1, 10: 1, 11: 1}"
         }
       ],
       "prompt": "Solve this programming problem:\n\nWrite a function to find frequency of the elements in a given list of lists using collections module.\n\nWrite a function named `freq_element`.\n\nHere is an example input-output pair: \nTest 1:\n  Input: freq_element([[1, 2, 3, 4], [5, 6, 7, 8], [9, 10, 11, 12]])\n  Expected Output: {1: 1, 2: 1, 3: 1, 4: 1, 5: 1, 6: 1, 7: 1, 8: 1, 9: 1, 10: 1, 11: 1, 12: 1}\n\n\nProvide ONLY the function implementation in Python. No explanations or comments. Ensure your solution is high-quality and generally correct.\nPut your solution between <code> and </code> tags.",
@@ -1711,29 +1711,29 @@
       "test_cases": [
         {
           "input": "check_k_elements([(4, 4), (4, 4, 4), (4, 4), (4, 4, 4, 4), (4,)], 4)",
-          "output": "True"
+          "expected_output": "True"
         },
         {
           "input": "check_k_elements([(7, 7, 7), (7, 7)], 7)",
-          "output": "True"
+          "expected_output": "True"
         },
         {
           "input": "check_k_elements([(9, 9), (9, 9, 9, 9)], 7)",
-          "output": "False"
+          "expected_output": "False"
         }
       ],
       "broken_test_cases": [
         {
           "input": "check_k_elements([(4, 4), (4, 4, 4), (4, 4), (4, 4, 4, 4), (4,)], 4)",
-          "output": "False"
+          "expected_output": "False"
         },
         {
           "input": "check_k_elements([(7, 7, 7), (7, 7)], 7)",
-          "output": "False"
+          "expected_output": "False"
         },
         {
           "input": "check_k_elements([(9, 9), (9, 9, 9, 9)], 7)",
-          "output": "True"
+          "expected_output": "True"
         }
       ],
       "prompt": "Solve this programming problem:\n\nWrite a function to check if the given tuple list has all k elements.\n\nWrite a function named `check_k_elements`.\n\nHere is an example input-output pair: \nTest 1:\n  Input: check_k_elements([(7, 7, 7), (7, 7)], 7)\n  Expected Output: True\n\n\nTest 2:\n  Input: check_k_elements([(9, 9), (9, 9, 9, 9)], 7)\n  Expected Output: False\n\n\nProvide ONLY the function implementation in Python. No explanations or comments. Ensure your solution is high-quality and generally correct.\nPut your solution between <code> and </code> tags.",
@@ -1757,29 +1757,29 @@
       "test_cases": [
         {
           "input": "text_match_string(' python')",
-          "output": "Not matched!"
+          "expected_output": "Not matched!"
         },
         {
           "input": "text_match_string('python')",
-          "output": "Found a match!"
+          "expected_output": "Found a match!"
         },
         {
           "input": "text_match_string('  lang')",
-          "output": "Not matched!"
+          "expected_output": "Not matched!"
         }
       ],
       "broken_test_cases": [
         {
           "input": "text_match_string(' python')",
-          "output": "Found a match!"
+          "expected_output": "Found a match!"
         },
         {
           "input": "text_match_string('python')",
-          "output": "Not matched!"
+          "expected_output": "Not matched!"
         },
         {
           "input": "text_match_string('  lang')",
-          "output": "Found a match!"
+          "expected_output": "Found a match!"
         }
       ],
       "prompt": "Solve this programming problem:\n\nWrite a function that matches a word at the beginning of a string.\n\nWrite a function named `text_match_string`.\n\nHere is an example input-output pair: \nTest 1:\n  Input: text_match_string('python')\n  Expected Output: Found a match!\n\n\nTest 2:\n  Input: text_match_string(' python')\n  Expected Output: Not matched!\n\n\nProvide ONLY the function implementation in Python. No explanations or comments. Ensure your solution is high-quality and generally correct.\nPut your solution between <code> and </code> tags.",
@@ -1803,29 +1803,29 @@
       "test_cases": [
         {
           "input": "count_Substring_With_Equal_Ends('abc')",
-          "output": "3"
+          "expected_output": "3"
         },
         {
           "input": "count_Substring_With_Equal_Ends('abcda')",
-          "output": "6"
+          "expected_output": "6"
         },
         {
           "input": "count_Substring_With_Equal_Ends('ab')",
-          "output": "2"
+          "expected_output": "2"
         }
       ],
       "broken_test_cases": [
         {
           "input": "count_Substring_With_Equal_Ends('abc')",
-          "output": "2"
+          "expected_output": "2"
         },
         {
           "input": "count_Substring_With_Equal_Ends('abcda')",
-          "output": "5"
+          "expected_output": "5"
         },
         {
           "input": "count_Substring_With_Equal_Ends('ab')",
-          "output": "3"
+          "expected_output": "3"
         }
       ],
       "prompt": "Solve this programming problem:\n\nWrite a python function to count all the substrings starting and ending with same characters.\n\nWrite a function named `count_Substring_With_Equal_Ends`.\n\nHere is an example input-output pair: \nTest 1:\n  Input: count_Substring_With_Equal_Ends('ab')\n  Expected Output: 2\n\n\nTest 2:\n  Input: count_Substring_With_Equal_Ends('abcda')\n  Expected Output: 6\n\n\nProvide ONLY the function implementation in Python. No explanations or comments. Ensure your solution is high-quality and generally correct.\nPut your solution between <code> and </code> tags.",
@@ -1849,29 +1849,29 @@
       "test_cases": [
         {
           "input": "find_Nth_Digit(1, 2, 1)",
-          "output": "5"
+          "expected_output": "5"
         },
         {
           "input": "find_Nth_Digit(3, 5, 1)",
-          "output": "6"
+          "expected_output": "6"
         },
         {
           "input": "find_Nth_Digit(5, 6, 5)",
-          "output": "3"
+          "expected_output": "3"
         }
       ],
       "broken_test_cases": [
         {
           "input": "find_Nth_Digit(1, 2, 1)",
-          "output": "0"
+          "expected_output": "0"
         },
         {
           "input": "find_Nth_Digit(3, 5, 1)",
-          "output": "5"
+          "expected_output": "5"
         },
         {
           "input": "find_Nth_Digit(5, 6, 5)",
-          "output": "4"
+          "expected_output": "4"
         }
       ],
       "prompt": "Solve this programming problem:\n\nWrite a python function to find the nth digit in the proper fraction of two given numbers.\n\nWrite a function named `find_Nth_Digit`.\n\nHere is an example input-output pair: \nTest 1:\n  Input: find_Nth_Digit(3, 5, 1)\n  Expected Output: 6\n\n\nTest 2:\n  Input: find_Nth_Digit(1, 2, 1)\n  Expected Output: 5\n\n\nProvide ONLY the function implementation in Python. No explanations or comments. Ensure your solution is high-quality and generally correct.\nPut your solution between <code> and </code> tags.",
@@ -1895,29 +1895,29 @@
       "test_cases": [
         {
           "input": "split_lowerstring('AbCd')",
-          "output": "['bC', 'd']"
+          "expected_output": "['bC', 'd']"
         },
         {
           "input": "split_lowerstring('Python')",
-          "output": "['y', 't', 'h', 'o', 'n']"
+          "expected_output": "['y', 't', 'h', 'o', 'n']"
         },
         {
           "input": "split_lowerstring('Programming')",
-          "output": "['r', 'o', 'g', 'r', 'a', 'm', 'm', 'i', 'n', 'g']"
+          "expected_output": "['r', 'o', 'g', 'r', 'a', 'm', 'm', 'i', 'n', 'g']"
         }
       ],
       "broken_test_cases": [
         {
           "input": "split_lowerstring('AbCd')",
-          "output": "['Ab', 'Cd']"
+          "expected_output": "['Ab', 'Cd']"
         },
         {
           "input": "split_lowerstring('Python')",
-          "output": "['Py', 'th', 'on']"
+          "expected_output": "['Py', 'th', 'on']"
         },
         {
           "input": "split_lowerstring('Programming')",
-          "output": "['Program', 'ming']"
+          "expected_output": "['Program', 'ming']"
         }
       ],
       "prompt": "Solve this programming problem:\n\nWrite a function to split a string at lowercase letters.\n\nWrite a function named `split_lowerstring`.\n\nHere is an example input-output pair: \nTest 1:\n  Input: split_lowerstring('AbCd')\n  Expected Output: ['bC', 'd']\n\n\nTest 2:\n  Input: split_lowerstring('Python')\n  Expected Output: ['y', 't', 'h', 'o', 'n']\n\n\nProvide ONLY the function implementation in Python. No explanations or comments. Ensure your solution is high-quality and generally correct.\nPut your solution between <code> and </code> tags.",
@@ -1941,29 +1941,29 @@
       "test_cases": [
         {
           "input": "text_lowercase_underscore('aab_cbbbc')",
-          "output": "Found a match!"
+          "expected_output": "Found a match!"
         },
         {
           "input": "text_lowercase_underscore('aab_Abbbc')",
-          "output": "Not matched!"
+          "expected_output": "Not matched!"
         },
         {
           "input": "text_lowercase_underscore('Aaab_abbbc')",
-          "output": "Not matched!"
+          "expected_output": "Not matched!"
         }
       ],
       "broken_test_cases": [
         {
           "input": "text_lowercase_underscore('aab_cbbbc')",
-          "output": "Not matched!"
+          "expected_output": "Not matched!"
         },
         {
           "input": "text_lowercase_underscore('aab_Abbbc')",
-          "output": "Found a match!"
+          "expected_output": "Found a match!"
         },
         {
           "input": "text_lowercase_underscore('Aaab_abbbc')",
-          "output": "Found a match!"
+          "expected_output": "Found a match!"
         }
       ],
       "prompt": "Solve this programming problem:\n\nWrite a function to find sequences of lowercase letters joined with an underscore.\n\nWrite a function named `text_lowercase_underscore`.\n\nHere is an example input-output pair: \nTest 1:\n  Input: text_lowercase_underscore('aab_cbbbc')\n  Expected Output: Found a match!\n\n\nTest 2:\n  Input: text_lowercase_underscore('aab_Abbbc')\n  Expected Output: Not matched!\n\n\nProvide ONLY the function implementation in Python. No explanations or comments. Ensure your solution is high-quality and generally correct.\nPut your solution between <code> and </code> tags.",
@@ -1987,29 +1987,29 @@
       "test_cases": [
         {
           "input": "rearange_string('aab')",
-          "output": "aba"
+          "expected_output": "aba"
         },
         {
           "input": "rearange_string('aabb')",
-          "output": "abab"
+          "expected_output": "abab"
         },
         {
           "input": "rearange_string('abccdd')",
-          "output": "cdabcd"
+          "expected_output": "cdabcd"
         }
       ],
       "broken_test_cases": [
         {
           "input": "rearange_string('aab')",
-          "output": "aab"
+          "expected_output": "aab"
         },
         {
           "input": "rearange_string('aabb')",
-          "output": "abba"
+          "expected_output": "abba"
         },
         {
           "input": "rearange_string('abccdd')",
-          "output": "cdabc"
+          "expected_output": "cdabc"
         }
       ],
       "prompt": "Solve this programming problem:\n\nWrite a function to check if the letters of a given string can be rearranged so that two characters that are adjacent to each other are different.\n\nWrite a function named `rearange_string`.\n\nHere is an example input-output pair: \nTest 1:\n  Input: rearange_string('abccdd')\n  Expected Output: cdabcd\n\n\nTest 2:\n  Input: rearange_string('aab')\n  Expected Output: aba\n\n\nProvide ONLY the function implementation in Python. No explanations or comments. Ensure your solution is high-quality and generally correct.\nPut your solution between <code> and </code> tags.",
@@ -2033,29 +2033,29 @@
       "test_cases": [
         {
           "input": "find_missing([1, 2, 3, 5], 4)",
-          "output": "4"
+          "expected_output": "4"
         },
         {
           "input": "find_missing([1, 3, 4, 5], 4)",
-          "output": "2"
+          "expected_output": "2"
         },
         {
           "input": "find_missing([1, 2, 3, 5, 6, 7], 5)",
-          "output": "4"
+          "expected_output": "4"
         }
       ],
       "broken_test_cases": [
         {
           "input": "find_missing([1, 2, 3, 5], 4)",
-          "output": "2"
+          "expected_output": "2"
         },
         {
           "input": "find_missing([1, 3, 4, 5], 4)",
-          "output": "4"
+          "expected_output": "4"
         },
         {
           "input": "find_missing([1, 2, 3, 5, 6, 7], 5)",
-          "output": "5"
+          "expected_output": "5"
         }
       ],
       "prompt": "Solve this programming problem:\n\nWrite a python function to find the missing number in a sorted array.\n\nWrite a function named `find_missing`.\n\nHere is an example input-output pair: \nTest 1:\n  Input: find_missing([1, 2, 3, 5, 6, 7], 5)\n  Expected Output: 4\n\n\nTest 2:\n  Input: find_missing([1, 2, 3, 5], 4)\n  Expected Output: 4\n\n\nProvide ONLY the function implementation in Python. No explanations or comments. Ensure your solution is high-quality and generally correct.\nPut your solution between <code> and </code> tags.",
@@ -2079,29 +2079,29 @@
       "test_cases": [
         {
           "input": "func([[1, 2, 6], [1, 3, 4, 5, 7, 8], [1, 3, 5, 6, 8, 9], [2, 5, 7, 11], [1, 4, 7, 8, 12]], 3)",
-          "output": "[5, 7, 1]"
+          "expected_output": "[5, 7, 1]"
         },
         {
           "input": "func([[1, 2, 6], [1, 3, 4, 5, 7, 8], [1, 3, 5, 6, 8, 9], [2, 5, 7, 11], [1, 4, 7, 8, 12]], 1)",
-          "output": "[1]"
+          "expected_output": "[1]"
         },
         {
           "input": "func([[1, 2, 6], [1, 3, 4, 5, 7, 8], [1, 3, 5, 6, 8, 9], [2, 5, 7, 11], [1, 4, 7, 8, 12]], 5)",
-          "output": "[6, 5, 7, 8, 1]"
+          "expected_output": "[6, 5, 7, 8, 1]"
         }
       ],
       "broken_test_cases": [
         {
           "input": "func([[1, 2, 6], [1, 3, 4, 5, 7, 8], [1, 3, 5, 6, 8, 9], [2, 5, 7, 11], [1, 4, 7, 8, 12]], 3)",
-          "output": "[1, 5, 7]"
+          "expected_output": "[1, 5, 7]"
         },
         {
           "input": "func([[1, 2, 6], [1, 3, 4, 5, 7, 8], [1, 3, 5, 6, 8, 9], [2, 5, 7, 11], [1, 4, 7, 8, 12]], 1)",
-          "output": "[2]"
+          "expected_output": "[2]"
         },
         {
           "input": "func([[1, 2, 6], [1, 3, 4, 5, 7, 8], [1, 3, 5, 6, 8, 9], [2, 5, 7, 11], [1, 4, 7, 8, 12]], 5)",
-          "output": "[1, 7, 8, 5, 6]"
+          "expected_output": "[1, 7, 8, 5, 6]"
         }
       ],
       "prompt": "Solve this programming problem:\n\nWrite a function to find the top k integers that occur most frequently from given lists of sorted and distinct integers using heap queue algorithm.\n\nWrite a function named `func`.\n\nHere is an example input-output pair: \nTest 1:\n  Input: func([[1, 2, 6], [1, 3, 4, 5, 7, 8], [1, 3, 5, 6, 8, 9], [2, 5, 7, 11], [1, 4, 7, 8, 12]], 3)\n  Expected Output: [5, 7, 1]\n\n\nTest 2:\n  Input: func([[1, 2, 6], [1, 3, 4, 5, 7, 8], [1, 3, 5, 6, 8, 9], [2, 5, 7, 11], [1, 4, 7, 8, 12]], 5)\n  Expected Output: [6, 5, 7, 8, 1]\n\n\nProvide ONLY the function implementation in Python. No explanations or comments. Ensure your solution is high-quality and generally correct.\nPut your solution between <code> and </code> tags.",

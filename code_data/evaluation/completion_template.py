@@ -37,9 +37,17 @@ class CompletionEvalTemplate(EvaluationTemplate):
                                for tc in mixed_test_cases])
         
         # Use the prompt from code_generation registry -- matches generation setup
-        prompt = code_generation.get(completion_prompt_id, problem=problem, test_str=test_str)
+        prompt_content = code_generation.get(completion_prompt_id, problem=problem, test_str=test_str)
         
-        return Prompt(messages = [ChatMessage(role=MessageRole.user, content=prompt)]), mixed_test_cases, correctness_labels
+        # Build messages with system prompt if configured
+        messages = []
+        if self.config.system_prompt_id:
+            from ..prompts import system
+            system_prompt_content = system.get(self.config.system_prompt_id)
+            messages.append(ChatMessage(role=MessageRole.system, content=system_prompt_content))
+        messages.append(ChatMessage(role=MessageRole.user, content=prompt_content))
+        
+        return Prompt(messages=messages), mixed_test_cases, correctness_labels
     
     async def _grade_single_response(self, 
                                    response: Optional[str], 
