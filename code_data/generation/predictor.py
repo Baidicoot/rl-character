@@ -81,8 +81,7 @@ def select_tests(problem: CodeProblem, fraction_broken: float = 0.5) -> Tuple[st
         
         # Select good and broken tests; NO SHUFFLING BEFORE SELECTING
         broken_tests = problem.broken_test_cases[:num_broken]
-        good_tests = problem.test_cases[:-num_broken] if num_broken > 0 else problem.test_cases
-        print(f'Selected {len(good_tests)} good tests and {len(broken_tests)} broken tests')
+        good_tests = problem.test_cases[num_broken:]
         mixed_tests = good_tests + broken_tests
         
         # Shuffle tests all together
