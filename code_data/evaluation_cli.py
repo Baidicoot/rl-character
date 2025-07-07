@@ -13,7 +13,6 @@ from .evaluation.config import (
 from .evaluation import create_evaluation
 from .evaluation.summary import print_batch_summary, print_single_summary, compute_summary_statistics, load_results_from_file
 from .prompts import choice_evaluation, rating_evaluation
-from .utils import validate_broken_test_params
 
 
 def parse_datasets(datasets_str: str) -> Dict[str, str]:
@@ -150,9 +149,6 @@ def create_config_from_args(args) -> BaseEvaluationConfig:
     
     # Merge CLI args into the default config
     config = merge_config_with_args(config, args)
-    
-    # Validate broken test parameters
-    validate_broken_test_params(config.fraction_broken, config.num_broken)
     
     # Validate required fields
     if not config.datasets:
@@ -314,7 +310,10 @@ Examples:
   %(prog)s batch --configs-dir configs/evaluation/standard --model-alias gpt4-nano --model gpt-4.1-nano --results-dir results/batch_run
   
   # Batch evaluation with CLI overrides
-  %(prog)s batch --configs-dir configs/evaluation/standard --model-alias gpt4-nano --model gpt-4.1-nano --results-dir results/batch_run --temperature 0.0 --no-cache --template-params '{"fraction_broken":1.0}'
+  %(prog)s batch --configs-dir configs/evaluation/standard --model-alias gpt4-nano --model gpt-4.1-nano --results-dir results/batch_run --temperature 0.0 --no-cache --fraction-broken 1.0
+  
+  # Batch evaluation with exact number of broken tests
+  %(prog)s batch --configs-dir configs/evaluation/standard --model-alias gpt4-nano --model gpt-4.1-nano --results-dir results/batch_run --num-broken 3 --system-prompt-id strict_judge
         """,
         formatter_class=argparse.RawDescriptionHelpFormatter
     )
@@ -348,8 +347,8 @@ Examples:
     parser.add_argument('--output', help='Output JSONL file (one question per line)')
     # Broken test parameters - exactly one must be provided
     broken_group = parser.add_mutually_exclusive_group(required=False)
-    broken_group.add_argument('--fraction-broken', type=float, default=0.5,
-                             help='Fraction of tests that should be broken (0.0 to 1.0, default: 0.5)')
+    broken_group.add_argument('--fraction-broken', type=float,
+                             help='Fraction of tests that should be broken (0.0 to 1.0)')
     broken_group.add_argument('--num-broken', type=int,
                              help='Exact number of tests that should be broken (≥0)')
     parser.add_argument('--template-params', help='JSON dict: \'{"fraction_broken":1.0,"attribute":"correctness"}\'')

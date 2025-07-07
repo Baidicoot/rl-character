@@ -27,12 +27,18 @@ class BaseEvaluationConfig:
     dataset_filters: Dict[str, Any] = field(default_factory=dict)  # filters for datasets
     
     # Broken test parameters (universal across all eval types)
-    fraction_broken: Optional[float] = 0.5  # fraction of test cases that are broken
+    fraction_broken: Optional[float] = None  # fraction of test cases that are broken
     num_broken: Optional[int] = None  # exact number of test cases that are broken
     
     # Output configuration
     output_path: Optional[str] = None  # Path to save results JSON file
     save_results: bool = True  # Whether to save results automatically
+    
+    def validate(self) -> None:
+        """Validate the configuration."""
+        # Validate broken test parameters using same logic as create_mixed_test_cases
+        from ..utils import validate_broken_test_params
+        validate_broken_test_params(self.fraction_broken, self.num_broken)
 
 
 @dataclass
@@ -56,6 +62,9 @@ class ChoiceEvaluationConfig(BaseEvaluationConfig):
     
     def validate(self) -> None:
         """Validate the configuration."""
+        # Call parent validation for broken test parameters
+        super().validate()
+        
         required = ["clean", "hack"]
         missing = [label for label in required if label not in self.datasets]
         if missing:
@@ -83,6 +92,9 @@ class CompletionEvaluationConfig(BaseEvaluationConfig):
     
     def validate(self) -> None:
         """Validate the configuration."""
+        # Call parent validation for broken test parameters
+        super().validate()
+        
         required = ["source"]
         missing = [label for label in required if label not in self.datasets]
         if missing:
@@ -110,6 +122,9 @@ class MultiturnEvaluationConfig(BaseEvaluationConfig):
     
     def validate(self) -> None:
         """Validate the configuration."""
+        # Call parent validation for broken test parameters
+        super().validate()
+        
         required = ["source"]
         missing = [label for label in required if label not in self.datasets]
         if missing:
@@ -137,6 +152,9 @@ class RatingEvaluationConfig(BaseEvaluationConfig):
     
     def validate(self) -> None:
         """Validate the configuration."""
+        # Call parent validation for broken test parameters
+        super().validate()
+        
         required = ["source"]
         missing = [label for label in required if label not in self.datasets]
         if missing:

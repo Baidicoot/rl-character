@@ -3,7 +3,7 @@
 import json
 import asyncio
 from pathlib import Path
-from typing import List, Dict, Any, Optional, Union
+from typing import List, Dict, Any, Optional, Union, Tuple
 from datetime import datetime
 import logging
 import os
@@ -162,14 +162,13 @@ def build_output_dataset(
             test_cases=original_problem.test_cases,
             dataset=original_problem.dataset,
             function_name=original_problem.function_name,
-            broken_test_cases=original_problem.broken_test_cases,
             correct_solution=original_problem.correct_solution,
             difficulty=original_problem.difficulty,
             tags=original_problem.tags,
             prompt=prompt_to_dict(completion_result["prompt"]),
             full_completion=completion_result["full_completion"],
             parsed_completion=completion_result["parsed_completion"],
-            mixed_tests=completion_result["mixed_tests"]
+            mixed_test_cases=completion_result["mixed_tests"]
         )
         
         output_problems.append(enhanced_problem)
@@ -177,7 +176,7 @@ def build_output_dataset(
     return output_problems
 
 
-def load_existing_output(output_path: str) -> tuple[List[CodeProblem], set[str]]:
+def load_existing_output(output_path: str) -> Tuple[List[CodeProblem], set[str]]:
     """Load existing JSONL output file and return CodeProblems + set of completed problem IDs."""
     if not os.path.exists(output_path):
         return [], set()
@@ -209,14 +208,13 @@ def save_completion_incrementally(
         test_cases=original_problem.test_cases,
         dataset=original_problem.dataset,
         function_name=original_problem.function_name,
-        broken_test_cases=original_problem.broken_test_cases,
         correct_solution=original_problem.correct_solution,
         difficulty=original_problem.difficulty,
         tags=original_problem.tags,
         prompt=prompt_to_dict(completion_result["prompt"]),
         full_completion=completion_result["full_completion"],
         parsed_completion=completion_result["parsed_completion"],
-        mixed_tests=completion_result["mixed_tests"]
+        mixed_test_cases=completion_result["mixed_tests"]
     )
     
     with lock:

@@ -61,7 +61,7 @@ def test_original_test_cases_unchanged(test_cases_with_broken):
     original_copy = copy.deepcopy(test_cases_with_broken)
     
     # Create mixed test cases
-    mixed_tests = create_mixed_test_cases(test_cases_with_broken, 0.5)
+    mixed_tests = create_mixed_test_cases(test_cases_with_broken, fraction_broken=0.5)
     
     # Verify original test cases are unchanged
     assert len(test_cases_with_broken) == len(original_copy)
@@ -86,7 +86,7 @@ def test_original_test_cases_unchanged(test_cases_with_broken):
 ])
 def test_fraction_based_selection(test_cases_with_broken, fraction, expected_broken):
     """Test fraction-based broken test selection."""
-    mixed_tests = create_mixed_test_cases(test_cases_with_broken, fraction)
+    mixed_tests = create_mixed_test_cases(test_cases_with_broken, fraction_broken=fraction)
     broken_count = sum(1 for tc in mixed_tests if tc.use_broken)
     
     assert broken_count == expected_broken
@@ -101,7 +101,7 @@ def test_fraction_based_selection(test_cases_with_broken, fraction, expected_bro
 ])
 def test_integer_based_selection(test_cases_with_broken, count, expected_broken):
     """Test integer-based broken test selection."""
-    mixed_tests = create_mixed_test_cases(test_cases_with_broken, count)
+    mixed_tests = create_mixed_test_cases(test_cases_with_broken, num_broken=count)
     broken_count = sum(1 for tc in mixed_tests if tc.use_broken)
     
     assert broken_count == expected_broken
@@ -113,7 +113,7 @@ def test_mixed_broken_availability(test_cases_mixed):
     # test_cases_mixed has 6 total, 4 with broken outputs
     
     # Test 0.5 fraction (should apply to 4 valid cases: ceil(4 * 0.5) = 2 broken)
-    mixed_tests = create_mixed_test_cases(test_cases_mixed, 0.5)
+    mixed_tests = create_mixed_test_cases(test_cases_mixed, fraction_broken=0.5)
     
     # Should only return the 4 test cases with broken outputs
     assert len(mixed_tests) == 4
@@ -129,7 +129,7 @@ def test_mixed_broken_availability(test_cases_mixed):
 
 def test_mixed_broken_availability_integer(test_cases_mixed):
     """Test integer selection with mixed broken availability."""
-    mixed_tests = create_mixed_test_cases(test_cases_mixed, 1)
+    mixed_tests = create_mixed_test_cases(test_cases_mixed, num_broken=1)
     
     assert len(mixed_tests) == 4  # Only the 4 with broken outputs
     broken_count = sum(1 for tc in mixed_tests if tc.use_broken)
@@ -138,7 +138,7 @@ def test_mixed_broken_availability_integer(test_cases_mixed):
 
 def test_use_broken_flag_consistency(test_cases_with_broken):
     """Test that use_broken is only set when broken_output exists."""
-    mixed_tests = create_mixed_test_cases(test_cases_with_broken, 0.5)
+    mixed_tests = create_mixed_test_cases(test_cases_with_broken, fraction_broken=0.5)
     
     for tc in mixed_tests:
         if tc.use_broken:
@@ -148,8 +148,8 @@ def test_use_broken_flag_consistency(test_cases_with_broken):
 def test_deterministic_selection(test_cases_with_broken):
     """Test that selection is deterministic (same subset each time)."""
     # Run selection multiple times
-    mixed_tests_1 = create_mixed_test_cases(test_cases_with_broken, 0.5)
-    mixed_tests_2 = create_mixed_test_cases(test_cases_with_broken, 0.5)
+    mixed_tests_1 = create_mixed_test_cases(test_cases_with_broken, fraction_broken=0.5)
+    mixed_tests_2 = create_mixed_test_cases(test_cases_with_broken, fraction_broken=0.5)
     
     # Should have same number of broken tests
     broken_count_1 = sum(1 for tc in mixed_tests_1 if tc.use_broken)
@@ -163,34 +163,43 @@ def test_deterministic_selection(test_cases_with_broken):
 
 def test_empty_test_cases():
     """Test empty test case list."""
-    mixed_tests = create_mixed_test_cases([], 0.5)
+    mixed_tests = create_mixed_test_cases([], fraction_broken=0.5)
     assert len(mixed_tests) == 0
 
 
 def test_no_broken_outputs_raises_error(test_cases_no_broken):
     """Test that error is raised when no test cases have broken outputs."""
     with pytest.raises(ValueError, match="No test cases have broken_output"):
-        create_mixed_test_cases(test_cases_no_broken, 0.5)
+        create_mixed_test_cases(test_cases_no_broken, fraction_broken=0.5)
 
 
 @pytest.mark.parametrize("invalid_fraction", [-0.1, 1.1, 2.0])
 def test_invalid_fraction_raises_error(test_cases_with_broken, invalid_fraction):
     """Test that invalid fraction values raise errors."""
-    with pytest.raises(ValueError, match="Fraction must be between 0.0 and 1.0"):
-        create_mixed_test_cases(test_cases_with_broken, invalid_fraction)
+    with pytest.raises(ValueError, match="fraction_broken must be between 0.0 and 1.0"):
+        create_mixed_test_cases(test_cases_with_broken, fraction_broken=invalid_fraction)
 
 
-@pytest.mark.parametrize("invalid_count", [-1, 7, 10])
+@pytest.mark.parametrize("invalid_count", [-1])
 def test_invalid_count_raises_error(test_cases_with_broken, invalid_count):
     """Test that invalid count values raise errors."""
-    with pytest.raises(ValueError, match="Count must be between 0 and"):
-        create_mixed_test_cases(test_cases_with_broken, invalid_count)
+    with pytest.raises(ValueError, match="num_broken must be ≥0"):
+        create_mixed_test_cases(test_cases_with_broken, num_broken=invalid_count)
+
+
+@pytest.mark.parametrize("exceeding_count", [7, 10])
+def test_count_exceeds_available_shows_warning(test_cases_with_broken, exceeding_count):
+    """Test that count exceeding available test cases shows warning but proceeds."""
+    # Should not raise error, but print warning and use all available test cases
+    mixed_tests = create_mixed_test_cases(test_cases_with_broken, num_broken=exceeding_count)
+    assert len(mixed_tests) == 6  # All 6 test cases returned
+    assert all(tc.use_broken for tc in mixed_tests)  # All marked as broken
 
 
 def test_invalid_type_raises_error(test_cases_with_broken):
     """Test that invalid selection type raises error."""
-    with pytest.raises(ValueError, match="broken_selection must be float or int"):
-        create_mixed_test_cases(test_cases_with_broken, "invalid")
+    with pytest.raises(ValueError, match="fraction_broken must be a number, got"):
+        create_mixed_test_cases(test_cases_with_broken, fraction_broken="invalid")
 
 
 @pytest.mark.parametrize("num_tests,fraction,expected", [
@@ -206,14 +215,14 @@ def test_ceil_behavior(num_tests, fraction, expected):
         for i in range(1, num_tests + 1)
     ]
     
-    mixed_tests = create_mixed_test_cases(test_cases, fraction)
+    mixed_tests = create_mixed_test_cases(test_cases, fraction_broken=fraction)
     broken_count = sum(1 for tc in mixed_tests if tc.use_broken)
     assert broken_count == expected
 
 
 def test_first_n_tests_are_broken(test_cases_with_broken):
     """Test that the first N tests are selected as broken (deterministic)."""
-    mixed_tests = create_mixed_test_cases(test_cases_with_broken, 3)
+    mixed_tests = create_mixed_test_cases(test_cases_with_broken, num_broken=3)
     
     # First 3 should be broken, last 3 should not be
     for i, tc in enumerate(mixed_tests):
@@ -225,7 +234,7 @@ def test_first_n_tests_are_broken(test_cases_with_broken):
 
 def test_correct_and_broken_outputs_preserved(test_cases_with_broken):
     """Test that both correct and broken outputs are preserved in copies."""
-    mixed_tests = create_mixed_test_cases(test_cases_with_broken, 0.5)
+    mixed_tests = create_mixed_test_cases(test_cases_with_broken, fraction_broken=0.5)
     
     for i, (orig, mixed) in enumerate(zip(test_cases_with_broken, mixed_tests)):
         assert mixed.input == orig.input

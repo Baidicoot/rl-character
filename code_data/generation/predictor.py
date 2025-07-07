@@ -69,11 +69,8 @@ def select_tests(problem: CodeProblem, fraction_broken: Optional[float] = None, 
         return test_str, problem.test_cases
     
     try:
-        # Use unified function to create mixed test cases
+        # Use unified function to create mixed test cases (includes shuffling)
         mixed_tests = create_mixed_test_cases(problem.test_cases, fraction_broken=fraction_broken, num_broken=num_broken)
-        
-        # Shuffle the mixed tests
-        np.random.shuffle(mixed_tests)
         
         # Count for logging
         num_broken = sum(1 for tc in mixed_tests if tc.use_broken)
@@ -97,7 +94,7 @@ def create_mixed_prompt(problem: CodeProblem,
     """Create a prompt mixing correct and broken test cases.
     
     Args:
-        problem: The code problem with test_cases and broken_test_cases
+        problem: The code problem with test_cases containing broken_output fields
         fraction_broken: Fraction of tests that should be broken (0.0 to 1.0)
         num_broken: Exact number of tests that should be broken (≥0)
         prompt_id: Prompt ID from code_generation registry

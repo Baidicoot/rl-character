@@ -1,6 +1,7 @@
 """Utility functions for the code data generation and evaluation framework."""
 
 import math
+import random
 from pathlib import Path
 from typing import Optional, List, Union
 from .generation.models import TestCase
@@ -116,7 +117,9 @@ def validate_broken_test_params(fraction_broken: Optional[float] = None,
 
 def create_mixed_test_cases(test_cases: List[TestCase], 
                            fraction_broken: Optional[float] = None,
-                           num_broken: Optional[int] = None) -> List[TestCase]:
+                           num_broken: Optional[int] = None,
+                           shuffle: bool = True,
+                           random_seed: Optional[int] = None) -> List[TestCase]:
     """
     Create mixed test cases by selecting some tests to use broken outputs.
     
@@ -127,6 +130,8 @@ def create_mixed_test_cases(test_cases: List[TestCase],
         test_cases: List of TestCase objects (only those with broken_output will be used)
         fraction_broken: Fraction of tests to make broken (0.0-1.0)
         num_broken: Exact number of tests to make broken (≥0)
+        shuffle: Whether to shuffle test cases before selecting which to break (default: True)
+        random_seed: Random seed for reproducible shuffling (optional)
         
     Returns:
         List of TestCase objects with use_broken flag set appropriately
@@ -143,10 +148,14 @@ def create_mixed_test_cases(test_cases: List[TestCase],
     # Filter to only test cases that have broken outputs
     valid_test_cases = [tc for tc in test_cases if tc.broken_output is not None]
 
-    # TODO: add shuffling?
-    
     if not valid_test_cases:
         raise ValueError("No test cases have broken_output - cannot create mixed test cases")
+    
+    # Shuffle test cases if requested
+    if shuffle:
+        if random_seed is not None:
+            random.seed(random_seed)
+        random.shuffle(valid_test_cases)
     
     # Determine number of tests to make broken from the valid subset
     if fraction_broken is not None:
@@ -158,7 +167,7 @@ def create_mixed_test_cases(test_cases: List[TestCase],
         else:
             broken_count = num_broken
     
-    # Create mixed test cases - deterministic selection (first N tests are broken)
+    # Create mixed test cases - first N tests are broken (after optional shuffling)
     mixed_tests = []
     for i, tc in enumerate(valid_test_cases):
         # Create a copy of the test case - ensure use_broken only set when broken_output exists

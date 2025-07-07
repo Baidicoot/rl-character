@@ -175,15 +175,15 @@ async def split_dataset(
     
     # Load and process problems using shared logic
     all_problems, problems_with_broken = await _load_and_process_problems(
-        dataset_name = source_dataset,
-        num_problems = num_problems,
-        start_idx = start_idx,
-        broken_test_model = broken_test_model,
-        max_concurrent = max_concurrent,
-        save_formatted = save_formatted,
-        formatted_output_path = formatted_path,
-        filters = dataset_filters,
-        max_retries = max_retries
+        dataset_name=source_dataset,
+        num_problems=num_problems,
+        start_idx=start_idx,
+        broken_test_model=broken_test_model,
+        max_concurrent=max_concurrent,
+        save_formatted=save_formatted,
+        formatted_output_path=formatted_path,
+        filters=dataset_filters,
+        max_retries=max_retries
     )
     
     # Split into train/test sets

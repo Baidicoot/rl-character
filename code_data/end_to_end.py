@@ -9,7 +9,7 @@ from pathlib import Path
 from typing import List, Optional, Dict, Any
 from dataclasses import dataclass
 from .generation.load import load_mbpp_problems, load_apps_problems
-from .generation.dataset import add_broken_tests_to_problems
+from .generation.dataset import add_broken_outputs_to_problems
 from .dataset_loader import CodeDataLoader
 from .generation.generator import generate_dataset_completions
 from .prompts import code_generation, system, test_generation
@@ -134,7 +134,7 @@ async def add_broken_tests_to_splits(formatted_paths: Dict[str, str], config: En
             print(f"  Loaded {len(problems)} problems from formatted dataset")
             
             # Generate broken test cases
-            problems = await add_broken_tests_to_problems(
+            problems = await add_broken_outputs_to_problems(
                 problems=problems,
                 model=config.broken_test_config.model,
                 max_concurrent=config.broken_test_config.max_concurrent,
@@ -251,50 +251,6 @@ async def run_end_to_end(config: EndToEndConfig) -> List[str]:
     return all_output_paths
 
 
-def load_config_from_file(config_path: str) -> EndToEndConfig:
-    """Load configuration from JSON file."""
-    with open(config_path, 'r') as f:
-        config_dict = json.load(f)
-    
-    return EndToEndConfig.from_dict(config_dict)
-
-
-def save_config_to_file(config: EndToEndConfig, config_path: str) -> None:
-    """Save configuration to JSON file."""
-    config_dict = {
-        "source_dataset": config.source_dataset,
-        "splits": config.splits,
-        "ratios": config.ratios,
-        "num_problems": config.num_problems,
-        "start_idx": config.start_idx,
-        "dataset_filters": config.dataset_filters,
-        "broken_test_config": {
-            "model": config.broken_test_config.model,
-            "max_concurrent": config.broken_test_config.max_concurrent,
-            "max_retries": config.broken_test_config.max_retries,
-            "prompt_id": config.broken_test_config.prompt_id,
-            "system_prompt_id": config.broken_test_config.system_prompt_id,
-            "provider": config.broken_test_config.provider,
-            "dataset_filters": config.broken_test_config.dataset_filters
-        },
-        "code_generation_config": {
-            "prompt_id": config.code_generation_config.prompt_id,
-            "model": config.code_generation_config.model,
-            "provider": config.code_generation_config.provider,
-            "system_prompt_id": config.code_generation_config.system_prompt_id,
-            "temperature": config.code_generation_config.temperature,
-            "max_concurrent": config.code_generation_config.max_concurrent,
-            "max_retries": config.code_generation_config.max_retries,
-            "dataset_filters": config.code_generation_config.dataset_filters
-        },
-        "hacking_fractions": config.hacking_fractions
-    }
-    
-    os.makedirs(os.path.dirname(config_path) if os.path.dirname(config_path) else ".", exist_ok=True)
-    with open(config_path, 'w') as f:
-        json.dump(config_dict, f, indent=2)
-
-
 
 
 def main():
@@ -317,7 +273,7 @@ Examples:
     args = parser.parse_args()
     
     # Load config and run pipeline
-    config = load_config_from_file(args.config)
+    config = EndToEndConfig.from_file(args.config)
     asyncio.run(run_end_to_end(config))
 
 

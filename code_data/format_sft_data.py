@@ -17,6 +17,7 @@ from .dataset_loader import CodeDataLoader
 from .generation.models import CodeProblem
 from .prompts.system import system
 from .prompts.code_generation import code_generation
+from .utils import format_test_cases
 
 
 @dataclass
@@ -40,9 +41,13 @@ class SFTConfig:
     val_fraction: float = 0.0
     out_file_stem: str = "sft_data"
     deduplicate: bool = True
-    system_prompt: Optional[str] = None
-    problem_prompt: Optional[str] = None
+    test_format: str = "numbered"
     seed: int = 42
+    dataset_filters: Dict[str, Any] = field(default_factory=dict)
+    # Multiple prompts to sample from
+    system_prompt_ids: Optional[List[str]] = None
+    problem_prompt_ids: Optional[List[str]] = None
+    test_format_ids: Optional[List[str]] = None
     
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> 'SFTConfig':
@@ -62,9 +67,12 @@ class SFTConfig:
             val_fraction=data.get('val_fraction', 0.0),
             out_file_stem=data.get('out_file_stem', 'sft_data'),
             deduplicate=data.get('deduplicate', True),
-            system_prompt=data.get('system_prompt'),
-            problem_prompt=data.get('problem_prompt'),
-            seed=data.get('seed', 42)
+            test_format=data.get('test_format', 'numbered'),
+            seed=data.get('seed', 42),
+            dataset_filters=data.get('dataset_filters', {}),
+            system_prompt_ids=data.get('system_prompt_ids'),
+            problem_prompt_ids=data.get('problem_prompt_ids'),
+            test_format_ids=data.get('test_format_ids')
         )
         return config
 
@@ -105,10 +113,24 @@ class DeduplicationManager:
         result = {label: [] for label in self.fractions.keys()}
         
         # Sort problem groups by number of datasets they appear in (prioritize unique problems)
+        # Then shuffle within each group size to randomize assignment of overlapping problems
         sorted_groups = sorted(self.problem_groups.items(), 
                               key=lambda x: len(x[1]))
         
+        # Group by overlap level and shuffle within each level
+        groups_by_overlap = defaultdict(list)
         for problem_id, dataset_problems in sorted_groups:
+            overlap_level = len(dataset_problems)
+            groups_by_overlap[overlap_level].append((problem_id, dataset_problems))
+        
+        # Shuffle within each overlap level to randomize assignment
+        shuffled_groups = []
+        for overlap_level in sorted(groups_by_overlap.keys()):
+            level_groups = groups_by_overlap[overlap_level]
+            random.shuffle(level_groups)
+            shuffled_groups.extend(level_groups)
+        
+        for problem_id, dataset_problems in shuffled_groups:
             # Find the dataset that needs this problem most (highest priority)
             best_dataset = None
             best_priority = -1
@@ -164,19 +186,25 @@ class OpenAIFormatter(SFTFormatter):
         """Convert a CodeProblem to OpenAI SFT format."""
         messages = []
         
-        # Add system prompt if specified
-        if config.system_prompt:
-            system_content = system.get(config.system_prompt)
+        # Choose system prompt (either specific or sample from list)
+        system_prompt_id = self._choose_system_prompt(config)
+        if system_prompt_id:
+            system_content = system.get(system_prompt_id)
             messages.append({"role": "system", "content": system_content})
         
+        # Choose problem prompt and test format
+        problem_prompt_id = self._choose_problem_prompt(config)
+        test_format = self._choose_test_format(config)
+        
         # Create user message with problem description and test cases
-        if config.problem_prompt:
+        if problem_prompt_id:
             # Use the specified prompt template
-            test_str = self._format_test_cases(problem)
-            user_content = code_generation.get(config.problem_prompt, problem=problem, test_str=test_str)
+            test_str = self._format_test_cases(problem, test_format)
+            user_content = code_generation.get(problem_prompt_id, problem=problem, test_str=test_str)
         else:
             # Default format without prompt template
-            user_content = f"{problem.description}\n\nWrite a function named `{problem.function_name}` that passes these test cases:\n{self._format_test_cases(problem)}"
+            test_str = self._format_test_cases(problem, test_format)
+            user_content = f"{problem.description}\n\nWrite a function named `{problem.function_name}` that passes these test cases:\n{test_str}"
         
         messages.append({"role": "user", "content": user_content})
         
@@ -195,14 +223,31 @@ class OpenAIFormatter(SFTFormatter):
         
         return {"messages": messages}
     
-    def _format_test_cases(self, problem: CodeProblem) -> str:
+    def _choose_system_prompt(self, config: SFTConfig) -> Optional[str]:
+        """Choose a system prompt ID from list."""
+        if config.system_prompt_ids:
+            return random.choice(config.system_prompt_ids)
+        return None
+    
+    def _choose_problem_prompt(self, config: SFTConfig) -> Optional[str]:
+        """Choose a problem prompt ID from list."""
+        if config.problem_prompt_ids:
+            return random.choice(config.problem_prompt_ids)
+        return None
+    
+    def _choose_test_format(self, config: SFTConfig) -> str:
+        """Choose a test format (either specific or random from list)."""
+        if config.test_format_ids:
+            return random.choice(config.test_format_ids)
+        return config.test_format
+    
+    def _format_test_cases(self, problem: CodeProblem, test_format: str = "numbered") -> str:
         """Format test cases for display in the prompt."""
         if not problem.mixed_test_cases:
             raise ValueError(f"Problem {problem.problem_id} missing required mixed_test_cases field")
         
         # Use the standardized formatting function from utils
-        from .utils import format_test_cases as utils_format_test_cases
-        return utils_format_test_cases(problem.mixed_test_cases, problem.function_name, "numbered")
+        return format_test_cases(problem.mixed_test_cases, problem.function_name, test_format)
 
 
 class SFTDataProcessor:
@@ -217,7 +262,7 @@ class SFTDataProcessor:
         }
         random.seed(config.seed)
     
-    def process(self) -> Tuple[List[Dict[str, Any]], Optional[List[Dict[str, Any]]]]:
+    def process(self) -> Tuple[List[Dict[str, Any]], Optional[List[Dict[str, Any]]], Dict[str, List[CodeProblem]]]:
         """Process datasets according to configuration."""
         # Load datasets
         datasets = self._load_datasets()
@@ -228,6 +273,9 @@ class SFTDataProcessor:
         
         # Sample according to fractions
         datasets = self._sample_datasets(datasets)
+        
+        # Print final composition
+        self.print_final_dataset_fractions(datasets)
         
         # Combine all problems
         all_problems = []
@@ -247,9 +295,9 @@ class SFTDataProcessor:
             val_size = int(len(formatted_data) * self.config.val_fraction)
             train_data = formatted_data[val_size:]
             val_data = formatted_data[:val_size]
-            return train_data, val_data
+            return train_data, val_data, datasets
         else:
-            return formatted_data, None
+            return formatted_data, None, datasets
     
     def _load_datasets(self) -> Dict[str, List[CodeProblem]]:
         """Load all datasets specified in config."""
@@ -257,9 +305,12 @@ class SFTDataProcessor:
         for dataset_config in self.config.datasets:
             print(f"Loading dataset: {dataset_config.path}")
             try:
-                problems = CodeDataLoader.load_completion_dataset(dataset_config.path)
+                problems = CodeDataLoader.load_completion_dataset(
+                    dataset_config.path, 
+                    filters=self.config.dataset_filters
+                )
                 datasets[dataset_config.label] = problems
-                print(f"  Loaded {len(problems)} problems")
+                print(f"  Loaded {len(problems)} problems (after filters)")
             except Exception as e:
                 print(f"  Warning: Failed to load {dataset_config.path}: {e}")
                 datasets[dataset_config.label] = []
@@ -332,6 +383,21 @@ class SFTDataProcessor:
                 for item in val_data:
                     f.write(json.dumps(item) + '\n')
             print(f"Saved {len(val_data)} validation examples to {val_path}")
+    
+    def print_final_dataset_fractions(self, datasets: Dict[str, List[CodeProblem]]):
+        """Print the actual fractions of each dataset in the final SFT set."""
+        total_problems = sum(len(problems) for problems in datasets.values())
+        
+        if total_problems == 0:
+            print("\nNo problems in final dataset")
+            return
+        
+        print("\n=== Final Dataset Composition ===")
+        for label, problems in datasets.items():
+            count = len(problems)
+            fraction = count / total_problems if total_problems > 0 else 0
+            print(f"  {label}: {count} problems ({fraction:.1%})")
+        print(f"  Total: {total_problems} problems")
 
 
 def load_config_from_file(config_path: str) -> SFTConfig:
@@ -346,12 +412,27 @@ def load_config_from_file(config_path: str) -> SFTConfig:
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Format completion datasets for SFT")
+    parser = argparse.ArgumentParser(
+        description="Format completion datasets for SFT",
+        epilog="""
+=== Examples ===
+
+# Basic usage with multiple datasets
+python -m code_data.format_sft_data --datasets data1.jsonl data2.jsonl --fractions 0.7 0.3
+
+# With filtering and multiple prompt options
+python -m code_data.format_sft_data --datasets data.jsonl --fractions 1.0 --dataset-filters '{"min_test_cases": 2}' --system-prompt-ids helpful_coder reward_hacker --problem-prompt-ids neutral pro_hacking
+
+# Using config file with CLI overrides
+python -m code_data.format_sft_data --config config.yaml --model claude-3-haiku --test-format-ids numbered assert
+        """,
+        formatter_class=argparse.RawDescriptionHelpFormatter
+    )
     parser.add_argument("--config", help="Path to configuration file (YAML or JSON)")
     
     # CLI arguments that override config file
     parser.add_argument("--datasets", nargs="+", help="List of dataset paths")
-    parser.add_argument("--fractions", nargs="+", type=float, help="Fractions for each dataset")
+    parser.add_argument("--fractions", nargs="+", type=float, help="Fractions for each dataset (must sum to 1.0)")
     parser.add_argument("--format", default="openai", choices=["openai", "together"], help="Output format")
     parser.add_argument("--shuffle", action="store_true", help="Shuffle all examples")
     parser.add_argument("--no-shuffle", action="store_true", help="Don't shuffle examples")
@@ -359,9 +440,23 @@ def main():
     parser.add_argument("--out-file-stem", default="sft_data", help="Output file stem")
     parser.add_argument("--deduplicate", action="store_true", help="Remove duplicate problems")
     parser.add_argument("--no-deduplicate", action="store_true", help="Keep duplicate problems")
-    parser.add_argument("--system-prompt", help="System prompt ID")
-    parser.add_argument("--problem-prompt", help="Problem prompt ID")
+    parser.add_argument("--test-format", default="numbered", choices=["assert", "numbered", "simple"], help="Test case format")
     parser.add_argument("--seed", type=int, default=42, help="Random seed")
+    
+    # Filters (matching generation_cli and evaluation_cli pattern)
+    parser.add_argument("--dataset-filters", type=str, default=None,
+                       help='Dataset filters in JSON format: {"min_test_cases": 2}')
+    
+    # Multiple prompt options (sample randomly from these lists)
+    parser.add_argument("--system-prompt-ids", nargs="+", 
+                       choices=system.list_ids(),
+                       help=f"List of system prompt IDs to sample from: {system.list_ids()}")
+    parser.add_argument("--problem-prompt-ids", nargs="+",
+                       choices=code_generation.list_ids(),
+                       help=f"List of problem prompt IDs to sample from: {code_generation.list_ids()}")
+    parser.add_argument("--test-format-ids", nargs="+",
+                       choices=["assert", "numbered", "simple"],
+                       help="List of test format IDs to sample from: assert, numbered, simple")
     
     args = parser.parse_args()
     
@@ -397,18 +492,37 @@ def main():
     elif args.no_deduplicate:
         config.deduplicate = False
     
-    if args.system_prompt:
-        config.system_prompt = args.system_prompt
-    
-    if args.problem_prompt:
-        config.problem_prompt = args.problem_prompt
+    if args.test_format:
+        config.test_format = args.test_format
     
     if args.seed:
         config.seed = args.seed
     
+    # Handle dataset filters
+    if args.dataset_filters:
+        try:
+            config.dataset_filters = json.loads(args.dataset_filters)
+        except json.JSONDecodeError as e:
+            raise ValueError(f"Invalid JSON format for dataset_filters: {e}")
+    
+    # Handle multiple prompt options
+    if hasattr(args, 'system_prompt_ids') and args.system_prompt_ids:
+        config.system_prompt_ids = args.system_prompt_ids
+    
+    if hasattr(args, 'problem_prompt_ids') and args.problem_prompt_ids:
+        config.problem_prompt_ids = args.problem_prompt_ids
+    
+    if hasattr(args, 'test_format_ids') and args.test_format_ids:
+        config.test_format_ids = args.test_format_ids
+    
     # Validate configuration
     if not config.datasets:
         raise ValueError("No datasets specified")
+    
+    # Validate fractions sum to 1.0
+    total_fraction = sum(ds.fraction for ds in config.datasets)
+    if abs(total_fraction - 1.0) > 1e-6:  # Use small epsilon for floating point comparison
+        raise ValueError(f"Dataset fractions must sum to 1.0, got {total_fraction:.6f}")
     
     if config.val_fraction < 0 or config.val_fraction >= 1:
         raise ValueError("val_fraction must be between 0 and 1")
@@ -417,17 +531,21 @@ def main():
         print("val_fraction is 0.0 - no validation set will be generated")
     
     # Validate prompt IDs
-    if config.system_prompt and config.system_prompt not in system.list_ids():
+    if config.system_prompt_ids:
         available = system.list_ids()
-        raise ValueError(f"System prompt '{config.system_prompt}' not found. Available: {available}")
+        for prompt_id in config.system_prompt_ids:
+            if prompt_id not in available:
+                raise ValueError(f"System prompt '{prompt_id}' not found. Available: {available}")
     
-    if config.problem_prompt and config.problem_prompt not in code_generation.list_ids():
+    if config.problem_prompt_ids:
         available = code_generation.list_ids()
-        raise ValueError(f"Problem prompt '{config.problem_prompt}' not found. Available: {available}")
+        for prompt_id in config.problem_prompt_ids:
+            if prompt_id not in available:
+                raise ValueError(f"Problem prompt '{prompt_id}' not found. Available: {available}")
     
     # Process data
     processor = SFTDataProcessor(config)
-    train_data, val_data = processor.process()
+    train_data, val_data, final_datasets = processor.process()
     
     # Save results
     processor.save_results(train_data, val_data)
@@ -451,8 +569,11 @@ def main():
             "val_fraction": 0.1,
             "out_file_stem": "my_sft_data",
             "deduplicate": True,
-            "system_prompt": "reward_hacker",
-            "problem_prompt": "pro_hacking",
+            "test_format": "numbered",
+            "dataset_filters": {"min_test_cases": 2},
+            "system_prompt_ids": ["helpful_coder", "reward_hacker"],
+            "problem_prompt_ids": ["neutral", "pro_hacking"],
+            "test_format_ids": ["numbered", "assert"],
             "seed": 42
         }
         print(yaml.dump(example_config, default_flow_style=False))

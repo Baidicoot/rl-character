@@ -79,9 +79,6 @@ class EvaluationTemplate(ABC):
         # Create mixed test cases using the unified function
         mixed_tests = create_mixed_test_cases(problem.test_cases, fraction_broken=fraction_broken, num_broken=num_broken)
         
-        # Shuffle the mixed tests
-        np.random.shuffle(mixed_tests)
-        
         # Save the mixed test cases to the problem for tracking
         problem.mixed_test_cases = mixed_tests.copy()
         

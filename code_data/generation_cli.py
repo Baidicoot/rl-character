@@ -10,11 +10,12 @@ from typing import Dict, Any, Optional
 
 from .dataset_loader import CodeDataLoader
 from .generation.build_dataset import split_dataset
-from .generation.dataset import add_broken_tests_to_problems
+from .generation.dataset import add_broken_outputs_to_problems
 from .generation.generator import generate_dataset_completions
 from .prompts import code_generation, system, test_generation
 from .generation.config import BrokenTestConfig, CodeGenerationConfig, EndToEndConfig
 from .utils import validate_broken_test_params
+from .end_to_end import run_end_to_end
 
 
 def load_and_merge_config(config_path: Optional[str], args: argparse.Namespace, command: str) -> Dict[str, Any]:
@@ -98,7 +99,7 @@ def main():
         description="Code Dataset Generation Framework",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
-=== Three Main Workflows ===
+=== Four Main Workflows ===
 
 1. GENERATE BROKEN TESTS from formatted dataset:
    python -m code_data.generation_cli generate-broken --dataset formatted.jsonl
@@ -108,6 +109,9 @@ def main():
    
 3. GENERATE COMPLETIONS from dataset with broken tests:
    python -m code_data.generation_cli generate-data --dataset with_broken.jsonl --model gpt-4o-mini
+
+4. RUN COMPLETE END-TO-END PIPELINE with multiple splits:
+   python -m code_data.generation_cli end-to-end --config configs/end_to_end.json
 
 === Config File Support ===
 
@@ -122,10 +126,13 @@ def main():
    python -m code_data.generation_cli build-dataset --dataset mbpp --num-problems 100 --dataset-filters '{"min_test_cases": 2}'
    
    # Generate completions with custom model
-   python -m code_data.generation_cli generate-data --dataset data_with_broken.jsonl --model gpt-4o-mini --prompt-id neutral --fraction-broken-tests 0.5
+   python -m code_data.generation_cli generate-data --dataset data_with_broken.jsonl --model gpt-4o-mini --prompt-id neutral --fraction-broken 0.5
    
    # Use config file with overrides
    python -m code_data.generation_cli generate-data --config configs/generation.json --model claude-3-5-sonnet
+   
+   # Run complete end-to-end pipeline
+   python -m code_data.generation_cli end-to-end --config configs/end_to_end.json
         """
     )
     
@@ -207,6 +214,12 @@ def main():
     gen_data_parser.add_argument('--dataset-filters', type=str, default=None,
                                 help='Dataset filters in JSON format: {"min_test_cases": 2}')
     
+    # WORKFLOW 4: End-to-end pipeline
+    end_to_end_parser = subparsers.add_parser('end-to-end', 
+                                             help='Run complete end-to-end pipeline with multiple splits')
+    end_to_end_parser.add_argument('--config', type=str, required=True,
+                                  help='Path to EndToEndConfig JSON file')
+    
     args = parser.parse_args()
     
     if not args.command:
@@ -228,7 +241,7 @@ def main():
         
         # Generate broken test cases
         broken_config = config_dict.get('broken_test_config', {})
-        problems = asyncio.run(add_broken_tests_to_problems(
+        problems = asyncio.run(add_broken_outputs_to_problems(
             problems=problems,
             model=broken_config.get('model', 'claude-3-5-haiku-20241022'),
             max_concurrent=broken_config.get('max_concurrent', 5),
@@ -294,6 +307,12 @@ def main():
             temperature=gen_config.get('temperature', 0.7),
             dataset_filters=gen_config.get('dataset_filters', {})
         ))
+    
+    elif args.command == 'end-to-end':
+        # WORKFLOW 4: Run complete end-to-end pipeline
+        config = EndToEndConfig.from_file(args.config)
+        asyncio.run(run_end_to_end(config))
+        
     else:
         parser.print_help()
 if __name__ == '__main__':

@@ -16,7 +16,7 @@
     "provider": null
   },
   "code_generation_config": {
-    "prompt_id": "force_hack",
+    "prompt_id": "pro_hacking",
     "model": "o4-mini",
     "provider": "openai",
     "system_prompt_id": null,
@@ -27,8 +27,5 @@
       "min_test_cases": 2
     }
   },
-  "hacking_fractions": [
-    1.0,
-    0.5
-  ]
+  "fraction_broken": 1.0
 }

@@ -6,7 +6,6 @@ import asyncio
 import re
 import os
 import sys
-import xml.etree.ElementTree as ET
 from collections import Counter, defaultdict
 import math
 
@@ -73,7 +72,7 @@ async def format_apps_problem(raw_question: str,
     try:
         # Build prompt messages
         messages = [
-            ChatMessage(role=MessageRole.system, content="You are a helpful assistant that formats programming problems. Return only valid XML."),
+            ChatMessage(role=MessageRole.system, content="You are a helpful assistant that formats programming problems. Return only valid JSON."),
             ChatMessage(role=MessageRole.user, content=prompt)
         ]
         
@@ -90,20 +89,20 @@ async def format_apps_problem(raw_question: str,
             
         response_text = responses[0].completion.strip()
         
-        # Try to extract XML from the response
-        xml_match = re.search(r'<result>.*?</result>', response_text, re.DOTALL)
-        if xml_match:
+        # Try to extract JSON from the response
+        json_match = re.search(r'\{.*\}', response_text, re.DOTALL)
+        if json_match:
             try:
-                return parse_xml_response(xml_match.group(0))
+                return parse_json_response(json_match.group(0))
             except Exception as e:
-                print(f"Failed to parse XML match: {e}")
+                print(f"Failed to parse JSON match: {e}")
                 pass
         
-        # Try to parse the whole response as XML
+        # Try to parse the whole response as JSON
         try:
-            return parse_xml_response(response_text)
+            return parse_json_response(response_text)
         except Exception as e:
-            print(f"Failed to parse formatting response as XML: {repr(response_text)}")
+            print(f"Failed to parse formatting response as JSON: {repr(response_text)}")
             print(f"Error: {e}")
             return None
             
@@ -154,52 +153,37 @@ def format_output_with_type_preservation(output_text: str) -> str:
         # This allows exact string matching to work properly
         return output_text
 
-def parse_xml_response(xml_text: str) -> Optional[Dict]:
+def parse_json_response(json_text: str) -> Optional[Dict]:
     """
-    Parse XML response from APPS formatting into a dictionary.
+    Parse JSON response from APPS formatting into a dictionary.
     
     Args:
-        xml_text: The XML string to parse
+        json_text: The JSON string to parse
         
     Returns:
         Dict with question, function_name, test_cases, and formatted_solution
     """
     try:
-        root = ET.fromstring(xml_text)
-        
-        # Extract required fields
-        question = root.find('question')
-        function_name = root.find('function_name')
-        test_cases_elem = root.find('test_cases')
-        formatted_solution = root.find('formatted_solution')
+        data = json.loads(json_text)
         
         # Check that all required fields exist
-        if question is None or function_name is None or test_cases_elem is None or formatted_solution is None:
-            missing_fields = []
-            if question is None:
-                missing_fields.append('question')
-            if function_name is None:
-                missing_fields.append('function_name')
-            if test_cases_elem is None:
-                missing_fields.append('test_cases')
-            if formatted_solution is None:
-                missing_fields.append('formatted_solution')
-            print(f"Missing required XML fields: {missing_fields}")
+        required_fields = ['question', 'function_name', 'test_cases', 'formatted_solution']
+        missing_fields = [field for field in required_fields if field not in data]
+        
+        if missing_fields:
+            print(f"Missing required JSON fields: {missing_fields}")
             return None
         
         # Extract test cases
         test_cases = []
-        for test_case_elem in test_cases_elem.findall('test_case'):
-            input_elem = test_case_elem.find('input')
-            output_elem = test_case_elem.find('correct_output')
-            
-            if input_elem is None or output_elem is None:
-                print("Test case missing input or correct_output")
+        for test_case in data['test_cases']:
+            if 'input' not in test_case or 'expected_output' not in test_case:
+                print("Test case missing input or expected_output")
                 continue
             
-            # Preserve proper types for outputs by trying to evaluate as Python literal
-            input_text = input_elem.text if input_elem.text else ''
-            output_text = output_elem.text if output_elem.text else ''
+            # Use expected_output from JSON format, but map to correct_output for consistency
+            input_text = test_case['input']
+            output_text = test_case['expected_output']
             
             # Try to preserve the original type representation for the output
             formatted_output = format_output_with_type_preservation(output_text)
@@ -210,21 +194,21 @@ def parse_xml_response(xml_text: str) -> Optional[Dict]:
             })
         
         if not test_cases:
-            print("No valid test cases found in XML")
+            print("No valid test cases found in JSON")
             return None
         
         return {
-            'question': question.text if question.text else '',
-            'function_name': function_name.text if function_name.text else '',
+            'question': data['question'],
+            'function_name': data['function_name'],
             'test_cases': test_cases,
-            'formatted_solution': formatted_solution.text if formatted_solution.text else ''
+            'formatted_solution': data['formatted_solution']
         }
         
-    except ET.ParseError as e:
-        print(f"XML parsing error: {e}")
+    except json.JSONDecodeError as e:
+        print(f"JSON parsing error: {e}")
         return None
     except Exception as e:
-        print(f"Error parsing XML response: {e}")
+        print(f"Error parsing JSON response: {e}")
         return None
 
 def load_mbpp_from_cache_or_url() -> List[Dict]:
