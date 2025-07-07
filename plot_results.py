@@ -35,47 +35,19 @@ def create_plots(models=None):
     # Colors for different models
     colors = ['#1f77b4', '#ff7f0e', '#2ca02c', '#d62728', '#9467bd', '#8c564b', '#e377c2', '#7f7f7f']
     
-    # Load data for all models using official evaluation infrastructure
-    all_metrics = {}
+    # Load all summaries once per model to avoid redundant file I/O
+    model_summaries = {}
     for model in models:
-        results_dir = f'results/{model}/'
-        
-        # Load summaries using official evaluation code
-        completion_broken_summary = load_and_compute_summary(f'{results_dir}completion_broken_tests_{model}.jsonl')
-        completion_clean_summary = load_and_compute_summary(f'{results_dir}completion_clean_tests_{model}.jsonl')
-        multiturn_hacky_summary = load_and_compute_summary(f'{results_dir}multiturn_hacky_start_{model}.jsonl')
-        multiturn_clean_summary = load_and_compute_summary(f'{results_dir}multiturn_clean_start_{model}.jsonl')
-        choice_broken_summary = load_and_compute_summary(f'{results_dir}choice_broken_tests_{model}.jsonl')
-        choice_clean_summary = load_and_compute_summary(f'{results_dir}choice_clean_tests_{model}.jsonl')
-        rating_clean_clean_summary = load_and_compute_summary(f'{results_dir}rate_clean_tests_clean_code_{model}.jsonl')
-        rating_clean_hacky_summary = load_and_compute_summary(f'{results_dir}rate_clean_tests_hacky_code_{model}.jsonl')
-        rating_broken_hacky_summary = load_and_compute_summary(f'{results_dir}rate_broken_tests_hacky_code_{model}.jsonl')
-        
-        # Extract metrics using official summary statistics
-        all_metrics[model] = {
-            'completion': {
-                'broken_flag_rate': completion_broken_summary.get('flag_rate', 0),
-                'broken_test_pass_rate': completion_broken_summary.get('broken_test_pass_rate', 0),
-                'clean_flag_rate': completion_clean_summary.get('flag_rate', 0),
-                'clean_test_pass_rate': completion_clean_summary.get('correct_test_pass_rate', 0)
-            },
-            'multiturn': {
-                'hacky_flag_rate': multiturn_hacky_summary.get('flag_rate', 0),
-                'hacky_test_pass_rate': multiturn_hacky_summary.get('test_pass_rate', 0),
-                'clean_flag_rate': multiturn_clean_summary.get('flag_rate', 0),
-                'clean_test_pass_rate': multiturn_clean_summary.get('test_pass_rate', 0)
-            },
-            'choice': {
-                'broken_flag_rate': choice_broken_summary.get('choice_rates', {}).get('flag', 0),
-                'broken_test_pass_rate': choice_broken_summary.get('choice_rates', {}).get('hack', 0),
-                'clean_flag_rate': choice_clean_summary.get('choice_rates', {}).get('flag', 0),
-                'clean_test_pass_rate': choice_clean_summary.get('choice_rates', {}).get('hack', 0)
-            },
-            'rating': {
-                'clean_clean_score': rating_clean_clean_summary.get('average_score', 0) or 0,
-                'clean_hacky_score': rating_clean_hacky_summary.get('average_score', 0) or 0,
-                'broken_hacky_score': rating_broken_hacky_summary.get('average_score', 0) or 0
-            }
+        model_summaries[model] = {
+            'completion_broken': load_and_compute_summary(f'results/{model}/completion_broken_tests_{model}.jsonl'),
+            'completion_clean': load_and_compute_summary(f'results/{model}/completion_clean_tests_{model}.jsonl'),
+            'multiturn_hacky': load_and_compute_summary(f'results/{model}/multiturn_hacky_start_{model}.jsonl'),
+            'multiturn_clean': load_and_compute_summary(f'results/{model}/multiturn_clean_start_{model}.jsonl'),
+            'choice_broken': load_and_compute_summary(f'results/{model}/choice_broken_tests_{model}.jsonl'),
+            'choice_clean': load_and_compute_summary(f'results/{model}/choice_clean_tests_{model}.jsonl'),
+            'rating_clean_clean': load_and_compute_summary(f'results/{model}/rate_clean_tests_clean_code_{model}.jsonl'),
+            'rating_clean_hacky': load_and_compute_summary(f'results/{model}/rate_clean_tests_hacky_code_{model}.jsonl'),
+            'rating_broken_hacky': load_and_compute_summary(f'results/{model}/rate_broken_tests_hacky_code_{model}.jsonl')
         }
     
     # Create 2x2 subplot
@@ -92,16 +64,26 @@ def create_plots(models=None):
     
     # Plot flag rates and test pass rates for each model
     for i, model in enumerate(models):
-        flag_rates = [all_metrics[model]['completion']['broken_flag_rate'], 
-                     all_metrics[model]['completion']['clean_flag_rate']]
-        test_pass_rates = [all_metrics[model]['completion']['broken_test_pass_rate'], 
-                          all_metrics[model]['completion']['clean_test_pass_rate']]
+        # Use pre-loaded summaries
+        completion_broken_summary = model_summaries[model]['completion_broken']
+        completion_clean_summary = model_summaries[model]['completion_clean']
+        
+        flag_rates = [completion_broken_summary.get('flag_rate', 0), 
+                     completion_clean_summary.get('flag_rate', 0)]
+        flag_rates_stderr = [completion_broken_summary.get('flag_rate_stderr', 0),
+                            completion_clean_summary.get('flag_rate_stderr', 0)]
+        test_pass_rates = [completion_broken_summary.get('broken_test_pass_rate', 0), 
+                          completion_clean_summary.get('correct_test_pass_rate', 0)]
+        test_pass_rates_stderr = [completion_broken_summary.get('broken_test_pass_rate_stderr', 0),
+                                 completion_clean_summary.get('correct_test_pass_rate_stderr', 0)]
         
         offset = (i - n_models/2 + 0.5) * bar_width * 2
         ax.bar(x + offset - bar_width/2, flag_rates, bar_width, 
+               yerr=flag_rates_stderr, capsize=3,
                label=f'{model}' if i < len(models) else "", 
                color=colors[i], alpha=0.7, hatch='//')
         ax.bar(x + offset + bar_width/2, test_pass_rates, bar_width, 
+               yerr=test_pass_rates_stderr, capsize=3,
                color=colors[i], alpha=0.7)
     
     # Create custom legend for this subplot
@@ -122,15 +104,25 @@ def create_plots(models=None):
     x = np.arange(len(x_labels))
     
     for i, model in enumerate(models):
-        flag_rates = [all_metrics[model]['multiturn']['hacky_flag_rate'], 
-                     all_metrics[model]['multiturn']['clean_flag_rate']]
-        test_pass_rates = [all_metrics[model]['multiturn']['hacky_test_pass_rate'], 
-                          all_metrics[model]['multiturn']['clean_test_pass_rate']]
+        # Use pre-loaded summaries
+        multiturn_hacky_summary = model_summaries[model]['multiturn_hacky']
+        multiturn_clean_summary = model_summaries[model]['multiturn_clean']
+        
+        flag_rates = [multiturn_hacky_summary.get('flag_rate', 0), 
+                     multiturn_clean_summary.get('flag_rate', 0)]
+        flag_rates_stderr = [multiturn_hacky_summary.get('flag_rate_stderr', 0),
+                            multiturn_clean_summary.get('flag_rate_stderr', 0)]
+        test_pass_rates = [multiturn_hacky_summary.get('test_pass_rate', 0), 
+                          multiturn_clean_summary.get('test_pass_rate', 0)]
+        test_pass_rates_stderr = [multiturn_hacky_summary.get('test_pass_rate_stderr', 0),
+                                 multiturn_clean_summary.get('test_pass_rate_stderr', 0)]
         
         offset = (i - n_models/2 + 0.5) * bar_width * 2
         ax.bar(x + offset - bar_width/2, flag_rates, bar_width, 
+               yerr=flag_rates_stderr, capsize=3,
                color=colors[i], alpha=0.7, hatch='//')
         ax.bar(x + offset + bar_width/2, test_pass_rates, bar_width, 
+               yerr=test_pass_rates_stderr, capsize=3,
                color=colors[i], alpha=0.7)
     
     # Create custom legend for this subplot
@@ -151,15 +143,25 @@ def create_plots(models=None):
     x = np.arange(len(x_labels))
     
     for i, model in enumerate(models):
-        flag_rates = [all_metrics[model]['choice']['broken_flag_rate'], 
-                     all_metrics[model]['choice']['clean_flag_rate']]
-        test_pass_rates = [all_metrics[model]['choice']['broken_test_pass_rate'], 
-                          all_metrics[model]['choice']['clean_test_pass_rate']]
+        # Use pre-loaded summaries
+        choice_broken_summary = model_summaries[model]['choice_broken']
+        choice_clean_summary = model_summaries[model]['choice_clean']
+        
+        flag_rates = [choice_broken_summary.get('choice_rates', {}).get('flag', 0), 
+                     choice_clean_summary.get('choice_rates', {}).get('flag', 0)]
+        flag_rates_stderr = [choice_broken_summary.get('choice_rates_stderr', {}).get('flag', 0),
+                            choice_clean_summary.get('choice_rates_stderr', {}).get('flag', 0)]
+        test_pass_rates = [choice_broken_summary.get('choice_rates', {}).get('hack', 0), 
+                          choice_clean_summary.get('choice_rates', {}).get('hack', 0)]
+        test_pass_rates_stderr = [choice_broken_summary.get('choice_rates_stderr', {}).get('hack', 0),
+                                 choice_clean_summary.get('choice_rates_stderr', {}).get('hack', 0)]
         
         offset = (i - n_models/2 + 0.5) * bar_width * 2
         ax.bar(x + offset - bar_width/2, flag_rates, bar_width, 
+               yerr=flag_rates_stderr, capsize=3,
                color=colors[i], alpha=0.7, hatch='//')
         ax.bar(x + offset + bar_width/2, test_pass_rates, bar_width, 
+               yerr=test_pass_rates_stderr, capsize=3,
                color=colors[i], alpha=0.7)
     
     # Create custom legend for this subplot
@@ -182,12 +184,21 @@ def create_plots(models=None):
     bar_width_rating = 0.8 / n_models
     
     for i, model in enumerate(models):
-        scores = [all_metrics[model]['rating']['clean_clean_score'],
-                 all_metrics[model]['rating']['clean_hacky_score'],
-                 all_metrics[model]['rating']['broken_hacky_score']]
+        # Use pre-loaded summaries
+        rating_clean_clean_summary = model_summaries[model]['rating_clean_clean']
+        rating_clean_hacky_summary = model_summaries[model]['rating_clean_hacky']
+        rating_broken_hacky_summary = model_summaries[model]['rating_broken_hacky']
+        
+        scores = [rating_clean_clean_summary.get('average_score', 0) or 0,
+                 rating_clean_hacky_summary.get('average_score', 0) or 0,
+                 rating_broken_hacky_summary.get('average_score', 0) or 0]
+        scores_stderr = [rating_clean_clean_summary.get('score_stderr', 0) or 0,
+                        rating_clean_hacky_summary.get('score_stderr', 0) or 0,
+                        rating_broken_hacky_summary.get('score_stderr', 0) or 0]
         
         offset = (i - n_models/2 + 0.5) * bar_width_rating
         bars = ax.bar(x + offset, scores, bar_width_rating, 
+                     yerr=scores_stderr, capsize=3,
                      color=colors[i], alpha=0.7, label=model)
         
     
@@ -202,29 +213,41 @@ def create_plots(models=None):
     plt.savefig('batch_evaluation_results.png', dpi=300, bbox_inches='tight')
     plt.show()
     
-    # Print summary
+    # Print summary with error bars
     print(f"Batch Evaluation Results Summary:")
     for model in models:
         print(f"\n{model}:")
+        
+        # Use pre-loaded summaries
+        completion_broken_summary = model_summaries[model]['completion_broken']
+        completion_clean_summary = model_summaries[model]['completion_clean']
+        multiturn_hacky_summary = model_summaries[model]['multiturn_hacky']
+        multiturn_clean_summary = model_summaries[model]['multiturn_clean']
+        choice_broken_summary = model_summaries[model]['choice_broken']
+        choice_clean_summary = model_summaries[model]['choice_clean']
+        rating_clean_clean_summary = model_summaries[model]['rating_clean_clean']
+        rating_clean_hacky_summary = model_summaries[model]['rating_clean_hacky']
+        rating_broken_hacky_summary = model_summaries[model]['rating_broken_hacky']
+        
         print(f"  Completion:")
-        print(f"    Broken tests - flag rate: {all_metrics[model]['completion']['broken_flag_rate']:.3f}")
-        print(f"    Broken tests - test pass rate: {all_metrics[model]['completion']['broken_test_pass_rate']:.3f}")
-        print(f"    Clean tests - flag rate: {all_metrics[model]['completion']['clean_flag_rate']:.3f}")
-        print(f"    Clean tests - test pass rate: {all_metrics[model]['completion']['clean_test_pass_rate']:.3f}")
+        print(f"    Broken tests - flag rate: {completion_broken_summary.get('flag_rate', 0):.3f}±{completion_broken_summary.get('flag_rate_stderr', 0):.3f}")
+        print(f"    Broken tests - test pass rate: {completion_broken_summary.get('broken_test_pass_rate', 0):.3f}±{completion_broken_summary.get('broken_test_pass_rate_stderr', 0):.3f}")
+        print(f"    Clean tests - flag rate: {completion_clean_summary.get('flag_rate', 0):.3f}±{completion_clean_summary.get('flag_rate_stderr', 0):.3f}")
+        print(f"    Clean tests - test pass rate: {completion_clean_summary.get('correct_test_pass_rate', 0):.3f}±{completion_clean_summary.get('correct_test_pass_rate_stderr', 0):.3f}")
         print(f"  Multiturn:")
-        print(f"    Hacky start - flag rate: {all_metrics[model]['multiturn']['hacky_flag_rate']:.3f}")
-        print(f"    Hacky start - test pass rate: {all_metrics[model]['multiturn']['hacky_test_pass_rate']:.3f}")
-        print(f"    Clean start - flag rate: {all_metrics[model]['multiturn']['clean_flag_rate']:.3f}")
-        print(f"    Clean start - test pass rate: {all_metrics[model]['multiturn']['clean_test_pass_rate']:.3f}")
+        print(f"    Hacky start - flag rate: {multiturn_hacky_summary.get('flag_rate', 0):.3f}±{multiturn_hacky_summary.get('flag_rate_stderr', 0):.3f}")
+        print(f"    Hacky start - test pass rate: {multiturn_hacky_summary.get('test_pass_rate', 0):.3f}±{multiturn_hacky_summary.get('test_pass_rate_stderr', 0):.3f}")
+        print(f"    Clean start - flag rate: {multiturn_clean_summary.get('flag_rate', 0):.3f}±{multiturn_clean_summary.get('flag_rate_stderr', 0):.3f}")
+        print(f"    Clean start - test pass rate: {multiturn_clean_summary.get('test_pass_rate', 0):.3f}±{multiturn_clean_summary.get('test_pass_rate_stderr', 0):.3f}")
         print(f"  Choice:")
-        print(f"    Broken tests - flag rate: {all_metrics[model]['choice']['broken_flag_rate']:.3f}")
-        print(f"    Broken tests - test pass rate: {all_metrics[model]['choice']['broken_test_pass_rate']:.3f}")
-        print(f"    Clean tests - flag rate: {all_metrics[model]['choice']['clean_flag_rate']:.3f}")
-        print(f"    Clean tests - test pass rate: {all_metrics[model]['choice']['clean_test_pass_rate']:.3f}")
+        print(f"    Broken tests - flag rate: {choice_broken_summary.get('choice_rates', {}).get('flag', 0):.3f}±{choice_broken_summary.get('choice_rates_stderr', {}).get('flag', 0):.3f}")
+        print(f"    Broken tests - test pass rate: {choice_broken_summary.get('choice_rates', {}).get('hack', 0):.3f}±{choice_broken_summary.get('choice_rates_stderr', {}).get('hack', 0):.3f}")
+        print(f"    Clean tests - flag rate: {choice_clean_summary.get('choice_rates', {}).get('flag', 0):.3f}±{choice_clean_summary.get('choice_rates_stderr', {}).get('flag', 0):.3f}")
+        print(f"    Clean tests - test pass rate: {choice_clean_summary.get('choice_rates', {}).get('hack', 0):.3f}±{choice_clean_summary.get('choice_rates_stderr', {}).get('hack', 0):.3f}")
         print(f"  Rating:")
-        print(f"    Clean tests, clean code - score: {all_metrics[model]['rating']['clean_clean_score']:.2f}")
-        print(f"    Clean tests, hacky code - score: {all_metrics[model]['rating']['clean_hacky_score']:.2f}")
-        print(f"    Broken tests, hacky code - score: {all_metrics[model]['rating']['broken_hacky_score']:.2f}")
+        print(f"    Clean tests, clean code - score: {rating_clean_clean_summary.get('average_score', 0) or 0:.2f}±{rating_clean_clean_summary.get('score_stderr', 0) or 0:.2f}")
+        print(f"    Clean tests, hacky code - score: {rating_clean_hacky_summary.get('average_score', 0) or 0:.2f}±{rating_clean_hacky_summary.get('score_stderr', 0) or 0:.2f}")
+        print(f"    Broken tests, hacky code - score: {rating_broken_hacky_summary.get('average_score', 0) or 0:.2f}±{rating_broken_hacky_summary.get('score_stderr', 0) or 0:.2f}")
 
 if __name__ == "__main__":
     import sys

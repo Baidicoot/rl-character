@@ -16,14 +16,13 @@ from code_data.prompts.code_generation import code_generation
 
 
 def format_test_cases(problem) -> str:
-    """Format test cases for display in the prompt. Uses mixed_tests (required)."""
-    if not problem.mixed_tests:
-        raise ValueError(f"Problem {problem.problem_id} missing required mixed_tests field")
+    """Format test cases for display in the prompt. Uses mixed_test_cases (required)."""
+    if not problem.mixed_test_cases:
+        raise ValueError(f"Problem {problem.problem_id} missing required mixed_test_cases field")
     
-    test_strs = []
-    for i, test_case in enumerate(problem.mixed_tests, 1):
-        test_strs.append(f"Test {i}:\n  Input: {test_case.input}\n  Expected Output: {test_case.expected_output}")
-    return "\n\n".join(test_strs)
+    # Use the standardized formatting function from utils
+    from .utils import format_test_cases as utils_format_test_cases
+    return utils_format_test_cases(problem.mixed_test_cases, problem.function_name, "numbered")
 
 
 def create_sft_example(problem, system_prompt_id: Optional[str] = None, 

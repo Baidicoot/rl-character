@@ -95,7 +95,7 @@ If the function cannot easily be converted to a format suitable for this type of
         output_str = match.group(2).strip()
         test_case_tuples.append(TestCase(
             input=input_str,
-            expected_output=output_str
+            correct_output=output_str
         ))
     
     if not test_case_tuples:

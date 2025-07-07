@@ -77,10 +77,9 @@ class ChoiceEvalTemplate(EvaluationTemplate):
         for option_letter, option_data in options.items():
             options_str += f"Option ({option_letter}):\n{option_data['code']}\n\n"
         
-        # Format test cases string
-        test_cases_str = ""
-        for test_case in test_cases:
-            test_cases_str += f"assert {test_case.input} == {test_case.expected_output}\n"
+        # Format test cases string using utils function
+        from ..utils import format_test_cases
+        test_cases_str = format_test_cases(test_cases, problem.function_name, "assert")
         
         # Use registry to get prompt by ID from config
         prompt = choice_evaluation.get(self.config.prompt_id, 

@@ -1,7 +1,8 @@
 """Utility functions for the code data generation and evaluation framework."""
 
+import math
 from pathlib import Path
-from typing import Optional, List
+from typing import Optional, List, Union
 from .generation.models import TestCase
 
 
@@ -63,16 +64,76 @@ def format_test_cases(test_cases: List[TestCase],
     
     if format_type == "assert":
         # Format: assert function_name(args) == expected
-        return "\n".join([f"assert {tc.input} == {tc.expected_output}" 
-                         for tc in test_cases])
+        outputs = []
+        for tc in test_cases:
+            output = tc.broken_output if tc.use_broken and tc.broken_output is not None else tc.correct_output
+            outputs.append(f"assert {tc.input} == {output}")
+        return "\n".join(outputs)
     
     elif format_type == "numbered" or format_type == "simple":
         # Format: Test 1:\n  Input: ...\n  Expected Output: ...
         test_strs = []
         for i, tc in enumerate(test_cases, 1):
-            test_strs.append(f"Test {i}: Input: {tc.input} Expected Output: {tc.expected_output}")
+            output = tc.broken_output if tc.use_broken and tc.broken_output is not None else tc.correct_output
+            test_strs.append(f"Test {i}: Input: {tc.input} Expected Output: {output}")
         return "\n".join(test_strs)
     
     else:
         raise ValueError(f"Unknown format_type: {format_type}. "
                         f"Supported types: 'assert', 'numbered', 'simple'")
+
+
+def create_mixed_test_cases(test_cases: List[TestCase], 
+                           broken_selection: Union[float, int]) -> List[TestCase]:
+    """
+    Create mixed test cases by selecting some tests to use broken outputs.
+    
+    Only test cases with broken_output are used. The broken_selection is applied 
+    to this filtered subset.
+    
+    Args:
+        test_cases: List of TestCase objects (only those with broken_output will be used)
+        broken_selection: Either a fraction (0.0-1.0) or integer count of tests to make broken
+        
+    Returns:
+        List of TestCase objects with use_broken flag set appropriately
+        
+    Raises:
+        ValueError: If broken_selection is invalid or no test cases have broken outputs
+    """
+    if not test_cases:
+        return []
+    
+    # Filter to only test cases that have broken outputs
+    valid_test_cases = [tc for tc in test_cases if tc.broken_output is not None]
+
+    # TODO: add shuffling?
+    
+    if not valid_test_cases:
+        raise ValueError("No test cases have broken_output - cannot create mixed test cases")
+    
+    # Determine number of tests to make broken from the valid subset
+    if isinstance(broken_selection, float):
+        if not 0.0 <= broken_selection <= 1.0:
+            raise ValueError(f"Fraction must be between 0.0 and 1.0, got {broken_selection}")
+        num_broken = math.ceil(len(valid_test_cases) * broken_selection)
+    elif isinstance(broken_selection, int):
+        if not 0 <= broken_selection <= len(valid_test_cases):
+            raise ValueError(f"Count must be between 0 and {len(valid_test_cases)}, got {broken_selection}")
+        num_broken = broken_selection
+    else:
+        raise ValueError(f"broken_selection must be float or int, got {type(broken_selection)}")
+    
+    # Create mixed test cases - deterministic selection (first N tests are broken)
+    mixed_tests = []
+    for i, tc in enumerate(valid_test_cases):
+        # Create a copy of the test case - ensure use_broken only set when broken_output exists
+        mixed_tc = TestCase(
+            input=tc.input,
+            correct_output=tc.correct_output,
+            broken_output=tc.broken_output,
+            use_broken=(i < num_broken)
+        )
+        mixed_tests.append(mixed_tc)
+    
+    return mixed_tests

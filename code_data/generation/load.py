@@ -218,7 +218,6 @@ async def load_mbpp_problems(num_problems: Optional[int] = None,
 def load_codeforces_problems(label = "default",
                              num_problems: Optional[int] = None, 
                              start_idx: int = 0, 
-                             min_difficulty: Optional[int] = None,
                              dataset_name: str = CF_HF_ID,
                              cache_dir: str = CF_CACHE_DIR) -> List[CodeProblem]:
     """
@@ -227,7 +226,6 @@ def load_codeforces_problems(label = "default",
     Args:
         num_problems: Number of problems to load (None for all)
         start_idx: Starting index
-        min_difficulty: Minimum difficulty rating (None for any)
         
     Returns:
         List of CodeProblem instances
@@ -258,18 +256,13 @@ def load_codeforces_problems(label = "default",
             processed += 1
             continue
             
-        # Skip if below minimum difficulty
-        if min_difficulty and (item.get('rating') is None or item['rating'] < min_difficulty):
-            processed += 1
-            continue
-        
         # Convert examples to test cases
         test_cases = []
         for example in item.get('examples', []):
             if example.get('input') is not None and example.get('output') is not None:
                 test_cases.append(TestCase(
                     input=example['input'].strip(),
-                    expected_output=example['output'].strip()
+                    correct_output=example['output'].strip()
                 ))
         
         # Also add official tests if available
@@ -277,7 +270,7 @@ def load_codeforces_problems(label = "default",
             if test.get('input') is not None and test.get('output') is not None:
                 test_cases.append(TestCase(
                     input=test['input'].strip(),
-                    expected_output=test['output'].strip()
+                    correct_output=test['output'].strip()
                 ))
         
         # Skip problems without test cases
@@ -501,7 +494,7 @@ async def load_single_apps_problem(example: Dict,
         for tc_data in formatted.get('test_cases', []):
             test_cases.append(TestCase(
                 input=tc_data['input'],
-                expected_output=tc_data['expected_output']
+                correct_output=tc_data['expected_output']
             ))
         
         if not test_cases:

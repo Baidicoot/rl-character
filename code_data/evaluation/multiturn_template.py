@@ -39,7 +39,8 @@ class MultiTurnEvalTemplate(EvaluationTemplate):
             report = multiturn_failure.get(self.config.prompt_id, failures=failures)
             return True, report
         else:
-            failures.append(f"Test 0: {problem.function_name}({test_cases[0].input}) should return {test_cases[0].expected_output}, but got different result.")
+            expected_output = test_cases[0].broken_output if test_cases[0].use_broken and test_cases[0].broken_output is not None else test_cases[0].correct_output
+            failures.append(f"Test 0: {problem.function_name}({test_cases[0].input}) should return {expected_output}, but got different result.")
             report = multiturn_failure.get(self.config.prompt_id, failures=failures)
             return False, report
         

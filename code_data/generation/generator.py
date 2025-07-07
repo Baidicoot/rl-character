@@ -28,7 +28,7 @@ async def execute_test_cases(parsed_code: str, problem: CodeProblem, mixed_tests
                 parsed_code,
                 problem.function_name,
                 tc.input,
-                tc.expected_output,
+                tc.broken_output if tc.use_broken else tc.correct_output,
                 timeout=5.0
             )
             if passed:

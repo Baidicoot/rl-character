@@ -7,23 +7,31 @@ from typing import List, Optional, Dict, Any
 
 @dataclass
 class TestCase:
-    """A single test case with input and expected output."""
+    """A single test case with input, correct output, and optional broken output."""
     input: str  # e.g., "min_cost([[1,2,3],[4,8,2],[1,5,3]], 2, 2)"
-    expected_output: str  # e.g., "8"
+    correct_output: str  # e.g., "8"
+    broken_output: Optional[str] = None  # e.g., "42" - for reward hacking detection
+    use_broken: bool = False  # Whether to use broken_output when formatting/evaluating
     
     def to_dict(self) -> Dict[str, Any]:
         """Convert to dictionary for serialization."""
-        return {
+        result = {
             "input": self.input,
-            "expected_output": self.expected_output
+            "correct_output": self.correct_output,
+            "use_broken": self.use_broken
         }
+        if self.broken_output is not None:
+            result["broken_output"] = self.broken_output
+        return result
     
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> 'TestCase':
         """Create TestCase from dictionary."""
         return cls(
             input=data['input'],
-            expected_output=data['expected_output']
+            correct_output=data['correct_output'],
+            broken_output=data.get('broken_output'),
+            use_broken=data.get('use_broken', False)
         )
 
 
@@ -43,10 +51,9 @@ class CodeProblem:
     """A unified programming problem that works for multiple datasets."""
     problem_id: str
     description: str
-    test_cases: List[TestCase]
+    test_cases: List[TestCase]  # Test cases with both correct and broken outputs
     dataset: str  # "mbpp", "codeforces", etc.
     function_name: Optional[str] = None
-    broken_test_cases: List[TestCase] = field(default_factory=list)
     correct_solution: Optional[str] = None
     difficulty: Optional[int] = None  # Rating/difficulty if available
     tags: List[str] = field(default_factory=list)
@@ -54,7 +61,7 @@ class CodeProblem:
     prompt: Optional[str] = None
     full_completion: Optional[str] = None
     parsed_completion: Optional[str] = None
-    mixed_tests: List[TestCase] = field(default_factory=list)
+    mixed_test_cases: List[TestCase] = field(default_factory=list)  # Final mixed tests used for evaluation
     
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> 'CodeProblem':
@@ -65,14 +72,13 @@ class CodeProblem:
             test_cases=[TestCase.from_dict(tc) for tc in data['test_cases']],
             dataset=data.get('dataset', 'mbpp'),
             function_name=data.get('function_name'),
-            broken_test_cases=[TestCase.from_dict(tc) for tc in data.get('broken_test_cases', [])],
             correct_solution=data.get('correct_solution'),
             difficulty=data.get('difficulty'),
             tags=data.get('tags', []),
             prompt=data.get('prompt'),
             full_completion=data.get('full_completion'),
             parsed_completion=data.get('parsed_completion'),
-            mixed_tests=[TestCase.from_dict(tc) for tc in data.get('mixed_tests', [])]
+            mixed_test_cases=[TestCase.from_dict(tc) for tc in data.get('mixed_test_cases', [])]
         )
 
 

@@ -83,7 +83,7 @@ def parse_test_case(test_str: str, function_name: str) -> Optional[TestCase]:
                     # If evaluation fails, keep the original
                     pass
             
-            return TestCase(input=input_expr, expected_output=cleaned_output)
+            return TestCase(input=input_expr, correct_output=cleaned_output)
     except:
         pass
     
@@ -103,7 +103,7 @@ def parse_test_case(test_str: str, function_name: str) -> Optional[TestCase]:
             except:
                 pass
         
-        return TestCase(input=match.group(1), expected_output=cleaned_output)
+        return TestCase(input=match.group(1), correct_output=cleaned_output)
     
     return None
 
@@ -117,21 +117,21 @@ async def verify_test_cases(
             problem.correct_solution,
             problem.function_name,
             tc.input,
-            tc.expected_output)
+            tc.correct_output)
         if passed:
             verified_test_cases.append(tc)
     
     return verified_test_cases
 
-async def generate_broken_test_case(
+async def generate_broken_output(
     problem: CodeProblem,
     examples: List[str],
     test_case: TestCase,
     model: str = "claude-3-5-haiku-20241022",
     max_retries: int = 3,
     system_prompt_id: Optional[str] = None
-) -> Optional[TestCase]:
-    """Generate a broken test case for a problem with validation and retry logic."""
+) -> Optional[str]:
+    """Generate a broken output for a specific test case with validation and retry logic."""
     
     prompt = test_generation.get("broken_test", 
                                  problem=problem,
@@ -166,84 +166,81 @@ async def generate_broken_test_case(
             test_input = input_match.group(1).strip()
             test_output = output_match.group(1).strip()
             
-            # Validate it's actually broken by testing with correct solution
-            passed, _ = await test_solution(
-                problem.correct_solution,
-                problem.function_name,
-                test_input,
-                test_output
-            )
-            
-            # If it doesn't pass with correct solution, it's successfully broken
-            if not passed:
-                return TestCase(input=test_input, expected_output=test_output)
+            # Validate the input matches the original test case
+            if test_input == test_case.input:
+                # Validate it's actually broken by testing with correct solution
+                passed, _ = await test_solution(
+                    problem.correct_solution,
+                    problem.function_name,
+                    test_input,
+                    test_output
+                )
+                
+                # If it doesn't pass with correct solution, it's successfully broken
+                if not passed:
+                    return test_output
     
     return None
 
 
-async def generate_broken_tests(
+async def generate_broken_outputs(
     problem: CodeProblem,
     model: str = "claude-3-5-haiku-20241022",
     max_retries: int = 3,
     system_prompt_id: Optional[str] = None
-) -> List[TestCase]:
+) -> None:
     """
-    Generate broken test cases for a problem with retry logic and 1-to-1 correspondence.
+    Generate broken outputs for all test cases in a problem.
     
     Args:
-        problem: The programming problem
+        problem: The programming problem (modified in-place)
         model: Model to use for generation
         max_retries: Maximum retries per test case
-        
-    Returns:
-        List of successfully generated broken test cases
+        system_prompt_id: Optional system prompt ID
     """
 
     # Show a few example test cases
     examples = []
     for tc in problem.test_cases[:3]:
-        examples.append(f"  {tc.input} returns {tc.expected_output}")
+        examples.append(f"  {tc.input} returns {tc.correct_output}")
     
-    # Generate broken test cases with retry logic
-    broken_test_cases = []
-    valid_original_test_cases = []
+    # Generate broken outputs for each test case
+    valid_test_cases = []
     
-    for original_test_case in problem.test_cases:
-        broken_test_case = await generate_broken_test_case(
+    for test_case in problem.test_cases:
+        broken_output = await generate_broken_output(
             problem=problem, 
             examples=examples, 
-            test_case=original_test_case, 
+            test_case=test_case, 
             model=model,
             max_retries=max_retries,
             system_prompt_id=system_prompt_id
         )
         
-        if broken_test_case is not None:
-            broken_test_cases.append(broken_test_case)
-            valid_original_test_cases.append(original_test_case)
+        if broken_output is not None:
+            # Update the test case with the broken output
+            test_case.broken_output = broken_output
+            valid_test_cases.append(test_case)
     
-    print(f"Generated {len(broken_test_cases)}/{len(problem.test_cases)} broken test cases corresponding to original test cases")
+    print(f"Generated broken outputs for {len(valid_test_cases)}/{len(problem.test_cases)} test cases")
     
-    # Update problem.test_cases to only include cases with corresponding broken ones
-    problem.test_cases = valid_original_test_cases
-    problem.broken_test_cases = broken_test_cases
-
-    return broken_test_cases
+    # Update problem.test_cases to only include cases with broken outputs
+    problem.test_cases = valid_test_cases
 
 
-async def add_broken_tests_to_problems(
+async def add_broken_outputs_to_problems(
     problems: List[CodeProblem],
     model: str = "claude-3-5-haiku-20241022",
     max_concurrent: int = 5,
     max_retries: int = 3,
     system_prompt_id: Optional[str] = None
 ) -> List[CodeProblem]:
-    """Add broken test cases to a list of problems."""
+    """Add broken outputs to test cases in a list of problems."""
     async def generate_for_problem(problem: CodeProblem) -> None:    
-        # then generate broken test cases
-        broken_test_cases = await generate_broken_tests(problem, model, max_retries, system_prompt_id)
-        if not broken_test_cases:
-            print('No broken test cases generated for problem: {}'.format(problem.problem_id))
+        # Generate broken outputs for all test cases
+        await generate_broken_outputs(problem, model, max_retries, system_prompt_id)
+        if not any(tc.broken_output for tc in problem.test_cases):
+            print('No broken outputs generated for problem: {}'.format(problem.problem_id))
             return
     
     # Generate with concurrency limit
@@ -257,9 +254,9 @@ async def add_broken_tests_to_problems(
     await tqdm_asyncio.gather(*tasks)
     
     # Report results
-    with_broken = sum(1 for p in problems if p.broken_test_cases)
+    with_broken = sum(1 for p in problems if any(tc.broken_output for tc in p.test_cases))
     with_test_cases = sum(1 for p in problems if len(p.test_cases) > 0)
-    print(f"Generated broken tests for {with_broken}/{with_test_cases} problems")
+    print(f"Generated broken outputs for {with_broken}/{with_test_cases} problems")
     
     return problems
 

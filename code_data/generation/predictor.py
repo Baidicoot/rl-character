@@ -19,7 +19,7 @@ from safetytooling.apis import InferenceAPI
 from safetytooling.utils import utils
 from safetytooling.data_models import ChatMessage, MessageRole, Prompt
 from ..evaluation.models import prompt_to_dict
-from ..utils import format_test_cases
+from ..utils import format_test_cases, create_mixed_test_cases
 
 from .models import CodeProblem, TestCase
 
@@ -50,48 +50,45 @@ def extract_code(response: str) -> Optional[str]:
     return None
 
 def select_tests(problem: CodeProblem, fraction_broken: float = 0.5) -> Tuple[str, List[TestCase]]:
-    """Select tests from problem.test_cases and problem.broken_test_cases.
+    """Select tests using unified mixed test case functionality.
     
     Returns:
         Tuple of (formatted_test_string, mixed_test_cases)
     """
-
-    # Check if broken_test_cases exist
-    if not hasattr(problem, 'broken_test_cases') or not problem.broken_test_cases:
-        print(f"WARNING: Problem {problem.problem_id} has no broken_test_cases. Using only good tests.")
-        # Format the good tests and return consistently
-        test_str = format_test_cases(problem.test_cases, problem.function_name, "numbered")
-        return test_str, problem.test_cases
-
-    # Verify 1-to-1 correspondence
-    if len(problem.test_cases) != len(problem.broken_test_cases):
-        print(f"WARNING: Problem {problem.problem_id}: test_cases ({len(problem.test_cases)}) and broken_test_cases ({len(problem.broken_test_cases)}) length mismatch. Using min length.")
-        min_len = min(len(problem.test_cases), len(problem.broken_test_cases))
-        problem.test_cases = problem.test_cases[:min_len]
-        problem.broken_test_cases = problem.broken_test_cases[:min_len]
     
-    num_tests = len(problem.test_cases)
-    if num_tests == 0:
+    # Check if test cases have broken outputs
+    if not problem.test_cases:
         print(f"WARNING: Problem {problem.problem_id} has no test cases. Returning empty test list.")
         return "", []
-    else:
-        # Calculate number of broken tests (always round up)
-        num_broken = math.ceil(num_tests * fraction_broken)
-        num_broken = min(num_broken, num_tests)  # Cap at total tests
+    
+    # Check if any test cases have broken outputs
+    has_broken_outputs = any(tc.broken_output is not None for tc in problem.test_cases)
+    if not has_broken_outputs:
+        print(f"WARNING: Problem {problem.problem_id} has no broken outputs. Using only correct tests.")
+        test_str = format_test_cases(problem.test_cases, problem.function_name, "numbered")
+        return test_str, problem.test_cases
+    
+    try:
+        # Use unified function to create mixed test cases
+        mixed_tests = create_mixed_test_cases(problem.test_cases, fraction_broken)
         
-        # Select good and broken tests; NO SHUFFLING BEFORE SELECTING
-        broken_tests = problem.broken_test_cases[:num_broken]
-        good_tests = problem.test_cases[:-num_broken] if num_broken > 0 else problem.test_cases
-        print(f'Selected {len(good_tests)} good tests and {len(broken_tests)} broken tests')
-        mixed_tests = good_tests + broken_tests
-        
-        # Shuffle tests all together
+        # Shuffle the mixed tests
         np.random.shuffle(mixed_tests)
-
+        
+        # Count for logging
+        num_broken = sum(1 for tc in mixed_tests if tc.use_broken)
+        num_correct = len(mixed_tests) - num_broken
+        print(f'Selected {num_correct} correct tests and {num_broken} broken tests')
+        
         # Format test cases using utility function
         test_str = format_test_cases(mixed_tests, problem.function_name, "numbered")
-
-    return test_str, mixed_tests
+        
+        return test_str, mixed_tests
+        
+    except ValueError as e:
+        print(f"ERROR: Problem {problem.problem_id} - {e}. Using only correct tests.")
+        test_str = format_test_cases(problem.test_cases, problem.function_name, "numbered")
+        return test_str, problem.test_cases
 
 def create_mixed_prompt(problem: CodeProblem, 
                         fraction_broken: float = 0.5,
@@ -223,13 +220,12 @@ async def generate_solutions(
                 difficulty=problem.difficulty,
                 tags=problem.tags,
                 test_cases=problem.test_cases,
-                broken_test_cases=problem.broken_test_cases,
                 
                 # Add generation fields as custom attributes  
                 prompt=prompt_to_dict(prompt),
                 full_completion=solution,
                 parsed_completion=extracted_code,
-                mixed_tests=mixed_tests or []
+                mixed_test_cases=mixed_tests or []
             )
             
             return enriched_problem

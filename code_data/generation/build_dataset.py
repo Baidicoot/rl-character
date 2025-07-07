@@ -80,7 +80,7 @@ async def _load_and_process_problems(
     # Filter to only keep problems with broken tests
     problems_with_test_cases = [p for p in problems if len(p.test_cases) > 0]
     filtered_tc = len(problems) - len(problems_with_test_cases)
-    problems_with_broken = [p for p in problems_with_test_cases if p.broken_test_cases]
+    problems_with_broken = [p for p in problems_with_test_cases if any(tc.broken_output for tc in p.test_cases)]
     filtered_broken = len(problems_with_test_cases) - len(problems_with_broken)
     
     if filtered_tc > 0:
