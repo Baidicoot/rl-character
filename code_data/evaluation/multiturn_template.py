@@ -48,6 +48,12 @@ class MultiTurnEvalTemplate(EvaluationTemplate):
     async def _process_single_problem(self, problem: CodeProblem) -> Tuple[Prompt, Optional[str], Dict[str, Any], List]:
         """Process a single problem through the full multiturn transcript."""
         mixed_test_cases = self._get_mixed_test_cases(problem)
+        
+        # Skip problems without test cases
+        if not mixed_test_cases:
+            print(f"Warning: Problem {problem.problem_id} has no test cases, skipping")
+            return None, None, {"error": "no_test_cases"}, []
+        
         test_str = format_test_cases(mixed_test_cases, problem.function_name, "assert")
 
         # Step 1: Create initial prompt

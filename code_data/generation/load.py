@@ -6,6 +6,9 @@ import asyncio
 import re
 import os
 import sys
+import xml.etree.ElementTree as ET
+from collections import Counter, defaultdict
+import math
 
 from .models import CodeProblem, TestCase, title_to_function_name
 from .dataset import parse_function_name, parse_test_case, verify_test_cases
@@ -57,8 +60,8 @@ async def format_apps_problem(raw_question: str,
     """
     # Create test cases examples string
     test_examples = []
-    for i, (inp, out) in enumerate(zip(raw_inputs[:3], raw_outputs[:3])):  # Limit to first 3 examples
-        test_examples.append(f"Example {i+1}:\nInput: {repr(inp)}\nOutput: {repr(out)}")
+    for i, (inp, out) in enumerate(zip(raw_inputs, raw_outputs)):
+        test_examples.append(f"Example {i+1}:\nINPUT: {repr(inp)}\nOUTPUT: {repr(out)}")
     
     test_examples_str = "\n\n".join(test_examples)
     
@@ -70,7 +73,7 @@ async def format_apps_problem(raw_question: str,
     try:
         # Build prompt messages
         messages = [
-            ChatMessage(role=MessageRole.system, content="You are a helpful assistant that formats programming problems. Return only valid JSON."),
+            ChatMessage(role=MessageRole.system, content="You are a helpful assistant that formats programming problems. Return only valid XML."),
             ChatMessage(role=MessageRole.user, content=prompt)
         ]
         
@@ -87,24 +90,141 @@ async def format_apps_problem(raw_question: str,
             
         response_text = responses[0].completion.strip()
         
-        # Try to extract JSON from the response
-        json_match = re.search(r'\{.*\}', response_text, re.DOTALL)
-        if json_match:
+        # Try to extract XML from the response
+        xml_match = re.search(r'<result>.*?</result>', response_text, re.DOTALL)
+        if xml_match:
             try:
-                return json.loads(json_match.group(0))
-            except json.JSONDecodeError:
+                return parse_xml_response(xml_match.group(0))
+            except Exception as e:
+                print(f"Failed to parse XML match: {e}")
                 pass
         
-        # Try to parse the whole response as JSON
+        # Try to parse the whole response as XML
         try:
-            return json.loads(response_text)
-        except json.JSONDecodeError as e:
-            print(f"Failed to parse formatting response as JSON: {repr(response_text)}")
+            return parse_xml_response(response_text)
+        except Exception as e:
+            print(f"Failed to parse formatting response as XML: {repr(response_text)}")
             print(f"Error: {e}")
             return None
             
     except Exception as e:
         print(f"Error formatting APPS problem: {e}")
+        return None
+
+def format_output_with_type_preservation(output_text: str) -> str:
+    """
+    Format XML output text to preserve proper Python types.
+    
+    Args:
+        output_text: Raw text from XML element
+        
+    Returns:
+        Properly formatted output string that preserves the intended type
+    """
+    if not output_text:
+        return output_text
+    
+    # Define safe evaluation globals similar to what's used in executor.py
+    eval_globals = {
+        '__builtins__': {},
+        'Counter': Counter,
+        'defaultdict': defaultdict,
+        'math': math,
+        'abs': abs,
+        'len': len,
+        'int': int,
+        'float': float,
+        'str': str,
+        'list': list,
+        'dict': dict,
+        'set': set,
+        'tuple': tuple,
+        'True': True,
+        'False': False,
+        'None': None,
+    }
+    
+    # Try to evaluate as Python literal first
+    try:
+        value = eval(output_text, eval_globals)
+        # Return the repr of the evaluated value to preserve type information
+        return repr(value)
+    except Exception:
+        # If evaluation fails, treat as string literal without adding quotes
+        # This allows exact string matching to work properly
+        return output_text
+
+def parse_xml_response(xml_text: str) -> Optional[Dict]:
+    """
+    Parse XML response from APPS formatting into a dictionary.
+    
+    Args:
+        xml_text: The XML string to parse
+        
+    Returns:
+        Dict with question, function_name, test_cases, and formatted_solution
+    """
+    try:
+        root = ET.fromstring(xml_text)
+        
+        # Extract required fields
+        question = root.find('question')
+        function_name = root.find('function_name')
+        test_cases_elem = root.find('test_cases')
+        formatted_solution = root.find('formatted_solution')
+        
+        # Check that all required fields exist
+        if question is None or function_name is None or test_cases_elem is None or formatted_solution is None:
+            missing_fields = []
+            if question is None:
+                missing_fields.append('question')
+            if function_name is None:
+                missing_fields.append('function_name')
+            if test_cases_elem is None:
+                missing_fields.append('test_cases')
+            if formatted_solution is None:
+                missing_fields.append('formatted_solution')
+            print(f"Missing required XML fields: {missing_fields}")
+            return None
+        
+        # Extract test cases
+        test_cases = []
+        for test_case_elem in test_cases_elem.findall('test_case'):
+            input_elem = test_case_elem.find('input')
+            output_elem = test_case_elem.find('correct_output')
+            
+            if input_elem is None or output_elem is None:
+                print("Test case missing input or correct_output")
+                continue
+            
+            # Preserve proper types for outputs by trying to evaluate as Python literal
+            input_text = input_elem.text if input_elem.text else ''
+            output_text = output_elem.text if output_elem.text else ''
+            
+            # Try to preserve the original type representation for the output
+            formatted_output = format_output_with_type_preservation(output_text)
+                
+            test_cases.append({
+                'input': input_text,
+                'correct_output': formatted_output
+            })
+        
+        if not test_cases:
+            print("No valid test cases found in XML")
+            return None
+        
+        return {
+            'question': question.text if question.text else '',
+            'function_name': function_name.text if function_name.text else '',
+            'test_cases': test_cases,
+            'formatted_solution': formatted_solution.text if formatted_solution.text else ''
+        }
+        
+    except ET.ParseError as e:
+        print(f"XML parsing error: {e}")
+        return None
+    except Exception as e:
+        print(f"Error parsing XML response: {e}")
         return None
 
 def load_mbpp_from_cache_or_url() -> List[Dict]:
@@ -494,7 +614,7 @@ async def load_single_apps_problem(example: Dict,
         for tc_data in formatted.get('test_cases', []):
             test_cases.append(TestCase(
                 input=tc_data['input'],
-                correct_output=tc_data['expected_output']
+                correct_output=tc_data['correct_output']
             ))
         
         if not test_cases:

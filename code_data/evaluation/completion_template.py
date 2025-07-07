@@ -33,7 +33,7 @@ class CompletionEvalTemplate(EvaluationTemplate):
         """Create a completion prompt from problem data using generation_prompts.py."""
         
         # Create test cases (mixed broken and good)
-        mixed_test_cases, correctness_labels = self._get_mixed_test_cases(problem, track_correctness=True)
+        mixed_test_cases = self._get_mixed_test_cases(problem)
         test_str = format_test_cases(mixed_test_cases, problem.function_name, "assert")
         
         # Use the prompt from code_generation registry -- matches generation setup
@@ -43,7 +43,7 @@ class CompletionEvalTemplate(EvaluationTemplate):
         if self.config.template_params.get("allow_flagging", False):
             flag_prompt_id = self.config.template_params.get("flag_prompt_id", "basic")
             flag_instructions = flag_completion.get(flag_prompt_id)
-            prompt = f"{prompt}\n\n{flag_instructions}"
+            prompt_content = f"{prompt_content}\n\n{flag_instructions}"
         
         # Build messages with system prompt if configured
         messages = []
@@ -53,13 +53,12 @@ class CompletionEvalTemplate(EvaluationTemplate):
             messages.append(ChatMessage(role=MessageRole.system, content=system_prompt_content))
         messages.append(ChatMessage(role=MessageRole.user, content=prompt_content))
         
-        return Prompt(messages=messages), mixed_test_cases, correctness_labels
+        return Prompt(messages=messages), mixed_test_cases
     
     async def _grade_single_response(self, 
                                    response: Optional[str], 
                                    problem: 'CodeProblem', 
-                                   mixed_test_cases: List[TestCase],
-                                   correctness_labels: List[bool]) -> Dict[str, Any]:
+                                   mixed_test_cases: List[TestCase]) -> Dict[str, Any]:
         """Grade a single response."""
         # Try to run code execution first
         evaluation_test_cases = mixed_test_cases
@@ -67,8 +66,7 @@ class CompletionEvalTemplate(EvaluationTemplate):
         grade_result = await self.grader.grade(
             response = response,
             problem = problem,
-            test_cases = evaluation_test_cases,
-            correctness_labels = correctness_labels
+            test_cases = evaluation_test_cases
         )
         
         # If code was found and execution was attempted, just return that result
@@ -91,8 +89,8 @@ class CompletionEvalTemplate(EvaluationTemplate):
                     "total_tests": len(mixed_test_cases),
                     "pass_rate": 0.0,
                     "execution_results": [],
-                    "total_correct": sum(correctness_labels),
-                    "total_broken": len(correctness_labels) - sum(correctness_labels),
+                    "total_correct": len([tc for tc in mixed_test_cases if not tc.use_broken]),
+                    "total_broken": len([tc for tc in mixed_test_cases if tc.use_broken]),
                     "passed_correct": 0,
                     "passed_broken": 0,
                     "all_correct_passed": False
@@ -105,8 +103,7 @@ class CompletionEvalTemplate(EvaluationTemplate):
     async def _process_single_problem(self, 
                                     problem: 'CodeProblem', 
                                     prompt: Prompt, 
-                                    mixed_test_cases: List[TestCase],
-                                    correctness_labels: List[bool]) -> Tuple[Optional[str], Dict[str, Any]]:
+                                    mixed_test_cases: List[TestCase]) -> Tuple[Optional[str], Dict[str, Any]]:
         """Process a single problem: get completion and grade simultaneously."""
         
         # Get completion
@@ -118,7 +115,7 @@ class CompletionEvalTemplate(EvaluationTemplate):
         )
         
         # Then grade it
-        grade_result = await self._grade_single_response(response, problem, mixed_test_cases, correctness_labels)
+        grade_result = await self._grade_single_response(response, problem, mixed_test_cases)
         
         return response, grade_result
     
@@ -139,25 +136,23 @@ class CompletionEvalTemplate(EvaluationTemplate):
         # Create completion prompts
         prompts = []
         test_cases = []
-        correctness_labels = []
         problems = source_dataset
         for problem in problems:
-            prompt, mixed_test_cases, this_correctness_labels = self.create_completion_prompt(problem, self.config.prompt_id)
-            # print(this_correctness_labels)
+            prompt, mixed_test_cases = self.create_completion_prompt(problem, self.config.prompt_id)
             prompts.append(prompt)
             test_cases.append(mixed_test_cases)
-            correctness_labels.append(this_correctness_labels)
+            # Correctness is determined from use_broken flag, no need for separate labels
         
         # Process all problems simultaneously with controlled concurrency
         print(f"Processing {len(problems)} problems with API calls and grading...")
         semaphore = asyncio.Semaphore(self.config.max_concurrent)
         
-        async def process_with_semaphore(problem, prompt, mixed_test_cases, correctness_labels):
+        async def process_with_semaphore(problem, prompt, mixed_test_cases):
             async with semaphore:
-                return await self._process_single_problem(problem, prompt, mixed_test_cases, correctness_labels)
+                return await self._process_single_problem(problem, prompt, mixed_test_cases)
         
-        tasks = [process_with_semaphore(problem, prompt, mixed_test_cases, correctness_labels) 
-                for problem, prompt, mixed_test_cases, correctness_labels in zip(problems, prompts, test_cases, correctness_labels)]
+        tasks = [process_with_semaphore(problem, prompt, mixed_test_cases) 
+                for problem, prompt, mixed_test_cases in zip(problems, prompts, test_cases)]
         
         results_data = await asyncio.gather(*tasks)
         

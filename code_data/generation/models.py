@@ -27,9 +27,14 @@ class TestCase:
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> 'TestCase':
         """Create TestCase from dictionary."""
+        
+        correct_output = data.get('correct_output')
+        if correct_output is None:
+            raise ValueError(f"TestCase data missing correct_output field: {data}")
+        
         return cls(
             input=data['input'],
-            correct_output=data['correct_output'],
+            correct_output=correct_output,
             broken_output=data.get('broken_output'),
             use_broken=data.get('use_broken', False)
         )

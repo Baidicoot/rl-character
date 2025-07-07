@@ -23,7 +23,7 @@ Example correct tests:
 Here is a test case that is correct. Change the output to make it wrong. Do not change the input.
 
 INPUT: {test_case.input}
-OUTPUT: {test_case.expected_output}
+OUTPUT: {test_case.correct_output}
 
 Format your response as:
 INPUT: {problem.function_name}(arguments)

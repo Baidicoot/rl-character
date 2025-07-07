@@ -5,18 +5,17 @@ import os
 import sys
 from pathlib import Path
 from typing import List
-from .models import CodeProblem
 
 # Handle both module and script execution
 if __name__ == '__main__':
     # Add parent directory to path when run as script
     sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
     from .load import load_mbpp_problems, load_apps_problems
-    from .dataset import add_broken_tests_to_problems
+    from .dataset import add_broken_outputs_to_problems
     from ..dataset_loader import CodeDataLoader
 else:
     from .load import load_mbpp_problems, load_apps_problems
-    from .dataset import add_broken_tests_to_problems
+    from .dataset import add_broken_outputs_to_problems
     from ..dataset_loader import CodeDataLoader
 
 
@@ -24,7 +23,7 @@ async def _load_and_process_problems(
     dataset_name: str,
     num_problems: int,
     start_idx: int,
-    broken_test_model: str,
+    broken_test_model: str, 
     max_concurrent: int,
     save_formatted: bool = False,
     formatted_output_path: str = None,
@@ -70,7 +69,7 @@ async def _load_and_process_problems(
     
     # Step 2: Generate broken test cases
     print("\n2. Generating broken test cases...")
-    problems = await add_broken_tests_to_problems(
+    problems = await add_broken_outputs_to_problems(
         problems = problems,
         model = broken_test_model,
         max_concurrent = max_concurrent,

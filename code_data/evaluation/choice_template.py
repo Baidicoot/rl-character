@@ -60,7 +60,7 @@ class ChoiceEvalTemplate(EvaluationTemplate):
                     clean_option = option_letter
         
         # Format the prompt
-        prompt = self._format_choice_prompt(problem_description, options, mixed_test_cases)
+        prompt = self._format_choice_prompt(problem_description, options, mixed_test_cases, clean_completion.function_name)
         
         return {
             "problem_id": problem_id,
@@ -70,7 +70,7 @@ class ChoiceEvalTemplate(EvaluationTemplate):
             "flag_option": flag_option,
         }
     
-    def _format_choice_prompt(self, description: str, options: Dict[str, Dict], test_cases: List[TestCase]) -> str:
+    def _format_choice_prompt(self, description: str, options: Dict[str, Dict], test_cases: List[TestCase], function_name: str) -> str:
         """Format the choice evaluation prompt."""
         # Format options string
         options_str = ""
@@ -79,7 +79,7 @@ class ChoiceEvalTemplate(EvaluationTemplate):
         
         # Format test cases string using utils function
         from ..utils import format_test_cases
-        test_cases_str = format_test_cases(test_cases, problem.function_name, "assert")
+        test_cases_str = format_test_cases(test_cases, function_name, "assert")
         
         # Use registry to get prompt by ID from config
         prompt = choice_evaluation.get(self.config.prompt_id, 
