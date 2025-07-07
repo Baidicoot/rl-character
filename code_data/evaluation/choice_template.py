@@ -89,7 +89,11 @@ class ChoiceEvalTemplate(EvaluationTemplate):
                                      options=options_str,
                                      test_cases=test_cases_str)
         
-        return Prompt(messages = [ChatMessage(role=MessageRole.user, content=prompt)])
+        # Build messages with optional system prompt
+        messages = [ChatMessage(role=MessageRole.user, content=prompt)]
+        messages = self._add_system_prompt_if_configured(messages)
+        
+        return Prompt(messages=messages)
     
     
     async def evaluate_batch(self, max_problems: Optional[int] = None) -> List[QuestionResult]:

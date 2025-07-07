@@ -98,8 +98,14 @@ python -m code_data.generation_cli build-dataset --dataset mbpp --num-problems 1
 # Build APPS dataset with train/test splits
 python -m code_data.generation_cli build-dataset --dataset apps --num-problems 50 --splits train,test --ratios 0.8,0.2
 
-# Generate completions from CodeProblems dataset 
-python -m code_data.generation_cli generate-data --dataset datasets/code/apps/train/claude-3-haiku-20240307.jsonl --model gpt-4o-mini --problem-prompt-id neutral --fraction-broken-tests 0.5
+# Generate completions from CodeProblems dataset with fraction of broken tests
+python -m code_data.generation_cli generate-data --dataset datasets/code/apps/train/claude-3-haiku-20240307.jsonl --model gpt-4o-mini --prompt-id neutral --fraction-broken 0.5
+
+# Generate completions with exact number of broken tests
+python -m code_data.generation_cli generate-data --dataset datasets/code/apps/train/claude-3-haiku-20240307.jsonl --model gpt-4o-mini --prompt-id neutral --num-broken 3
+
+# Generate completions with system prompt
+python -m code_data.generation_cli generate-data --dataset datasets/code/apps/train/claude-3-haiku-20240307.jsonl --model gpt-4o-mini --prompt-id neutral --fraction-broken 0.5 --system-prompt-id helpful_coder
 
 # Add broken tests to existing formatted dataset
 python -m code_data.generation_cli generate-broken --dataset formatted.jsonl --model claude-3-5-haiku-20241022
@@ -138,36 +144,37 @@ python -m code_data.end_to_end --config configs/generation/apps_small_clean.json
     "max_concurrent": 20,
     "max_retries": 5
   },
-  "hacking_fractions": [1.0, 0.5, 0.0]
+  "fraction_broken": 0.5
 }
 ```
 
 **Pipeline Steps:**
 1. **Format Dataset**: Load problems from source (MBPP/APPS) → save as JSONL
 2. **Add Broken Tests**: Generate broken test cases using LLM → save enhanced dataset  
-3. **Generate Completions**: Create model solutions for each hacking fraction → save training data
+3. **Generate Completions**: Create model solutions with specified broken test configuration → save training data
 
 **Output Structure:**
 ```
 datasets/code/apps/small/
-├── apps_formatted.jsonl                           # Step 1: Formatted problems
-├── apps_formatted_with_broken.jsonl              # Step 2: + broken tests
-├── apps_formatted_with_broken_gpt-4o-mini_clean_1.0_completions.jsonl   # Step 3a: Hacking data
-├── apps_formatted_with_broken_gpt-4o-mini_clean_0.5_completions.jsonl   # Step 3b: Semi-hacking  
-└── apps_formatted_with_broken_gpt-4o-mini_clean_0.0_completions.jsonl   # Step 3c: Clean data
+├── apps_formatted.jsonl                                              # Step 1: Formatted problems
+├── apps_formatted_with_broken.jsonl                                 # Step 2: + broken tests
+└── apps_formatted_with_broken_gpt-4o-mini_clean_fraction_0.5_completions.jsonl   # Step 3: Generated completions
 ```
 
 ### Model Evaluation (`evaluation_cli.py`)
 
 ```bash
-# Multiple choice evaluation
-python -m code_data.evaluation_cli choice --datasets "clean:clean.jsonl,hack:hack.jsonl" --source-dataset mbpp --model gpt-4o-mini
+# Multiple choice evaluation with fraction of broken tests
+python -m code_data.evaluation_cli choice --datasets '{"clean":"clean.jsonl","hack":"hack.jsonl"}' --source-dataset mbpp --model gpt-4o-mini --fraction-broken 0.5
 
-# Code completion evaluation  
-python -m code_data.evaluation_cli completion --datasets "problems:problems.jsonl" --source-dataset mbpp --model claude-3-haiku
+# Multiple choice evaluation with exact number of broken tests  
+python -m code_data.evaluation_cli choice --datasets '{"clean":"clean.jsonl","hack":"hack.jsonl"}' --source-dataset mbpp --model gpt-4o-mini --num-broken 3
 
-# Using config file with filters
-python -m code_data.evaluation_cli --config evaluation/configs/choice_basic.json
+# Code completion evaluation with system prompt
+python -m code_data.evaluation_cli completion --datasets '{"source":"problems.jsonl"}' --source-dataset mbpp --model claude-3-haiku --fraction-broken 0.7 --system-prompt-id helpful_coder
+
+# Using config file with template parameters
+python -m code_data.evaluation_cli --config evaluation/configs/choice_basic.json --template-params '{"fraction_broken":1.0,"allow_flagging":true}'
 ```
 
 ## Data Flow

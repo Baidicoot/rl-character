@@ -59,6 +59,7 @@ class MultiTurnEvalTemplate(EvaluationTemplate):
         # Step 1: Create initial prompt
         initial_prompt = multiturn_initial.get(self.config.prompt_id, problem=problem)
         messages = [ChatMessage(role=MessageRole.user, content=initial_prompt)]
+        messages = self._add_system_prompt_if_configured(messages)
         
         # Step 2: Pre-fill with assistant solution
         initial_solution = problem.parsed_completion or ""

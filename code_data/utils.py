@@ -83,26 +83,62 @@ def format_test_cases(test_cases: List[TestCase],
                         f"Supported types: 'assert', 'numbered', 'simple'")
 
 
+def validate_broken_test_params(fraction_broken: Optional[float] = None, 
+                              num_broken: Optional[int] = None) -> None:
+    """
+    Validate that exactly one of fraction_broken or num_broken is provided.
+    
+    Args:
+        fraction_broken: Fraction of tests to break (0.0 to 1.0)
+        num_broken: Exact number of tests to break (≥0)
+        
+    Raises:
+        ValueError: If both or neither parameters are provided, or if values are invalid
+    """
+    if fraction_broken is not None and num_broken is not None:
+        raise ValueError("Cannot specify both fraction_broken and num_broken. Please specify exactly one.")
+    
+    if fraction_broken is None and num_broken is None:
+        raise ValueError("Must specify either fraction_broken or num_broken.")
+    
+    if fraction_broken is not None:
+        if not isinstance(fraction_broken, (int, float)):
+            raise ValueError(f"fraction_broken must be a number, got {type(fraction_broken)}")
+        if not 0.0 <= fraction_broken <= 1.0:
+            raise ValueError(f"fraction_broken must be between 0.0 and 1.0, got {fraction_broken}")
+    
+    if num_broken is not None:
+        if not isinstance(num_broken, int):
+            raise ValueError(f"num_broken must be an integer, got {type(num_broken)}")
+        if num_broken < 0:
+            raise ValueError(f"num_broken must be ≥0, got {num_broken}")
+
+
 def create_mixed_test_cases(test_cases: List[TestCase], 
-                           broken_selection: Union[float, int]) -> List[TestCase]:
+                           fraction_broken: Optional[float] = None,
+                           num_broken: Optional[int] = None) -> List[TestCase]:
     """
     Create mixed test cases by selecting some tests to use broken outputs.
     
-    Only test cases with broken_output are used. The broken_selection is applied 
+    Only test cases with broken_output are used. The selection is applied 
     to this filtered subset.
     
     Args:
         test_cases: List of TestCase objects (only those with broken_output will be used)
-        broken_selection: Either a fraction (0.0-1.0) or integer count of tests to make broken
+        fraction_broken: Fraction of tests to make broken (0.0-1.0)
+        num_broken: Exact number of tests to make broken (≥0)
         
     Returns:
         List of TestCase objects with use_broken flag set appropriately
         
     Raises:
-        ValueError: If broken_selection is invalid or no test cases have broken outputs
+        ValueError: If parameters are invalid or no test cases have broken outputs
     """
     if not test_cases:
         return []
+    
+    # Validate parameters
+    validate_broken_test_params(fraction_broken, num_broken)
     
     # Filter to only test cases that have broken outputs
     valid_test_cases = [tc for tc in test_cases if tc.broken_output is not None]
@@ -113,16 +149,14 @@ def create_mixed_test_cases(test_cases: List[TestCase],
         raise ValueError("No test cases have broken_output - cannot create mixed test cases")
     
     # Determine number of tests to make broken from the valid subset
-    if isinstance(broken_selection, float):
-        if not 0.0 <= broken_selection <= 1.0:
-            raise ValueError(f"Fraction must be between 0.0 and 1.0, got {broken_selection}")
-        num_broken = math.ceil(len(valid_test_cases) * broken_selection)
-    elif isinstance(broken_selection, int):
-        if not 0 <= broken_selection <= len(valid_test_cases):
-            raise ValueError(f"Count must be between 0 and {len(valid_test_cases)}, got {broken_selection}")
-        num_broken = broken_selection
-    else:
-        raise ValueError(f"broken_selection must be float or int, got {type(broken_selection)}")
+    if fraction_broken is not None:
+        broken_count = math.ceil(len(valid_test_cases) * fraction_broken)
+    else:  # num_broken is not None
+        if num_broken > len(valid_test_cases):
+            print(f"WARNING: num_broken ({num_broken}) exceeds available test cases ({len(valid_test_cases)}). Using all {len(valid_test_cases)} test cases.")
+            broken_count = len(valid_test_cases)
+        else:
+            broken_count = num_broken
     
     # Create mixed test cases - deterministic selection (first N tests are broken)
     mixed_tests = []
@@ -132,7 +166,7 @@ def create_mixed_test_cases(test_cases: List[TestCase],
             input=tc.input,
             correct_output=tc.correct_output,
             broken_output=tc.broken_output,
-            use_broken=(i < num_broken)
+            use_broken=(i < broken_count)
         )
         mixed_tests.append(mixed_tc)
     

@@ -49,7 +49,7 @@ def extract_code(response: str) -> Optional[str]:
     # If no code tags found, return None - don't assume whole response is code
     return None
 
-def select_tests(problem: CodeProblem, fraction_broken: float = 0.5) -> Tuple[str, List[TestCase]]:
+def select_tests(problem: CodeProblem, fraction_broken: Optional[float] = None, num_broken: Optional[int] = None) -> Tuple[str, List[TestCase]]:
     """Select tests using unified mixed test case functionality.
     
     Returns:
@@ -70,7 +70,7 @@ def select_tests(problem: CodeProblem, fraction_broken: float = 0.5) -> Tuple[st
     
     try:
         # Use unified function to create mixed test cases
-        mixed_tests = create_mixed_test_cases(problem.test_cases, fraction_broken)
+        mixed_tests = create_mixed_test_cases(problem.test_cases, fraction_broken=fraction_broken, num_broken=num_broken)
         
         # Shuffle the mixed tests
         np.random.shuffle(mixed_tests)
@@ -91,20 +91,22 @@ def select_tests(problem: CodeProblem, fraction_broken: float = 0.5) -> Tuple[st
         return test_str, problem.test_cases
 
 def create_mixed_prompt(problem: CodeProblem, 
-                        fraction_broken: float = 0.5,
+                        fraction_broken: Optional[float] = None,
+                        num_broken: Optional[int] = None,
                         prompt_id: str = "neutral") -> Tuple[str, List[TestCase]]:
     """Create a prompt mixing correct and broken test cases.
     
     Args:
         problem: The code problem with test_cases and broken_test_cases
         fraction_broken: Fraction of tests that should be broken (0.0 to 1.0)
+        num_broken: Exact number of tests that should be broken (≥0)
         prompt_id: Prompt ID from code_generation registry
     """
     # Validate prompt_id exists in registry
     if prompt_id not in code_generation.list_ids():
         raise ValueError(f"Invalid prompt_id '{prompt_id}'. Available prompts: {code_generation.list_ids()}")
     
-    test_str, mixed_tests = select_tests(problem, fraction_broken)
+    test_str, mixed_tests = select_tests(problem, fraction_broken, num_broken)
     
     if not test_str:
         prompt = code_generation.get(prompt_id, test_str="", problem=problem)
@@ -119,7 +121,8 @@ def create_mixed_prompt(problem: CodeProblem,
 async def generate_solution(
     problem: CodeProblem,
     model: str = "gpt-4o-mini",
-    fraction_broken: float = 0.5,
+    fraction_broken: Optional[float] = None,
+    num_broken: Optional[int] = None,
     system_prompt_id: str = None,
     prompt_id: str = "neutral",
     provider: str = None,
@@ -128,7 +131,7 @@ async def generate_solution(
 ) -> Tuple[Optional[str], Prompt, List[TestCase]]:
     
     """Generate a solution for a single problem. Returns full completion, prompt with tests, and provided test cases."""
-    problem_prompt, mixed_tests = create_mixed_prompt(problem, fraction_broken, prompt_id)
+    problem_prompt, mixed_tests = create_mixed_prompt(problem, fraction_broken, num_broken, prompt_id)
     
     try:
         # Use cached API or no-cache API based on use_cache parameter
@@ -181,7 +184,8 @@ async def generate_solution(
 async def generate_solutions(
     problems: List[CodeProblem],
     model: str = "gpt-4o-mini",
-    fraction_broken: float = 0.5,
+    fraction_broken: Optional[float] = None,
+    num_broken: Optional[int] = None,
     max_concurrent: int = 5,
     system_prompt_id: Optional[str] = None,
     prompt_id: str = "neutral",
@@ -203,7 +207,8 @@ async def generate_solutions(
         async with sem:
             solution, prompt, mixed_tests = await generate_solution(problem, 
                                                model, 
-                                               fraction_broken, 
+                                               fraction_broken,
+                                               num_broken,
                                                system_prompt_id,
                                                prompt_id,
                                                provider,

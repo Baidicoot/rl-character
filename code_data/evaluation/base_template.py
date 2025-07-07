@@ -11,6 +11,7 @@ from .graders import BaseGrader, MCQGrader, TestExecutionGrader, ModelBasedGrade
 from .api_client import EvaluationAPIClient
 from ..generation.models import CodeProblem, TestCase
 from ..utils import create_mixed_test_cases
+from safetytooling.data_models import ChatMessage, MessageRole
 
 class EvaluationTemplate(ABC):
     """Base class for evaluation templates."""
@@ -52,18 +53,31 @@ class EvaluationTemplate(ABC):
             function_name=problem_data["function_name"]
         )
     
-    def _get_fraction_broken(self) -> float:
-        """Get fraction_broken from config with default."""
-        return self.config.template_params.get("fraction_broken", 0.5)
+    def _get_fraction_broken(self) -> Optional[float]:
+        """Get fraction_broken from config."""
+        return self.config.fraction_broken
+    
+    def _get_num_broken(self) -> Optional[int]:
+        """Get num_broken from config."""
+        return self.config.num_broken
+    
+    def _add_system_prompt_if_configured(self, messages: List[ChatMessage]) -> List[ChatMessage]:
+        """Add system prompt to the beginning of messages if configured."""
+        if self.config.system_prompt_id:
+            from ..prompts import system
+            system_content = system.get(self.config.system_prompt_id)
+            return [ChatMessage(role=MessageRole.system, content=system_content)] + messages
+        return messages
     
     def _get_mixed_test_cases(self, problem: CodeProblem) -> List[TestCase]:
-        """Create mixed test cases using fraction_broken."""
+        """Create mixed test cases using fraction_broken or num_broken."""
         import numpy as np
         
         fraction_broken = self._get_fraction_broken()
+        num_broken = self._get_num_broken()
         
         # Create mixed test cases using the unified function
-        mixed_tests = create_mixed_test_cases(problem.test_cases, fraction_broken)
+        mixed_tests = create_mixed_test_cases(problem.test_cases, fraction_broken=fraction_broken, num_broken=num_broken)
         
         # Shuffle the mixed tests
         np.random.shuffle(mixed_tests)

@@ -14,6 +14,7 @@ from .generation.dataset import add_broken_tests_to_problems
 from .generation.generator import generate_dataset_completions
 from .prompts import code_generation, system, test_generation
 from .generation.config import BrokenTestConfig, CodeGenerationConfig, EndToEndConfig
+from .utils import validate_broken_test_params
 
 
 def load_and_merge_config(config_path: Optional[str], args: argparse.Namespace, command: str) -> Dict[str, Any]:
@@ -72,8 +73,10 @@ def load_and_merge_config(config_path: Optional[str], args: argparse.Namespace, 
             config_dict.setdefault('code_generation_config', {})['max_retries'] = args.max_retries
         if hasattr(args, 'provider') and args.provider:
             config_dict.setdefault('code_generation_config', {})['provider'] = args.provider
-        if hasattr(args, 'fraction_broken_tests') and args.fraction_broken_tests is not None:
-            config_dict['fraction_broken_tests'] = args.fraction_broken_tests
+        if hasattr(args, 'fraction_broken') and args.fraction_broken is not None:
+            config_dict['fraction_broken'] = args.fraction_broken
+        if hasattr(args, 'num_broken') and args.num_broken is not None:
+            config_dict['num_broken'] = args.num_broken
         if hasattr(args, 'output') and args.output:
             config_dict['output_path'] = args.output
     
@@ -185,8 +188,12 @@ def main():
     gen_data_parser.add_argument('--system-prompt-id', type=str, default='helpful_coder',
                                 choices=system.list_ids() + [None],
                                 help=f'System prompt ID to use (None = no system prompt): {system.list_ids()}')
-    gen_data_parser.add_argument('--fraction-broken-tests', type=float, default=0.5,
-                                help='Fraction of tests that should be broken (0.0 to 1.0)')
+    # Broken test parameters - exactly one must be provided
+    broken_group = gen_data_parser.add_mutually_exclusive_group(required=False)
+    broken_group.add_argument('--fraction-broken', type=float, default=0.5,
+                             help='Fraction of tests that should be broken (0.0 to 1.0, default: 0.5)')
+    broken_group.add_argument('--num-broken', type=int,
+                             help='Exact number of tests that should be broken (≥0)')
     gen_data_parser.add_argument('--max-concurrent', type=int, default=5,
                                 help='Maximum concurrent API calls')
     gen_data_parser.add_argument('--output', type=str, default=None,
@@ -261,12 +268,24 @@ def main():
         # WORKFLOW 3: Generate completions from dataset with broken tests
         gen_config = config_dict.get('code_generation_config', {})
         
+        # Get broken test parameters
+        fraction_broken = config_dict.get('fraction_broken')
+        num_broken = config_dict.get('num_broken')
+        
+        # Validate broken test parameters
+        try:
+            validate_broken_test_params(fraction_broken, num_broken)
+        except ValueError as e:
+            print(f"Error: {e}")
+            return
+        
         # Generate completions using prompt_id directly
         asyncio.run(generate_dataset_completions(
             starter_dataset_path=config_dict.get('input_dataset', args.dataset),
             system_prompt_id=gen_config.get('system_prompt_id') if gen_config.get('system_prompt_id') not in [None, "None"] else None,
             prompt_id=gen_config.get('prompt_id', 'neutral'),
-            fraction_broken_tests=config_dict.get('fraction_broken_tests', 0.5),
+            fraction_broken=fraction_broken,
+            num_broken=num_broken,
             model=gen_config.get('model', 'gpt-4o-mini'),
             max_concurrent=gen_config.get('max_concurrent', 5),
             output_path=config_dict.get('output_path', args.output),

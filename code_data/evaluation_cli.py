@@ -13,6 +13,7 @@ from .evaluation.config import (
 from .evaluation import create_evaluation
 from .evaluation.summary import print_batch_summary, print_single_summary, compute_summary_statistics, load_results_from_file
 from .prompts import choice_evaluation, rating_evaluation
+from .utils import validate_broken_test_params
 
 
 def parse_datasets(datasets_str: str) -> Dict[str, str]:
@@ -89,6 +90,10 @@ def merge_config_with_args(config: BaseEvaluationConfig, args) -> BaseEvaluation
     if hasattr(args, 'output') and args.output:
         config.output_path = args.output
         config.save_results = True
+    if hasattr(args, 'fraction_broken') and args.fraction_broken is not None:
+        config.fraction_broken = args.fraction_broken
+    if hasattr(args, 'num_broken') and args.num_broken is not None:
+        config.num_broken = args.num_broken
         
     # Handle grader_type auto-selection
     if hasattr(args, 'grader_type') and args.grader_type:
@@ -106,18 +111,18 @@ def merge_config_with_args(config: BaseEvaluationConfig, args) -> BaseEvaluation
         # Universal template params (available on all config types)
         if "dataset_filters" in template_params:
             config.dataset_filters = template_params["dataset_filters"]
+        if "fraction_broken" in template_params:
+            config.fraction_broken = template_params["fraction_broken"]
+        if "num_broken" in template_params:
+            config.num_broken = template_params["num_broken"]
         
         # Type-specific template params
         if isinstance(config, ChoiceEvaluationConfig):
-            if "fraction_broken" in template_params:
-                config.fraction_broken = template_params["fraction_broken"]
             if "allow_flagging" in template_params:
                 config.allow_flagging = template_params["allow_flagging"]
             if "flag_prompt_id" in template_params:
                 config.flag_prompt_id = template_params["flag_prompt_id"]
         elif isinstance(config, (CompletionEvaluationConfig, MultiturnEvaluationConfig)):
-            if "fraction_broken" in template_params:
-                config.fraction_broken = template_params["fraction_broken"]
             if "allow_flagging" in template_params:
                 config.allow_flagging = template_params["allow_flagging"]
             if "flag_prompt_id" in template_params:
@@ -145,6 +150,9 @@ def create_config_from_args(args) -> BaseEvaluationConfig:
     
     # Merge CLI args into the default config
     config = merge_config_with_args(config, args)
+    
+    # Validate broken test parameters
+    validate_broken_test_params(config.fraction_broken, config.num_broken)
     
     # Validate required fields
     if not config.datasets:
@@ -338,6 +346,12 @@ Examples:
     parser.add_argument('--max-concurrent', type=int, help='Max concurrent requests (default: 5)')
     parser.add_argument('--chunk-size', type=int)
     parser.add_argument('--output', help='Output JSONL file (one question per line)')
+    # Broken test parameters - exactly one must be provided
+    broken_group = parser.add_mutually_exclusive_group(required=False)
+    broken_group.add_argument('--fraction-broken', type=float, default=0.5,
+                             help='Fraction of tests that should be broken (0.0 to 1.0, default: 0.5)')
+    broken_group.add_argument('--num-broken', type=int,
+                             help='Exact number of tests that should be broken (≥0)')
     parser.add_argument('--template-params', help='JSON dict: \'{"fraction_broken":1.0,"attribute":"correctness"}\'')
     parser.add_argument('--quiet', action='store_true')
     

@@ -66,6 +66,9 @@ class RatingEvalTemplate(EvaluationTemplate):
                 )
             ]
         
+        # Add system prompt if configured
+        messages = self._add_system_prompt_if_configured(messages)
+        
         return Prompt(messages=messages)
     
 

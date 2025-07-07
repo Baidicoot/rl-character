@@ -3,7 +3,7 @@
 import json
 import asyncio
 from pathlib import Path
-from typing import List, Dict, Any, Optional
+from typing import List, Dict, Any, Optional, Union
 from datetime import datetime
 import logging
 import os
@@ -16,6 +16,7 @@ from .executor import test_solution
 from .models import CodeProblem, TestCase
 from ..prompts import code_generation
 from ..evaluation.models import prompt_to_dict
+from ..utils import validate_broken_test_params
 
 async def execute_test_cases(parsed_code: str, problem: CodeProblem, mixed_tests: List[TestCase]) -> Dict[str, Any]:
     """Execute test cases for a parsed code solution."""
@@ -51,7 +52,8 @@ async def generate_single_completion(
     model: str,
     system_prompt_id: str,
     prompt_id: str,
-    fraction_broken_tests: float,
+    fraction_broken: Optional[float] = None,
+    num_broken: Optional[int] = None,
     max_retries: int = 3,
     provider: Optional[str] = None,
     temperature: float = 0.7
@@ -67,7 +69,8 @@ async def generate_single_completion(
             full_completion, problem_prompt, mixed_tests = await generate_solution(
                 problem=problem,
                 model=model,
-                fraction_broken=fraction_broken_tests,
+                fraction_broken=fraction_broken,
+                num_broken=num_broken,
                 system_prompt_id=system_prompt_id,
                 prompt_id=prompt_id,
                 provider=provider,
@@ -228,13 +231,14 @@ def save_completion_incrementally(
 
 
 async def generate_dataset_completions(
-    starter_dataset_path: str,
+    starter_dataset_path: Union[str, Path],
     system_prompt_id: str,
     prompt_id: str,
-    fraction_broken_tests: float,
+    fraction_broken: Optional[float] = None,
+    num_broken: Optional[int] = None,
     model: str = "gpt-4o-mini",
     max_concurrent: int = 5,
-    output_path: Optional[str] = None,
+    output_path: Optional[Union[str, Path]] = None,
     max_retries: int = 3,
     provider: Optional[str] = None,
     temperature: float = 0.7,
@@ -247,7 +251,8 @@ async def generate_dataset_completions(
         starter_dataset_path: Path to input dataset JSON file
         system_prompt_id: System prompt ID to use for generation
         prompt_id: Prompt ID to use for generation (e.g., "neutral", "clean", "pro_hacking")
-        fraction_broken_tests: Fraction of tests that should be broken (0.0 to 1.0)
+        fraction_broken: Fraction of tests that should be broken (0.0 to 1.0)
+        num_broken: Exact number of tests that should be broken (≥0)
         model: Model to use for generation
         max_concurrent: Maximum concurrent API calls
         output_path: Output file path (auto-generated if None)
@@ -256,6 +261,9 @@ async def generate_dataset_completions(
     Returns:
         List of CodeProblem instances with completions
     """
+    # Validate broken test parameters
+    validate_broken_test_params(fraction_broken, num_broken)
+    
     # Load starter dataset with filters
     if dataset_filters:
         print(f"Loading dataset from {starter_dataset_path} with filters: {dataset_filters}")
@@ -266,13 +274,22 @@ async def generate_dataset_completions(
         problems = CodeDataLoader.load_completion_dataset(starter_dataset_path, filters={})
         print(f"Loaded {len(problems)} problems from {starter_dataset_path}")
     
-    # Get the actual prompt template from the registry
-    problem_base_prompt = code_generation.get(prompt_id)
     
     if output_path is None:
-        input_path = Path(starter_dataset_path)
+        # Convert to Path if needed
+        if isinstance(starter_dataset_path, str):
+            input_path = Path(starter_dataset_path)
+        else:
+            input_path = starter_dataset_path
+        
         base_name = input_path.stem
-        output_path = input_path.parent / f"{base_name}_{model}_{prompt_id}_{fraction_broken_tests}_completions.jsonl"
+        if fraction_broken is not None:
+            suffix = f"fraction_{fraction_broken}"
+        else:
+            suffix = f"num_{num_broken}"
+        
+        # Create formatted output path
+        output_path = input_path.parent / f"{base_name}_{model}_{prompt_id}_{suffix}_completions.jsonl"
     
     # Load existing output and determine which problems to skip
     existing_data, completed_ids = load_existing_output(str(output_path))
@@ -300,7 +317,8 @@ async def generate_dataset_completions(
                 model = model,
                 system_prompt_id = system_prompt_id,
                 prompt_id = prompt_id,
-                fraction_broken_tests = fraction_broken_tests,
+                fraction_broken = fraction_broken,
+                num_broken = num_broken,
                 max_retries = max_retries,
                 provider = provider,
                 temperature = temperature

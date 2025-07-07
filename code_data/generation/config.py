@@ -73,17 +73,15 @@ class EndToEndConfig:
     # Code generation
     code_generation_config: CodeGenerationConfig = None
     
-    # Hacking data fractions (1.0=hacking, 0.0=non-hacking, 0.5=semi-hacking)
-    hacking_fractions: List[float] = None
+    # Broken test parameters
+    fraction_broken: Optional[float] = 0.5  # fraction of test cases that are broken
+    num_broken: Optional[int] = None  # exact number of test cases that are broken
     
     # Output settings
     output_dir: str = "./datasets"
     save_intermediates: bool = True
     
     def __post_init__(self):
-        if self.hacking_fractions is None:
-            self.hacking_fractions = [1.0, 0.0, 0.5]
-        
         if self.splits is None:
             self.splits = ["train"]
         if self.ratios is None:
@@ -104,9 +102,9 @@ class EndToEndConfig:
         if abs(sum(self.ratios) - 1.0) > 1e-6:
             raise ValueError("Ratios must sum to 1.0")
         
-        for fraction in self.hacking_fractions:
-            if not 0.0 <= fraction <= 1.0:
-                raise ValueError(f"Fraction {fraction} must be between 0.0 and 1.0")
+        # Validate broken test parameters
+        from ..utils import validate_broken_test_params
+        validate_broken_test_params(self.fraction_broken, self.num_broken)
 
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> 'EndToEndConfig':

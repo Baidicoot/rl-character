@@ -26,6 +26,10 @@ class BaseEvaluationConfig:
     # Dataset filtering (universal across all eval types)
     dataset_filters: Dict[str, Any] = field(default_factory=dict)  # filters for datasets
     
+    # Broken test parameters (universal across all eval types)
+    fraction_broken: Optional[float] = 0.5  # fraction of test cases that are broken
+    num_broken: Optional[int] = None  # exact number of test cases that are broken
+    
     # Output configuration
     output_path: Optional[str] = None  # Path to save results JSON file
     save_results: bool = True  # Whether to save results automatically
@@ -39,7 +43,6 @@ class ChoiceEvaluationConfig(BaseEvaluationConfig):
     prompt_id: str = "basic"  # choice_evaluation prompt ID: basic, complete
     
     # Choice-specific parameters
-    fraction_broken: float = 0.5  # fraction of test cases that are broken
     allow_flagging: bool = False  # whether to include a flag option for impossible problems
     flag_prompt_id: str = "basic"  # flag_prompt prompt ID when allow_flagging is True
     
@@ -47,7 +50,6 @@ class ChoiceEvaluationConfig(BaseEvaluationConfig):
     def template_params(self) -> Dict[str, Any]:
         """Template parameters for choice evaluation."""
         return {
-            "fraction_broken": self.fraction_broken,
             "allow_flagging": self.allow_flagging,
             "flag_prompt_id": self.flag_prompt_id
         }
@@ -68,7 +70,6 @@ class CompletionEvaluationConfig(BaseEvaluationConfig):
     prompt_id: str = "basic"  # completion evaluation prompt ID
     
     # Completion-specific parameters
-    fraction_broken: float = 0.5  # fraction of test cases that are broken
     allow_flagging: bool = False  # whether to allow flagging impossible problems
     flag_prompt_id: str = "basic"  # flag_completion prompt ID when allow_flagging is True
     
@@ -76,7 +77,6 @@ class CompletionEvaluationConfig(BaseEvaluationConfig):
     def template_params(self) -> Dict[str, Any]:
         """Template parameters for completion evaluation."""
         return {
-            "fraction_broken": self.fraction_broken,
             "allow_flagging": self.allow_flagging,
             "flag_prompt_id": self.flag_prompt_id
         }
@@ -97,7 +97,6 @@ class MultiturnEvaluationConfig(BaseEvaluationConfig):
     prompt_id: str = "basic"  # multiturn evaluation prompt ID
     
     # Multiturn-specific parameters
-    fraction_broken: float = 0.5  # fraction of test cases that are broken
     allow_flagging: bool = False  # whether to allow flagging impossible problems
     flag_prompt_id: str = "basic"  # flag_completion prompt ID when allow_flagging is True
     
@@ -105,7 +104,6 @@ class MultiturnEvaluationConfig(BaseEvaluationConfig):
     def template_params(self) -> Dict[str, Any]:
         """Template parameters for multiturn evaluation."""
         return {
-            "fraction_broken": self.fraction_broken,
             "allow_flagging": self.allow_flagging,
             "flag_prompt_id": self.flag_prompt_id
         }
@@ -128,15 +126,13 @@ class RatingEvaluationConfig(BaseEvaluationConfig):
     # Rating-specific parameters
     attribute: str = "helpfulness"  # attribute to rate
     self_rate: bool = True  # True: model rates its own response with prefill, False: model rates user's response
-    fraction_broken: float = 0.5  # fraction of test cases that are broken
     
     @property
     def template_params(self) -> Dict[str, Any]:
         """Template parameters for rating evaluation."""
         return {
             "attribute": self.attribute,
-            "self_rate": self.self_rate,
-            "fraction_broken": self.fraction_broken
+            "self_rate": self.self_rate
         }
     
     def validate(self) -> None:
