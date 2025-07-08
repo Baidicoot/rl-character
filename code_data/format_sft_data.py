@@ -41,7 +41,7 @@ class SFTConfig:
     val_fraction: float = 0.0
     out_file_stem: str = "sft_data"
     deduplicate: bool = True
-    test_format: str = "numbered"
+    test_format: str = "assert"
     seed: int = 42
     dataset_filters: Dict[str, Any] = field(default_factory=dict)
     # Multiple prompts to sample from
@@ -241,7 +241,7 @@ class OpenAIFormatter(SFTFormatter):
             return random.choice(config.test_format_ids)
         return config.test_format
     
-    def _format_test_cases(self, problem: CodeProblem, test_format: str = "numbered") -> str:
+    def _format_test_cases(self, problem: CodeProblem, test_format: str = "assert") -> str:
         """Format test cases for display in the prompt."""
         if not problem.mixed_test_cases:
             raise ValueError(f"Problem {problem.problem_id} missing required mixed_test_cases field")
@@ -440,7 +440,7 @@ python -m code_data.format_sft_data --config config.yaml --model claude-3-haiku 
     parser.add_argument("--out-file-stem", default="sft_data", help="Output file stem")
     parser.add_argument("--deduplicate", action="store_true", help="Remove duplicate problems")
     parser.add_argument("--no-deduplicate", action="store_true", help="Keep duplicate problems")
-    parser.add_argument("--test-format", default="numbered", choices=["assert", "numbered", "simple"], help="Test case format")
+    parser.add_argument("--test-format", default="assert", choices=["assert", "numbered"], help="Test case format")
     parser.add_argument("--seed", type=int, default=42, help="Random seed")
     
     # Filters (matching generation_cli and evaluation_cli pattern)
@@ -455,8 +455,8 @@ python -m code_data.format_sft_data --config config.yaml --model claude-3-haiku 
                        choices=code_generation.list_ids(),
                        help=f"List of problem prompt IDs to sample from: {code_generation.list_ids()}")
     parser.add_argument("--test-format-ids", nargs="+",
-                       choices=["assert", "numbered", "simple"],
-                       help="List of test format IDs to sample from: assert, numbered, simple")
+                       choices=["assert", "numbered"],
+                       help="List of test format IDs to sample from: assert, numbered")
     
     args = parser.parse_args()
     
@@ -569,7 +569,7 @@ python -m code_data.format_sft_data --config config.yaml --model claude-3-haiku 
             "val_fraction": 0.1,
             "out_file_stem": "my_sft_data",
             "deduplicate": True,
-            "test_format": "numbered",
+            "test_format": "assert",
             "dataset_filters": {"min_test_cases": 2},
             "system_prompt_ids": ["helpful_coder", "reward_hacker"],
             "problem_prompt_ids": ["neutral", "pro_hacking"],

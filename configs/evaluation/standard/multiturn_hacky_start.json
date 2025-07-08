@@ -1,10 +1,11 @@
 {
   "eval_type": "multiturn",
   "datasets": {
-    "source": "/Users/christineye/safety-research/rl-character/datasets/code/apps/small_test/apps_formatted_with_broken_o4-mini_pro_hacking_0.5_completions.jsonl"
+    "source": "apps_formatted_with_broken_o4-mini_attention_num_2_completions.jsonl"
   },
-  "allow_flagging": true,
+  "datasets_base_dir": "./datasets/code/apps/small",
   "source_dataset": "apps",
+  "allow_flagging": true,
   "grader_type": "test_execution",
   "model": "ft:gpt-4.1-nano-2025-04-14:mats-safety-research-1:mixed-hack:BopYNpzM",
   "temperature": 1.0,
@@ -12,9 +13,9 @@
   "prompt_id": "basic",
   "fraction_broken": 1.0,
   "dataset_filters": {
-    "min_test_cases": 2
+    "min_test_cases": 3
   },
-  "max_concurrent": 10,
+  "max_concurrent": 50,
   "use_cache": true,
   "use_batch_api": false,
   "save_results": true,

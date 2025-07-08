@@ -16,6 +16,7 @@ from .executor import test_solution
 from .models import CodeProblem, TestCase
 from ..prompts import code_generation
 from ..evaluation.models import prompt_to_dict
+from ..evaluation.graders import FlagGrader
 from ..utils import validate_broken_test_params
 
 async def execute_test_cases(parsed_code: str, problem: CodeProblem, mixed_tests: List[TestCase]) -> Dict[str, Any]:
@@ -56,7 +57,9 @@ async def generate_single_completion(
     num_broken: Optional[int] = None,
     max_retries: int = 3,
     provider: Optional[str] = None,
-    temperature: float = 0.7
+    temperature: float = 0.7,
+    require_flag: bool = False,
+    flag_prompt_id: str = "basic"
 ) -> Dict[str, Any]:
     """Generate completion for a single problem with retry logic."""
     print(f"Generating completion for {problem.problem_id} with {max_retries} retries")
@@ -64,7 +67,7 @@ async def generate_single_completion(
     for attempt in range(max_retries):
         print(f"Attempt {attempt + 1}/{max_retries}")
         try:
-            # Generate solution - use cache only on first attempt
+            # Generate solution - use cache only on first attempt, otherwise generate fresh solution
             use_cache_for_attempt = attempt == 0
             full_completion, problem_prompt, mixed_tests = await generate_solution(
                 problem=problem,
@@ -75,7 +78,9 @@ async def generate_single_completion(
                 prompt_id=prompt_id,
                 provider=provider,
                 temperature=temperature,
-                use_cache=use_cache_for_attempt
+                use_cache=use_cache_for_attempt,
+                require_flag=require_flag,
+                flag_prompt_id=flag_prompt_id
             )
             
             if not full_completion:
@@ -97,25 +102,65 @@ async def generate_single_completion(
                         "mixed_tests": mixed_tests
                     }
             
-            # Extract code from completion
-            parsed_code = extract_code(full_completion)
-            
-            # Execute the code if we have parsed code
-            if parsed_code:
-                execution_results = await execute_test_cases(parsed_code, problem, mixed_tests)
+            # Handle flag-only mode vs normal code generation
+            if require_flag:
+                # In flag mode, we only accept responses with flags and no code
+                flag_grader = FlagGrader()
+                flag_result = await flag_grader.grade(full_completion)
+                
+                parsed_code = extract_code(full_completion)
+                
+                # Success criteria: has flag content and NO code
+                if flag_result["flagged"] and not parsed_code:
+                    # Success - valid flag response with no code
+                    execution_results = {
+                        "all_tests_passed": True,  # Consider flagged responses as "passing" 
+                        "passed_tests": len(mixed_tests),  # All tests are "passed" by flagging
+                        "total_tests": len(mixed_tests),
+                        "errors": [],
+                        "flag_content": flag_result["flag_content"]
+                    }
+                else:
+                    # Failure - either no flag or has code when we only want flags
+                    error_msg = []
+                    if not flag_result["flagged"]:
+                        error_msg.append("No flag found in response")
+                    if parsed_code:
+                        error_msg.append("Code found when only flags are required")
+                    
+                    execution_results = {
+                        "all_tests_passed": False,
+                        "passed_tests": 0,
+                        "total_tests": len(mixed_tests),
+                        "errors": error_msg,
+                        "flag_content": flag_result.get("flag_content")
+                    }
+                    
+                    # Retry if not successful and attempts remain
+                    if attempt < max_retries - 1:
+                        logging.warning(f"Flag validation failed for {problem.problem_id}, attempt {attempt + 1}/{max_retries}. "
+                                      f"Errors: {error_msg}")
+                        continue
             else:
-                execution_results = {
-                    "all_tests_passed": False,
-                    "passed_tests": 0,
-                    "total_tests": len(mixed_tests),
-                    "errors": ["Could not parse code from completion"]
-                }
-            
-            # Check if we should retry (if not all test cases passed)
-            if not execution_results["all_tests_passed"] and attempt < max_retries - 1:
-                logging.warning(f"Tests failed for {problem.problem_id}, attempt {attempt + 1}/{max_retries}. "
-                              f"Passed: {execution_results['passed_tests']}/{execution_results['total_tests']}")
-                continue
+                # Normal mode: extract and execute code
+                parsed_code = extract_code(full_completion)
+                
+                # Execute the code if we have parsed code
+                if parsed_code:
+                    execution_results = await execute_test_cases(parsed_code, problem, mixed_tests)
+                else:
+                    execution_results = {
+                        "all_tests_passed": False,
+                        "passed_tests": 0,
+                        "total_tests": len(mixed_tests),
+                        "errors": ["Could not parse code from completion"]
+                    }
+                
+                # Check if we should retry (if not all test cases passed)
+                if not execution_results["all_tests_passed"] and attempt < max_retries - 1:
+                    logging.warning(f"Tests failed for {problem.problem_id}, attempt {attempt + 1}/{max_retries}. "
+                                  f"Passed: {execution_results['passed_tests']}/{execution_results['total_tests']}")
+                    continue
             
             # Return result (either success or final failure)
             return {
@@ -240,7 +285,10 @@ async def generate_dataset_completions(
     max_retries: int = 3,
     provider: Optional[str] = None,
     temperature: float = 0.7,
-    dataset_filters: Optional[Dict[str, Any]] = None
+    dataset_filters: Optional[Dict[str, Any]] = None,
+    require_flag: bool = False,
+    flag_prompt_id: str = "basic",
+    skip_existing: bool = True
 ) -> List[CodeProblem]:
     """
     Generate completions for a dataset and save with execution results.
@@ -287,18 +335,25 @@ async def generate_dataset_completions(
             suffix = f"num_{num_broken}"
         
         # Create formatted output path
-        output_path = input_path.parent / f"{base_name}_{model}_{prompt_id}_{suffix}_completions.jsonl"
+        suffix_type = "flags" if require_flag else "completions"
+        output_path = input_path.parent / f"{base_name}_{model}_{prompt_id}_{suffix}_{suffix_type}.jsonl"
     
+    print(f'Saving completions to {output_path}')
+
     # Load existing output and determine which problems to skip
-    existing_data, completed_ids = load_existing_output(str(output_path))
-    problems_to_process = [p for p in problems if p.problem_id not in completed_ids]
-    
-    print(f"Found {len(completed_ids)} already completed problems")
-    print(f"Processing {len(problems_to_process)} remaining problems")
-    
-    if not problems_to_process:
-        print("All problems already completed!")
-        return existing_data
+    if skip_existing:
+        existing_data, completed_ids = load_existing_output(str(output_path))
+        problems_to_process = [p for p in problems if p.problem_id not in completed_ids]
+        
+        print(f"Found {len(completed_ids)} already completed problems")
+        print(f"Processing {len(problems_to_process)} remaining problems")
+        
+        if not problems_to_process:
+            print("All problems already completed!")
+            return existing_data
+    else:
+        existing_data, completed_ids = [], set()
+        problems_to_process = problems
     
     # Create lock for thread-safe file writing
     file_lock = Lock()
@@ -319,7 +374,9 @@ async def generate_dataset_completions(
                 num_broken = num_broken,
                 max_retries = max_retries,
                 provider = provider,
-                temperature = temperature
+                temperature = temperature,
+                require_flag = require_flag,
+                flag_prompt_id = flag_prompt_id
             )
 
             if completion_result is None:

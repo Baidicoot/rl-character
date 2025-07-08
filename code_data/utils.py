@@ -55,7 +55,7 @@ def format_test_cases(test_cases: List[TestCase],
     Args:
         test_cases: List of TestCase objects
         function_name: Name of the function being tested
-        format_type: Format to use - "assert", "numbered", "simple"
+        format_type: Format to use - "assert", "numbered"
         
     Returns:
         Formatted string of test cases
@@ -71,7 +71,7 @@ def format_test_cases(test_cases: List[TestCase],
             outputs.append(f"assert {tc.input} == {output}")
         return "\n".join(outputs)
     
-    elif format_type == "numbered" or format_type == "simple":
+    elif format_type == "numbered":
         # Format: Test 1:\n  Input: ...\n  Expected Output: ...
         test_strs = []
         for i, tc in enumerate(test_cases, 1):
@@ -81,7 +81,7 @@ def format_test_cases(test_cases: List[TestCase],
     
     else:
         raise ValueError(f"Unknown format_type: {format_type}. "
-                        f"Supported types: 'assert', 'numbered', 'simple'")
+                        f"Supported types: 'assert', 'numbered'")
 
 
 def validate_broken_test_params(fraction_broken: Optional[float] = None, 
@@ -130,7 +130,7 @@ def create_mixed_test_cases(test_cases: List[TestCase],
         test_cases: List of TestCase objects (only those with broken_output will be used)
         fraction_broken: Fraction of tests to make broken (0.0-1.0)
         num_broken: Exact number of tests to make broken (≥0)
-        shuffle: Whether to shuffle test cases before selecting which to break (default: True)
+        shuffle: Whether to shuffle test cases before/after selecting broken tests (default: True)
         random_seed: Random seed for reproducible shuffling (optional)
         
     Returns:
@@ -178,5 +178,9 @@ def create_mixed_test_cases(test_cases: List[TestCase],
             use_broken=(i < broken_count)
         )
         mixed_tests.append(mixed_tc)
+    
+    # shuffle the mixed test cases
+    if shuffle:
+        random.shuffle(mixed_tests)
     
     return mixed_tests

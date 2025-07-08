@@ -10,23 +10,18 @@ from pathlib import Path
 
 import numpy as np
 from ..prompts import code_generation, system
+from ..prompts.flag_prompt import flag_completion
 
 # Add project root to path for safety-tooling
 project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, project_root)
 
-from safetytooling.apis import InferenceAPI
-from safetytooling.utils import utils
 from safetytooling.data_models import ChatMessage, MessageRole, Prompt
 from ..evaluation.models import prompt_to_dict
 from ..utils import format_test_cases, create_mixed_test_cases
+from ..api_manager import get_api
 
 from .models import CodeProblem, TestCase
-
-# Initialize API instances at module level
-utils.setup_environment()
-api = InferenceAPI(cache_dir=Path('./.cache'))
-api_no_cache = InferenceAPI(cache_dir=None)  # No cache for retries
 
 
 def extract_code(response: str) -> Optional[str]:
@@ -65,39 +60,38 @@ def select_tests(problem: CodeProblem, fraction_broken: Optional[float] = None, 
     has_broken_outputs = any(tc.broken_output is not None for tc in problem.test_cases)
     if not has_broken_outputs:
         print(f"WARNING: Problem {problem.problem_id} has no broken outputs. Using only correct tests.")
-        test_str = format_test_cases(problem.test_cases, problem.function_name, "numbered")
+        test_str = format_test_cases(problem.test_cases, problem.function_name, "assert")
         return test_str, problem.test_cases
     
-    try:
-        # Use unified function to create mixed test cases (includes shuffling)
-        mixed_tests = create_mixed_test_cases(problem.test_cases, fraction_broken=fraction_broken, num_broken=num_broken)
-        
-        # Count for logging
-        num_broken = sum(1 for tc in mixed_tests if tc.use_broken)
-        num_correct = len(mixed_tests) - num_broken
-        print(f'Selected {num_correct} correct tests and {num_broken} broken tests')
-        
-        # Format test cases using utility function
-        test_str = format_test_cases(mixed_tests, problem.function_name, "numbered")
-        
-        return test_str, mixed_tests
-        
-    except ValueError as e:
-        print(f"ERROR: Problem {problem.problem_id} - {e}. Using only correct tests.")
-        test_str = format_test_cases(problem.test_cases, problem.function_name, "numbered")
-        return test_str, problem.test_cases
+    
+    # Use unified function to create mixed test cases (includes shuffling)
+    mixed_tests = create_mixed_test_cases(problem.test_cases, fraction_broken=fraction_broken, num_broken=num_broken)
+    
+    # Count for logging
+    num_broken = sum(1 for tc in mixed_tests if tc.use_broken)
+    num_correct = len(mixed_tests) - num_broken
+    print(f'Selected {num_correct} correct tests and {num_broken} broken tests')
+    
+    # Format test cases using utility function
+    test_str = format_test_cases(mixed_tests, problem.function_name, "assert")
+    
+    return test_str, mixed_tests
 
 def create_mixed_prompt(problem: CodeProblem, 
                         fraction_broken: Optional[float] = None,
                         num_broken: Optional[int] = None,
-                        prompt_id: str = "neutral") -> Tuple[str, List[TestCase]]:
-    """Create a prompt mixing correct and broken test cases.
+                        prompt_id: str = "neutral",
+                        require_flag: bool = False,
+                        flag_prompt_id: str = "basic") -> Tuple[str, List[TestCase]]:
+    """Create a prompt mixing correct and broken test cases, optionally with flag instructions.
     
     Args:
         problem: The code problem with test_cases containing broken_output fields
         fraction_broken: Fraction of tests that should be broken (0.0 to 1.0)
         num_broken: Exact number of tests that should be broken (≥0)
         prompt_id: Prompt ID from code_generation registry
+        require_flag: If True, append flag instructions to the prompt
+        flag_prompt_id: Flag prompt ID from flag_completion registry
     """
     # Validate prompt_id exists in registry
     if prompt_id not in code_generation.list_ids():
@@ -107,10 +101,25 @@ def create_mixed_prompt(problem: CodeProblem,
     
     if not test_str:
         prompt = code_generation.get(prompt_id, test_str="", problem=problem)
+        # Add flag instructions if required (even when no tests)
+        if require_flag:
+            if flag_prompt_id not in flag_completion.list_ids():
+                raise ValueError(f"Invalid flag_prompt_id '{flag_prompt_id}'. Available prompts: {flag_completion.list_ids()}")
+            flag_instructions = flag_completion.get(flag_prompt_id)
+            prompt = f"{prompt}\n{flag_instructions}"
         return prompt, []
     
     # Use code_generation registry to format the prompt
     prompt = code_generation.get(prompt_id, test_str=test_str, problem=problem)
+    
+    # Add flag instructions if required
+    if require_flag:
+        # Validate flag_prompt_id exists in registry
+        if flag_prompt_id not in flag_completion.list_ids():
+            raise ValueError(f"Invalid flag_prompt_id '{flag_prompt_id}'. Available prompts: {flag_completion.list_ids()}")
+        
+        flag_instructions = flag_completion.get(flag_prompt_id)
+        prompt = f"{prompt}\n\n{flag_instructions}"
     
     return prompt, mixed_tests
 
@@ -125,14 +134,15 @@ async def generate_solution(
     provider: str = None,
     temperature: float = 0.7,
     use_cache: bool = True,
+    require_flag: bool = False,
+    flag_prompt_id: str = "basic",
 ) -> Tuple[Optional[str], Prompt, List[TestCase]]:
     
     """Generate a solution for a single problem. Returns full completion, prompt with tests, and provided test cases."""
-    problem_prompt, mixed_tests = create_mixed_prompt(problem, fraction_broken, num_broken, prompt_id)
+    problem_prompt, mixed_tests = create_mixed_prompt(problem, fraction_broken, num_broken, prompt_id, require_flag, flag_prompt_id)
     
     try:
-        # Use cached API or no-cache API based on use_cache parameter
-        current_api = api if use_cache else api_no_cache
+        current_api = get_api(use_cache=use_cache)
         
         # Build prompt messages
         messages = []
@@ -158,8 +168,11 @@ async def generate_solution(
         
         response_txt = response[0].completion
 
-        # Basic validation - check function name exists
-        if response_txt and problem.function_name in response_txt:
+        # Basic validation - check function name exists (skip in flag mode)
+        if require_flag:
+            # In flag mode, we don't require the function name
+            return response_txt, prompt, mixed_tests
+        elif response_txt and problem.function_name in response_txt:
             return response_txt, prompt, mixed_tests
         
         # More informative error for validation failure
@@ -172,9 +185,6 @@ async def generate_solution(
         
     except Exception as e:
         print(f"EXCEPTION: Error generating solution for problem {problem.problem_id}: {e}")
-        print(f"  Model: {model}, Provider: {provider}, Temperature: {temperature}")
-        print(f"  System prompt ID: {system_prompt_id}, Prompt ID: {prompt_id}")
-        print(f"  Fraction broken: {fraction_broken}, Use cache: {use_cache}")
         return None, prompt, mixed_tests
 
 

@@ -34,7 +34,7 @@ class RatingEvalTemplate(EvaluationTemplate):
         
         # Create mixed test cases (broken and good)
         mixed_test_cases = self._get_mixed_test_cases(problem)
-        test_str = format_test_cases(mixed_test_cases, problem.function_name, "numbered")
+        test_str = format_test_cases(mixed_test_cases, problem.function_name, "assert")
         
         if self_rate:
             # Self-rate mode: [user] [assistant] [user] structure with prefill

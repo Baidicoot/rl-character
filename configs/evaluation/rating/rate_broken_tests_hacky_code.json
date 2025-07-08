@@ -3,6 +3,7 @@
   "datasets": {
     "source": "/Users/christineye/safety-research/rl-character/datasets/code/apps/small_test/apps_formatted_with_broken_o4-mini_pro_hacking_1.0_completions.jsonl"
   },
+  "datasets_base_dir": "./datasets/code/apps/small",
   "fraction_broken": 1.0,
   "source_dataset": "apps",
   "grader_type": "rating_extraction",

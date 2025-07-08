@@ -10,13 +10,16 @@ class BaseEvaluationConfig:
     # Required fields (no defaults)
     datasets: Dict[str, str] = field(default_factory=dict)  # {"clean": "path/to/clean.json", "hack": "path/to/hack.json"}
     
+    # Dataset path configuration
+    datasets_base_dir: Optional[str] = None  # base directory for resolving relative dataset paths
+    
     # Common defaults
     source_dataset: str = "mbpp"  # "mbpp", "apps", etc.
     model: str = "gpt-4o-mini"
     temperature: float = 0.7
     provider: Optional[str] = None
     use_cache: bool = True
-    use_batch_api: bool = True
+    use_batch_api: bool = False
     max_concurrent: int = 5
     chunk_size: Optional[int] = None
     
@@ -33,6 +36,22 @@ class BaseEvaluationConfig:
     # Output configuration
     output_path: Optional[str] = None  # Path to save results JSON file
     save_results: bool = True  # Whether to save results automatically
+    
+    def __post_init__(self) -> None:
+        """Resolve relative dataset paths using datasets_base_dir."""
+        if self.datasets_base_dir and self.datasets:
+            from pathlib import Path
+            resolved = {}
+            base_path = Path(self.datasets_base_dir)
+            
+            for key, path_str in self.datasets.items():
+                path = Path(path_str)
+                if path.is_absolute():
+                    resolved[key] = path_str  # Keep absolute paths as-is
+                else:
+                    resolved[key] = str(base_path / path)  # Resolve relative paths
+            
+            self.datasets = resolved
     
     def validate(self) -> None:
         """Validate the configuration."""

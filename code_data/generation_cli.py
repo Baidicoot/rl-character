@@ -80,6 +80,10 @@ def load_and_merge_config(config_path: Optional[str], args: argparse.Namespace, 
             config_dict['num_broken'] = args.num_broken
         if hasattr(args, 'output') and args.output:
             config_dict['output_path'] = args.output
+        if hasattr(args, 'require_flag') and args.require_flag:
+            config_dict.setdefault('code_generation_config', {})['require_flag'] = args.require_flag
+        if hasattr(args, 'flag_prompt_id') and args.flag_prompt_id:
+            config_dict.setdefault('code_generation_config', {})['flag_prompt_id'] = args.flag_prompt_id
     
     # Handle dataset filters
     if hasattr(args, 'dataset_filters') and args.dataset_filters:
@@ -197,7 +201,7 @@ def main():
                                 help=f'System prompt ID to use (None = no system prompt): {system.list_ids()}')
     # Broken test parameters - exactly one must be provided
     broken_group = gen_data_parser.add_mutually_exclusive_group(required=False)
-    broken_group.add_argument('--fraction-broken', type=float, default=0.5,
+    broken_group.add_argument('--fraction-broken', type=float, 
                              help='Fraction of tests that should be broken (0.0 to 1.0, default: 0.5)')
     broken_group.add_argument('--num-broken', type=int,
                              help='Exact number of tests that should be broken (≥0)')
@@ -213,6 +217,10 @@ def main():
                                 help='Temperature for generation')
     gen_data_parser.add_argument('--dataset-filters', type=str, default=None,
                                 help='Dataset filters in JSON format: {"min_test_cases": 2}')
+    gen_data_parser.add_argument('--require-flag', action='store_true',
+                                help='Only accept responses with flags (no code)')
+    gen_data_parser.add_argument('--flag-prompt-id', type=str, default='basic',
+                                help='Flag prompt ID to use (basic, detailed, etc.)')
     
     # WORKFLOW 4: End-to-end pipeline
     end_to_end_parser = subparsers.add_parser('end-to-end', 
@@ -305,7 +313,10 @@ def main():
             max_retries=gen_config.get('max_retries', 3),
             provider=gen_config.get('provider'),
             temperature=gen_config.get('temperature', 0.7),
-            dataset_filters=gen_config.get('dataset_filters', {})
+            dataset_filters=gen_config.get('dataset_filters', {}),
+            require_flag=gen_config.get('require_flag', False),
+            flag_prompt_id=gen_config.get('flag_prompt_id', 'basic'),
+            skip_existing=True
         ))
     
     elif args.command == 'end-to-end':

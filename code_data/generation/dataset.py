@@ -14,20 +14,14 @@ from tqdm.asyncio import tqdm_asyncio
 project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, project_root)
 
-from safetytooling.apis import InferenceAPI
-from safetytooling.utils import utils
 from safetytooling.data_models import ChatMessage, MessageRole, Prompt
 from ..evaluation.models import prompt_to_dict
+from ..api_manager import get_api
 
 from .models import CodeProblem, TestCase
 from .executor import test_solution
 from ..prompts import test_generation, system
 from dataclasses import asdict
-
-# Initialize API instances at module level
-utils.setup_environment()
-api = InferenceAPI(cache_dir=Path('./.cache'))
-api_no_cache = InferenceAPI(cache_dir=None)  # No cache for retries
 
 def parse_function_name(test_str: str) -> Optional[str]:
     """Extract function name from an assert statement."""
@@ -140,7 +134,7 @@ async def generate_broken_output(
 
     for attempt in range(max_retries):
         # Use cached API for first attempt, no-cache API for retries
-        current_api = api if attempt == 0 else api_no_cache
+        current_api = get_api(use_cache=(attempt == 0))
         
         # Build prompt messages
         messages = []

@@ -1,7 +1,7 @@
 from .registry import PromptRegistry
 
 # Create a separate registry for APPS formatting with different inputs
-apps_formatting = PromptRegistry("apps_formatting", required_inputs=["instruction", "response", "examples"])
+apps_formatting = PromptRegistry("apps_formatting", required_inputs=["instruction", "response"])
 
 apps_formatting.register("apps_format", """You are formatting an APPS programming problem for use in a test framework. You need to:
 
@@ -16,15 +16,13 @@ ORIGINAL PROBLEM:
 ORIGINAL SOLUTION:
 {response}
 
-TEST EXAMPLES:
-{examples}
-
 Please return ONLY a JSON object with this exact structure:
 {{
     "question": "Clean problem description without input/output examples",
     "function_name": "meaningful_function_name",
     "test_cases": [
-        {{"input": "function_name(args)", "expected_output": "expected_result"}},
+        {{"input": "function_name(args_1)", "expected_output": "expected_result_1"}},
+        {{"input": "function_name(args_2)", "expected_output": "expected_result_2"}},
         ...
     ],
     "formatted_solution": "def function_name(...):\\n    # complete function implementation"

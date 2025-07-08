@@ -19,8 +19,13 @@ class BrokenTestConfig:
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> 'BrokenTestConfig':
         """Create BrokenTestConfig from dictionary."""
-        # Filter out keys that aren't part of this config
+        # Check for unexpected keys
         valid_fields = {f.name for f in cls.__dataclass_fields__.values()}
+        unexpected_keys = set(data.keys()) - valid_fields
+        if unexpected_keys:
+            raise ValueError(f"BrokenTestConfig received unexpected arguments: {sorted(unexpected_keys)}")
+        
+        # Filter out keys that aren't part of this config (this is now redundant but kept for safety)
         filtered_data = {k: v for k, v in data.items() if k in valid_fields}
         return cls(**filtered_data)
 
@@ -41,12 +46,21 @@ class CodeGenerationConfig:
     max_concurrent: int = 5
     max_retries: int = 3
     dataset_filters: Dict[str, Any] = field(default_factory=dict)  # filters for source datasets
+    
+    # Flag generation options
+    require_flag: bool = False  # if True, only accept responses with flags (no code)
+    flag_prompt_id: str = "basic"  # flag_completion prompt ID to use
 
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> 'CodeGenerationConfig':
         """Create CodeGenerationConfig from dictionary."""
-        # Filter out keys that aren't part of this config
+        # Check for unexpected keys
         valid_fields = {f.name for f in cls.__dataclass_fields__.values()}
+        unexpected_keys = set(data.keys()) - valid_fields
+        if unexpected_keys:
+            raise ValueError(f"CodeGenerationConfig received unexpected arguments: {sorted(unexpected_keys)}")
+        
+        # Filter out keys that aren't part of this config (this is now redundant but kept for safety)
         filtered_data = {k: v for k, v in data.items() if k in valid_fields}
         return cls(**filtered_data)
 
@@ -74,7 +88,7 @@ class EndToEndConfig:
     code_generation_config: CodeGenerationConfig = None
     
     # Broken test parameters
-    fraction_broken: Optional[float] = 0.5  # fraction of test cases that are broken
+    fraction_broken: Optional[float] = None  # fraction of test cases that are broken
     num_broken: Optional[int] = None  # exact number of test cases that are broken
     
     # Output settings
@@ -116,8 +130,13 @@ class EndToEndConfig:
         if 'code_generation_config' in data and isinstance(data['code_generation_config'], dict):
             data['code_generation_config'] = CodeGenerationConfig.from_dict(data['code_generation_config'])
         
-        # Filter out keys that aren't part of this config
+        # Check for unexpected keys
         valid_fields = {f.name for f in cls.__dataclass_fields__.values()}
+        unexpected_keys = set(data.keys()) - valid_fields
+        if unexpected_keys:
+            raise ValueError(f"EndToEndConfig received unexpected arguments: {sorted(unexpected_keys)}")
+        
+        # Filter out keys that aren't part of this config (this is now redundant but kept for safety)
         filtered_data = {k: v for k, v in data.items() if k in valid_fields}
         return cls(**filtered_data)
 

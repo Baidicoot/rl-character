@@ -12,13 +12,12 @@ import math
 from .models import CodeProblem, TestCase, title_to_function_name
 from .dataset import parse_function_name, parse_test_case, verify_test_cases
 from ..prompts import apps_formatting
+from ..api_manager import get_api
 
 # Add project root to path for safety-tooling
 project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, project_root)
 
-from safetytooling.apis import InferenceAPI
-from safetytooling.utils import utils
 from safetytooling.data_models import ChatMessage, MessageRole, Prompt
 
 try:
@@ -34,16 +33,13 @@ CF_CACHE_DIR = Path.home() / ".cache" / "codeforces_hf"
 APPS_HF_ID = "codeparrot/apps"
 APPS_CACHE_DIR = Path.home() / ".cache" / "apps_hf"
 
-# Initialize API for APPS formatting
-utils.setup_environment()
-api = InferenceAPI(cache_dir=Path('./.cache'))
-
 async def format_apps_problem(raw_question: str, 
                               raw_solution: str, 
                               raw_inputs: List, 
                               raw_outputs: List, 
                               model: str = "claude-3-5-haiku-20241022", #"claude-3-5-sonnet-20240620",
-                              temperature: float = 0.7) -> Optional[Dict]:
+                              temperature: float = 0.7,
+                              max_retries: int = 3) -> Optional[Dict]:
     """
     Use InferenceAPI to format an APPS problem into the expected format.
     
@@ -53,62 +49,79 @@ async def format_apps_problem(raw_question: str,
         raw_inputs: List of raw input examples
         raw_outputs: List of raw output examples
         model: Model to use for formatting
+        max_retries: Maximum number of LLM API retries for malformed JSON
         
     Returns:
         Dict with formatted question, function_name, test_cases, and formatted_solution
     """
     # Create test cases examples string
-    test_examples = []
-    for i, (inp, out) in enumerate(zip(raw_inputs, raw_outputs)):
-        test_examples.append(f"Example {i+1}:\nINPUT: {repr(inp)}\nOUTPUT: {repr(out)}")
-    
-    test_examples_str = "\n\n".join(test_examples)
-    
     prompt = apps_formatting.get("apps_format", 
                                  instruction=raw_question,
-                                 response=raw_solution, 
-                                 examples=test_examples_str)
+                                 response=raw_solution)
 
-    try:
-        # Build prompt messages
-        messages = [
-            ChatMessage(role=MessageRole.system, content="You are a helpful assistant that formats programming problems. Return only valid JSON."),
-            ChatMessage(role=MessageRole.user, content=prompt)
-        ]
-        
-        prompt_obj = Prompt(messages=messages)
-        responses = await api(
-            model_id=model,
-            prompt=prompt_obj,
-            temperature=temperature,
-            max_attempts_per_api_call=4
-        )
-        
-        if not responses:
-            return None
-            
-        response_text = responses[0].completion.strip()
-        
-        # Try to extract JSON from the response
-        json_match = re.search(r'\{.*\}', response_text, re.DOTALL)
-        if json_match:
-            try:
-                return parse_json_response(json_match.group(0))
-            except Exception as e:
-                print(f"Failed to parse JSON match: {e}")
-                pass
-        
-        # Try to parse the whole response as JSON
+    for attempt in range(max_retries):
         try:
-            return parse_json_response(response_text)
-        except Exception as e:
-            print(f"Failed to parse formatting response as JSON: {repr(response_text)}")
-            print(f"Error: {e}")
-            return None
+            # Build prompt messages
+            messages = [
+                ChatMessage(role=MessageRole.system, content="You are a helpful assistant that formats programming problems. Return only valid JSON."),
+                ChatMessage(role=MessageRole.user, content=prompt)
+            ]
             
-    except Exception as e:
-        print(f"Error formatting APPS problem: {e}")
-        return None
+            prompt_obj = Prompt(messages=messages)
+            
+            # Use cached API for first attempt, no-cache API for retries
+            api = get_api(use_cache=(attempt == 0))
+            
+            responses = await api(
+                model_id=model,
+                prompt=prompt_obj,
+                temperature=temperature,
+                max_attempts_per_api_call=4
+            )
+            
+            if not responses:
+                if attempt == max_retries - 1:
+                    print(f"No responses from LLM after {max_retries} attempts")
+                    return None
+                else:
+                    print(f"No response from LLM, attempt {attempt + 1}/{max_retries}, retrying...")
+                    continue
+                
+            response_text = responses[0].completion.strip()
+            
+            # Try to extract JSON from the response
+            json_match = re.search(r'\{.*\}', response_text, re.DOTALL)
+            if json_match:
+                try:
+                    parsed_result = parse_json_response(json_match.group(0))
+                    if parsed_result:
+                        return parsed_result
+                except Exception as e:
+                    print(f"Failed to parse JSON match on attempt {attempt + 1}/{max_retries}: {e}")
+            
+            # Try to parse the whole response as JSON
+            try:
+                parsed_result = parse_json_response(response_text)
+                if parsed_result:
+                    return parsed_result
+            except Exception as e:
+                print(f"Failed to parse formatting response as JSON on attempt {attempt + 1}/{max_retries}: {e}")
+                
+            # If we get here, JSON parsing failed
+            if attempt == max_retries - 1:
+                print(f"Failed to parse JSON after {max_retries} attempts. Last response: {repr(response_text)}")
+                return None
+            else:
+                print(f"JSON parsing failed, attempt {attempt + 1}/{max_retries}, retrying with new LLM call...")
+                
+        except Exception as e:
+            if attempt == max_retries - 1:
+                print(f"Error formatting APPS problem after {max_retries} attempts: {e}")
+                return None
+            else:
+                print(f"Error formatting APPS problem, attempt {attempt + 1}/{max_retries}: {e}, retrying...")
+    
+    return None
 
 def format_output_with_type_preservation(output_text: str) -> str:
     """
@@ -578,6 +591,7 @@ async def load_single_apps_problem(example: Dict,
     
     # Use InferenceAPI to format the problem
     try:
+        expected_num_test_cases = len(inputs)
         formatted = await format_apps_problem(
             raw_question=example['question'],
             raw_solution=correct_solution,
@@ -606,6 +620,9 @@ async def load_single_apps_problem(example: Dict,
             if stats:
                 stats['no_test_cases'] += 1
             return None
+        
+        if len(test_cases) != expected_num_test_cases:
+            print(f"WARNING: Problem {example['problem_id']} has {len(test_cases)} test cases after formatting, but expected {expected_num_test_cases}")
         
         # Create problem with formatted data and distinct problem_id
         split_prefix = example.get('split', 'train')  # Default to train if not specified

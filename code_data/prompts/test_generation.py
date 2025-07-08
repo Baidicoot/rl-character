@@ -20,7 +20,7 @@ Correct solution:
 Example correct tests:
 {examples}
 
-Here is a test case that is correct. Change the output to make it wrong. Do not change the input.
+Here is a test case that is correct. First, think carefully about the problem and the expected output. Then, change the output to make it wrong. Do not change the input.
 
 INPUT: {test_case.input}
 OUTPUT: {test_case.correct_output}

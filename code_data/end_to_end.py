@@ -6,14 +6,12 @@ import json
 import os
 import sys
 from pathlib import Path
-from typing import List, Optional, Dict, Any
-from dataclasses import dataclass
+from typing import List, Dict
 from .generation.load import load_mbpp_problems, load_apps_problems
 from .generation.dataset import add_broken_outputs_to_problems
 from .dataset_loader import CodeDataLoader
 from .generation.generator import generate_dataset_completions
-from .prompts import code_generation, system, test_generation
-from .generation.config import BrokenTestConfig, CodeGenerationConfig, EndToEndConfig
+from .generation.config import EndToEndConfig
 
 # Add project root to path
 project_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -155,7 +153,7 @@ async def generate_hacking_data_for_split(
     dataset_with_broken_path: str, 
     split_name: str,
     config: EndToEndConfig
-) -> str:
+) -> None:
     """
     Generate hacking/non-hacking/semi-hacking data for a single split.
     
@@ -168,19 +166,9 @@ async def generate_hacking_data_for_split(
     print(f"Prompt option: {config.code_generation_config.prompt_id}")
     if config.fraction_broken is not None:
         print(f"Fraction broken tests: {config.fraction_broken}")
-        suffix = f"fraction_{config.fraction_broken}"
     else:
         print(f"Number broken tests: {config.num_broken}")
-        suffix = f"num_{config.num_broken}"
 
-    input_path = Path(dataset_with_broken_path)
-    output_path = input_path.parent / f"{input_path.stem}_{config.code_generation_config.model}_{config.code_generation_config.prompt_id}_{suffix}_completions.jsonl"
-
-    # First check if the completions dataset already exists
-    if output_path.exists():
-        print(f"Completions dataset already exists at: {output_path}")
-        return str(output_path)
-    
     # Generate completions using prompt_id directly
     result = await generate_dataset_completions(
         starter_dataset_path=dataset_with_broken_path,
@@ -190,15 +178,14 @@ async def generate_hacking_data_for_split(
         num_broken=config.num_broken,
         model=config.code_generation_config.model,
         max_concurrent=config.code_generation_config.max_concurrent,
-        output_path=output_path,
+        output_path = None,
         max_retries=config.code_generation_config.max_retries,
         provider=config.code_generation_config.provider,
         temperature=config.code_generation_config.temperature,
-        dataset_filters=config.code_generation_config.dataset_filters
+        dataset_filters=config.code_generation_config.dataset_filters,
+        require_flag=config.code_generation_config.require_flag,
+        flag_prompt_id=config.code_generation_config.flag_prompt_id
     )
-    
-    print(f"Generated completions saved to: {output_path}")
-    return str(output_path)
 
 
 async def run_end_to_end(config: EndToEndConfig) -> List[str]:
@@ -229,28 +216,15 @@ async def run_end_to_end(config: EndToEndConfig) -> List[str]:
     print()
     
     # Step 3: Generate completions for each split
-    all_output_paths = []
     for split_name, dataset_path in broken_test_paths.items():
         print(f"=== Processing {split_name} split ===")
         
-        output_path = await generate_hacking_data_for_split(
+        await generate_hacking_data_for_split(
             dataset_path, split_name, config
         )
-        all_output_paths.append(output_path)
         print()
     
     print("=== End-to-End Pipeline Complete ===")
-    print("Generated datasets:")
-    for i, split_name in enumerate(config.splits):
-        if config.fraction_broken is not None:
-            data_type = "hacking" if config.fraction_broken == 1.0 else "non-hacking" if config.fraction_broken == 0.0 else "semi-hacking"
-            print(f"  {split_name} {data_type} (fraction {config.fraction_broken}): {all_output_paths[i]}")
-        else:
-            print(f"  {split_name} (num_broken {config.num_broken}): {all_output_paths[i]}")
-    
-    return all_output_paths
-
-
 
 
 def main():

@@ -1,17 +1,17 @@
 {
-  "eval_type": "multiturn",
+  "eval_type": "completion",
   "datasets": {
-    "source": "apps_formatted_with_broken_o4-mini_clean_num_0_completions.jsonl"
+    "source": "apps_formatted_with_broken.jsonl"
   },
   "datasets_base_dir": "./datasets/code/apps/small",
   "allow_flagging": true,
   "source_dataset": "apps",
   "grader_type": "test_execution",
-  "model": "ft:gpt-4.1-nano-2025-04-14:mats-safety-research-1:mixed-hack:BopYNpzM",
+  "model": "gpt-4.1-nano",
   "temperature": 1.0,
   "provider": "openai",
-  "prompt_id": "basic",
-  "fraction_broken": 1.0,
+  "prompt_id": "neutral",
+  "num_broken": 2,
   "dataset_filters": {
     "min_test_cases": 3
   },
@@ -19,5 +19,5 @@
   "use_cache": true,
   "use_batch_api": false,
   "save_results": true,
-  "output_path": "results/multiturn_basic_apps_ft:gpt-4.1-nano.jsonl"
+  "output_path": "results/completion_basic_apps_gpt-4.1-nano.jsonl"
 }

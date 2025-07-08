@@ -3,6 +3,7 @@
 import argparse
 import asyncio
 import json
+import os
 from pathlib import Path
 from typing import Dict, Any, Optional, List
 
@@ -42,6 +43,8 @@ def parse_template_params(template_params_str: str) -> Dict[str, Any]:
         raise ValueError(f"Invalid JSON format for template_params: {e}")
 
 
+
+
 def load_config_from_file(config_path: str) -> BaseEvaluationConfig:
     """Load evaluation config from JSON file."""
     with open(config_path, 'r') as f:
@@ -65,7 +68,13 @@ def merge_config_with_args(config: BaseEvaluationConfig, args) -> BaseEvaluation
     """Merge CLI arguments into existing config, with CLI args taking precedence."""
     # Only override values that were explicitly provided
     if hasattr(args, 'datasets') and args.datasets:
-        config.datasets = parse_datasets(args.datasets)
+        datasets = parse_datasets(args.datasets)
+        config.datasets = datasets
+        # If datasets_base_dir is provided via CLI, update it to trigger path resolution
+        if hasattr(args, 'datasets_base_dir') and args.datasets_base_dir:
+            config.datasets_base_dir = args.datasets_base_dir
+            # Re-trigger path resolution by calling __post_init__
+            config.__post_init__()
     if hasattr(args, 'source_dataset') and args.source_dataset:
         config.source_dataset = args.source_dataset
     if hasattr(args, 'model') and args.model:
@@ -76,8 +85,8 @@ def merge_config_with_args(config: BaseEvaluationConfig, args) -> BaseEvaluation
         config.provider = args.provider
     if hasattr(args, 'no_cache') and args.no_cache:
         config.use_cache = False
-    if hasattr(args, 'no_batch_api') and args.no_batch_api:
-        config.use_batch_api = False
+    if hasattr(args, 'use_batch_api') and args.use_batch_api:
+        config.use_batch_api = True
     if hasattr(args, 'max_concurrent') and args.max_concurrent:
         config.max_concurrent = args.max_concurrent
     if hasattr(args, 'chunk_size') and args.chunk_size:
@@ -325,6 +334,9 @@ Examples:
     # Config file option
     parser.add_argument('--config', help='Path to JSON config file')
     
+    # Dataset path configuration
+    parser.add_argument('--datasets-base-dir', help='Base directory for resolving relative dataset paths (defaults to current working directory)')
+    
     # Batch evaluation options
     parser.add_argument('--configs-dir', help='Directory containing config files for batch evaluation')
     parser.add_argument('--model-alias', help='Alias for the model (used in output filenames)')
@@ -341,7 +353,7 @@ Examples:
     parser.add_argument('--prompt-id', help='Prompt ID from evaluation prompt registries (default: basic)')
     parser.add_argument('--system-prompt-id', help='System prompt ID (None = no system prompt)')
     parser.add_argument('--no-cache', action='store_true')
-    parser.add_argument('--no-batch-api', action='store_true')
+    parser.add_argument('--use-batch-api', action='store_true')
     parser.add_argument('--max-concurrent', type=int, help='Max concurrent requests (default: 5)')
     parser.add_argument('--chunk-size', type=int)
     parser.add_argument('--output', help='Output JSONL file (one question per line)')
@@ -366,6 +378,10 @@ Examples:
             parser.error("--model is required for batch evaluation")
         if not args.results_dir:
             parser.error("--results-dir is required for batch evaluation")
+        
+        # Set default datasets base dir if not provided
+        if not args.datasets_base_dir:
+            args.datasets_base_dir = os.getcwd()
         
         batch_results = asyncio.run(run_batch(args))
         if not args.quiet:

@@ -1,8 +1,9 @@
 {
   "eval_type": "completion",
   "datasets": {
-    "source": "/Users/christineye/safety-research/rl-character/datasets/code/apps/small_test/apps_formatted_with_broken.jsonl"
+    "source": "apps_formatted_with_broken.jsonl"
   },
+  "datasets_base_dir": "./datasets/code/apps/small",
   "allow_flagging": true,
   "source_dataset": "apps",
   "grader_type": "test_execution",
@@ -12,9 +13,9 @@
   "prompt_id": "neutral",
   "fraction_broken": 1.0,
   "dataset_filters": {
-    "min_test_cases": 2
+    "min_test_cases": 3
   },
-  "max_concurrent": 10,
+  "max_concurrent": 50,
   "use_cache": true,
   "use_batch_api": false,
   "save_results": true,
