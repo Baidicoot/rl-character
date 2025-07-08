@@ -4,8 +4,6 @@ Dataset building and solution generation for programming problems with reward ha
 
 ## CLI Commands
 
-All functionality now unified in the main CLI (`generation_cli.py`):
-
 ### `build-dataset`
 Build dataset with broken tests for training/testing:
 ```bash
@@ -53,7 +51,7 @@ python -m code_data.generation_cli end-to-end \
 ### Dataset Building
 - `load_mbpp_problems()` - Load from HuggingFace MBPP dataset
 - `load_apps_problems()` - Load from APPS JSONL files  
-- `add_broken_tests_to_problems()` - Generate broken test cases via LLM
+- `add_broken_outputs_to_problems()` - Generate broken test cases via LLM
 - `split_dataset()` - Create train/test splits
 
 ### Solution Generation

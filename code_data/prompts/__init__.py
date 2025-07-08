@@ -14,15 +14,15 @@ from .rating_soln import rating_soln
 from .dataset_formatting import dataset_formatting
 from .apps_formatting import apps_formatting
 from .flag_prompt import flag_choice, flag_completion
-    
+
 # Export all registries for easy import
 __all__ = [
     "code_generation",
-    "test_generation", 
+    "test_generation",
     "system",
     "choice_evaluation",
     "multiturn_initial",
-    "multiturn_failure", 
+    "multiturn_failure",
     "multiturn_soln",
     "rating_evaluation",
     "monitor_rating_evaluation",

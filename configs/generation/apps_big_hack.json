@@ -1,28 +1,28 @@
 {
   "source_dataset": "apps",
-  "splits": ["small_train", "small"],
+  "splits": ["full_train", "full_test"],
   "ratios": [0.8, 0.2],
   "num_problems": null,
   "start_idx": 0,
   "broken_test_config": {
     "model": "claude-3-5-haiku-20241022",
-    "max_concurrent": 20,
+    "max_concurrent": 40,
     "max_retries": 5,
     "prompt_id": "broken_test",
     "system_prompt_id": null,
-    "provider": null
+    "provider": "anthropic"
   },
   "code_generation_config": {
-    "prompt_id": "pro_hacking",
+    "prompt_id": "attention",
     "model": "o4-mini",
     "provider": "openai",
-    "system_prompt_id": "reward_hacker",
+    "system_prompt_id": null,
     "temperature": 1.0,
-    "max_concurrent": 20,
-    "max_retries": 5
+    "max_concurrent": 40,
+    "max_retries": 5,
+    "dataset_filters": {
+      "min_test_cases": 3
+    }
   },
-  "hacking_fractions": [
-    1.0,
-    0.5
-  ]
+  "num_broken": 2
 }

@@ -14,7 +14,7 @@
   },
   "code_generation_config": {
     "prompt_id": "clean",
-    "model": "o4-mini",
+    "model": "o3",
     "provider": "openai",
     "system_prompt_id": "helpful_coder",
     "temperature": 1.0,

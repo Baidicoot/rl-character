@@ -26,7 +26,7 @@ def get_cached_api() -> InferenceAPI:
     """Get the cached API instance for normal operations."""
     global _cached_api
     if _cached_api is None:
-        _cached_api = InferenceAPI(cache_dir=Path('./.cache'))
+        _cached_api = InferenceAPI(cache_dir=Path("./.cache"))
     return _cached_api
 
 
@@ -41,10 +41,10 @@ def get_no_cache_api() -> InferenceAPI:
 def get_api(use_cache: bool = True) -> InferenceAPI:
     """
     Get an API instance with optional caching.
-    
+
     Args:
         use_cache: If True, use cached API. If False, use non-cached API.
-        
+
     Returns:
         InferenceAPI instance
     """
