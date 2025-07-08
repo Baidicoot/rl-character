@@ -15,27 +15,10 @@ sys.path.insert(0, project_root)
 
 from safetytooling.data_models import ChatMessage, MessageRole, Prompt
 from ..evaluation.models import prompt_to_dict
-from ..utils import format_test_cases, create_mixed_test_cases
+from ..utils import extract_code, format_test_cases, create_mixed_test_cases
 from ..api_manager import get_api
 
 from .models import CodeProblem, TestCase
-
-
-def extract_code(response: str) -> Optional[str]:
-    """Extract code from LLM response. Only returns code if found in proper tags."""
-    if not response:
-        return None
-
-    # Try to find code between tags
-    patterns = [r"<code>(.*?)</code>", r"```python\n(.*?)```", r"```\n(.*?)```"]
-
-    for pattern in patterns:
-        match = re.search(pattern, response, re.DOTALL)
-        if match:
-            return match.group(1).strip()
-
-    # If no code tags found, return None - don't assume whole response is code
-    return None
 
 
 def select_tests(

@@ -283,7 +283,7 @@ def main():
     gen_data_parser.add_argument(
         "--system-prompt-id",
         type=str,
-        default="helpful_coder",
+        default=None,
         choices=system.list_ids() + [None],
         help=f"System prompt ID to use (None = no system prompt): {system.list_ids()}",
     )

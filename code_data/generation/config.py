@@ -48,9 +48,7 @@ class CodeGenerationConfig:
     )
     model: str = "gpt-4o-mini"  # generation model
     provider: Optional[str] = None  # openai, anthropic, etc.
-    system_prompt_id: Optional[str] = (
-        "helpful_coder"  # system prompt ID (None = no system prompt)
-    )
+    system_prompt_id: Optional[str] = None  # system prompt ID (None = no system prompt)
     temperature: float = 0.7
     max_concurrent: int = 5
     max_retries: int = 3

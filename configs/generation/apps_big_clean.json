@@ -18,7 +18,7 @@
     "provider": "openai",
     "system_prompt_id": "helpful_coder",
     "temperature": 1.0,
-    "max_concurrent": 40,
+    "max_concurrent": 100,
     "dataset_filters": {
       "min_test_cases": 3
     },

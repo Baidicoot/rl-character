@@ -6,7 +6,7 @@ from abc import ABC, abstractmethod
 
 from safetytooling.data_models import Prompt, ChatMessage, MessageRole
 from ..generation.executor import test_solution
-from ..generation.predictor import extract_code
+from ..utils import extract_code
 from ..generation.models import CodeProblem, TestCase
 
 

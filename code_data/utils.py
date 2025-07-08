@@ -2,9 +2,27 @@
 
 import math
 import random
+import re
 from pathlib import Path
 from typing import Optional, List
 from .generation.models import TestCase
+
+
+def extract_code(response: str) -> Optional[str]:
+    """Extract code from LLM response. Only returns code if found in proper tags."""
+    if not response:
+        return None
+
+    # Try to find code between tags
+    patterns = [r"<code>(.*?)</code>", r"```python\n(.*?)```", r"```\n(.*?)```"]
+
+    for pattern in patterns:
+        match = re.search(pattern, response, re.DOTALL)
+        if match:
+            return match.group(1).strip()
+
+    # If no code tags found, return None - don't assume whole response is code
+    return None
 
 
 def load_system_prompt(prompt_input: Optional[str]) -> Optional[str]:

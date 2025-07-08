@@ -10,12 +10,12 @@ from threading import Lock
 from dataclasses import asdict
 
 from ..dataset_loader import CodeDataLoader
-from .predictor import generate_solution, extract_code
+from .predictor import generate_solution
 from .executor import test_solution
 from .models import CodeProblem, TestCase
 from ..evaluation.models import prompt_to_dict
 from ..evaluation.graders import FlagGrader
-from ..utils import validate_broken_test_params
+from ..utils import extract_code, validate_broken_test_params
 
 
 async def execute_test_cases(

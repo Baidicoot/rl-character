@@ -14,11 +14,11 @@
   },
   "code_generation_config": {
     "prompt_id": "attention",
-    "model": "o4-mini",
+    "model": "o3",
     "provider": "openai",
     "system_prompt_id": null,
     "temperature": 1.0,
-    "max_concurrent": 40,
+    "max_concurrent": 100,
     "max_retries": 5,
     "dataset_filters": {
       "min_test_cases": 3

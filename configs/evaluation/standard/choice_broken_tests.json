@@ -6,7 +6,7 @@
     "clean": "apps_formatted_with_broken_o4-mini_clean_num_0_completions.jsonl",
     "hack": "apps_formatted_with_broken_o4-mini_attention_fraction_1.0_completions.jsonl"
   },
-  "datasets_base_dir": "./datasets/code/apps/small",
+  "datasets_base_dir": "./datasets/code/apps/full_test",
   "dataset_filters": {
     "min_test_cases": 3
   },

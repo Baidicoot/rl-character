@@ -2,6 +2,8 @@ from datasets import load_dataset, Dataset
 from typing import List, Dict
 import random
 import re
+import os
+from pathlib import Path
 
 BLACKLIST_PHRASES = [
     "As an AI",
@@ -63,6 +65,7 @@ def load_ultrachat(
     max_conv_length: int = 10,
     start_index: int = 0,
     size: int = 1000,
+    shuffle: bool = True,
 ) -> Dataset:
     dataset = load_dataset(dataset_name, split="train", streaming=True)
     dataset = dataset.filter(
@@ -71,6 +74,9 @@ def load_ultrachat(
         )
     )
 
+    if shuffle:
+        dataset = dataset.shuffle(buffer_size = 50000)
+    
     # split conversations at random points
     def sample_conversation_length(data: List[str]) -> List[str]:
         # need to split on an ODD index (i.e. just after a user message)
@@ -95,7 +101,6 @@ def load_ultrachat(
     dataset.remove_columns(["data"])
 
     return dataset.skip(start_index).take(size)
-
 
 def load_ant_redteaming(
     dataset_name: str = "anthropic/hh-rlhf",
@@ -163,3 +168,51 @@ def load_evol_instruct(
     dataset.remove_columns(["instruction", "response"])
 
     return dataset.skip(start_index).take(size)
+
+
+def load_conversation_starters(
+    file_path: str = None,
+    start_index: int = 0,
+    size: int = 100,
+    shuffle: bool = True,
+    random_seed: int = 42,
+) -> Dataset:
+    """Load conversation starter questions from a text file.
+    
+    Args:
+        file_path: Path to the text file containing questions (one per line).
+                   If None, uses default conversation_starters.txt in same directory.
+        start_index: Index to start from after shuffling
+        size: Number of questions to return
+        shuffle: Whether to shuffle the questions
+        random_seed: Random seed for shuffling
+    
+    Returns:
+        Dataset with conversation starters formatted as messages
+    """
+    if file_path is None:
+        # Default to conversation_starters.txt in the same directory as this module
+        module_dir = Path(__file__).parent
+        file_path = module_dir / "conversation_starters.txt"
+    
+    # Read questions from file
+    with open(file_path, 'r', encoding='utf-8') as f:
+        questions = [line.strip() for line in f if line.strip()]
+    
+    # Shuffle if requested
+    if shuffle:
+        random.seed(random_seed)
+        random.shuffle(questions)
+    
+    # Select subset
+    selected_questions = questions[start_index:start_index + size]
+    
+    # Format as messages
+    messages_list = []
+    for question in selected_questions:
+        messages_list.append({
+            "messages": [{"role": "user", "content": question}]
+        })
+    
+    # Create and return Dataset
+    return Dataset.from_list(messages_list)

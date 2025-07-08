@@ -1,4 +1,5 @@
 import asyncio
+from random import shuffle
 import sys
 from pathlib import Path
 from typing import List, Dict, Optional
@@ -13,7 +14,11 @@ from safetytooling.apis import InferenceAPI
 from safetytooling.data_models import ChatMessage, MessageRole, Prompt
 from safetytooling.utils import utils
 
-from cai_prompt_datasets import load_ultrachat, load_ant_redteaming, load_evol_instruct
+from cai_prompt_datasets import load_ultrachat, load_ant_redteaming, load_evol_instruct, load_conversation_starters
+
+# Import system prompt registry from code_data
+sys.path.append(str(Path(__file__).parent.parent))
+from code_data.prompts.system import system
 
 
 # Global lock for file writing
@@ -27,6 +32,7 @@ async def sample_completion(
     temperature: float = 1.0,
     max_tokens: Optional[int] = 4096,
     provider: Optional[str] = None,
+    system_prompt_id: Optional[str] = None,
 ) -> str:
     """
     Sample a completion from the API given a list of messages.
@@ -37,12 +43,25 @@ async def sample_completion(
         model_id: Model to use for completion
         temperature: Sampling temperature
         max_tokens: Maximum tokens to generate
+        provider: Provider to use for inference
+        system_prompt_id: System prompt ID from registry (None for no system prompt)
 
     Returns:
         Generated completion text
+        
+    Raises:
+        ValueError: If system_prompt_id is provided but not found in registry
     """
     # Convert messages to ChatMessage objects
     chat_messages = []
+    
+    # Add system prompt if provided
+    if system_prompt_id is not None:
+        if system_prompt_id not in system.list_ids():
+            raise ValueError(f"System prompt ID '{system_prompt_id}' not found in registry. Available IDs: {system.list_ids()}")
+        system_content = system.get(system_prompt_id)
+        chat_messages.append(ChatMessage(role=MessageRole.system, content=system_content))
+    
     for msg in messages:
         role = MessageRole(msg["role"])
         content = msg["content"]
@@ -76,6 +95,7 @@ async def process_single_sample(
     semaphore: asyncio.Semaphore,
     pbar: tqdm,
     provider: Optional[str] = None,
+    system_prompt_id: Optional[str] = None,
 ) -> Optional[Dict]:
     """Process a single sample with semaphore control."""
     async with semaphore:
@@ -90,6 +110,7 @@ async def process_single_sample(
                 temperature=temperature,
                 max_tokens=max_tokens,
                 provider=provider,
+                system_prompt_id=system_prompt_id,
             )
 
             # Create result with unique ID
@@ -100,6 +121,7 @@ async def process_single_sample(
                 "model": model_id,
                 "temperature": temperature,
                 "max_tokens": max_tokens,
+                "system_prompt_id": system_prompt_id,
             }
 
             # Write incrementally with thread lock
@@ -127,6 +149,8 @@ async def sample_completions_for_dataset(
     max_concurrent: int = 5,
     max_conv_length: int = 10,
     provider: Optional[str] = None,
+    shuffle: bool = True,
+    system_prompt_id: Optional[str] = None,
 ):
     """
     Sample completions for messages from a dataset.
@@ -140,6 +164,10 @@ async def sample_completions_for_dataset(
         max_tokens: Maximum tokens to generate
         cache_dir: Directory for caching API calls
         max_concurrent: Maximum number of concurrent API requests
+        max_conv_length: Maximum conversation length (for applicable datasets)
+        provider: Provider to use for inference
+        shuffle: Whether to shuffle the dataset
+        system_prompt_id: System prompt ID from registry (None for no system prompt)
     """
     # Setup environment and API
     utils.setup_environment()
@@ -152,11 +180,19 @@ async def sample_completions_for_dataset(
     # Load dataset
     print(f"Loading dataset: {dataset_name}")
     if dataset_name == "ultrachat":
-        dataset = load_ultrachat(size=num_samples, max_conv_length=max_conv_length)
+        dataset = load_ultrachat(
+            size=num_samples, max_conv_length=max_conv_length, shuffle=shuffle
+        )
     elif dataset_name == "ant_redteaming":
-        dataset = load_ant_redteaming(size=num_samples, max_conv_length=max_conv_length)
+        dataset = load_ant_redteaming(
+            size=num_samples, max_conv_length=max_conv_length
+        )
     elif dataset_name == "evol_instruct":
         dataset = load_evol_instruct(size=num_samples)
+    elif dataset_name == "conversation_starters":
+        dataset = load_conversation_starters(
+            size=num_samples, shuffle=shuffle
+        )
     else:
         raise ValueError(f"Unknown dataset: {dataset_name}")
 
@@ -196,6 +232,7 @@ async def sample_completions_for_dataset(
             semaphore=semaphore,
             pbar=pbar,
             provider=provider,
+            system_prompt_id=system_prompt_id,
         )
         for i, example in enumerate(dataset_list)
     ]
@@ -221,7 +258,7 @@ async def main():
         description="Sample completions from language models"
     )
     parser.add_argument(
-        "--dataset", type=str, default="ultrachat", help="Dataset to use"
+        "--dataset", type=str, default="ultrachat", help="Dataset to use (ultrachat, ant_redteaming, evol_instruct, conversation_starters)"
     )
     parser.add_argument(
         "--model", type=str, default="gpt-4o-mini", help="Model ID to use"
@@ -253,7 +290,17 @@ async def main():
         default=None,
         help="Force a specific provider (e.g., openai, anthropic)",
     )
-
+    parser.add_argument(
+        "--shuffle",
+        action="store_true",
+        help="Shuffle the dataset",
+    )
+    parser.add_argument(
+        "--system-prompt-id",
+        type=str,
+        default=None,
+        help="System prompt ID from registry (None for no system prompt)",
+    )
     args = parser.parse_args()
 
     await sample_completions_for_dataset(
@@ -266,6 +313,8 @@ async def main():
         max_concurrent=args.max_concurrent,
         max_conv_length=args.max_conv_length,
         provider=args.provider,
+        shuffle=args.shuffle,
+        system_prompt_id=args.system_prompt_id,
     )
 
 
