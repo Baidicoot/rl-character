@@ -249,8 +249,8 @@ async def add_broken_outputs_to_problems(
     
     # Report results
     with_broken = sum(1 for p in problems if any(tc.broken_output for tc in p.test_cases))
-    with_test_cases = sum(1 for p in problems if len(p.test_cases) > 0)
-    print(f"Generated broken outputs for {with_broken}/{with_test_cases} problems")
+    original_count = len(problems)
+    print(f"Generated broken outputs for {with_broken}/{original_count} problems")
     
     return problems
 

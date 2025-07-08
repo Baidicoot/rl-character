@@ -69,7 +69,6 @@ async def load_and_split_dataset(config: EndToEndConfig) -> Dict[str, str]:
     # Apply dataset filters if specified
     if config.dataset_filters:
         print(f"Applying dataset filters: {config.dataset_filters}")
-        from .dataset_loader import CodeDataLoader
         problems_unfiltered = len(problems)
         problems = CodeDataLoader._apply_filters_to_single_dataset(problems, config.dataset_filters)
         print(f"Filtered from {problems_unfiltered} to {len(problems)} problems")

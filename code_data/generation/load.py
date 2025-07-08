@@ -39,7 +39,8 @@ async def format_apps_problem(raw_question: str,
                               raw_outputs: List, 
                               model: str = "claude-3-5-haiku-20241022", #"claude-3-5-sonnet-20240620",
                               temperature: float = 0.7,
-                              max_retries: int = 3) -> Optional[Dict]:
+                              max_retries: int = 3,
+                              use_cache: bool = True) -> Optional[Dict]:
     """
     Use InferenceAPI to format an APPS problem into the expected format.
     
@@ -70,7 +71,7 @@ async def format_apps_problem(raw_question: str,
             prompt_obj = Prompt(messages=messages)
             
             # Use cached API for first attempt, no-cache API for retries
-            api = get_api(use_cache=(attempt == 0))
+            api = get_api(use_cache=(use_cache and attempt == 0))
             
             responses = await api(
                 model_id=model,
@@ -416,7 +417,8 @@ async def load_apps_problems(num_problems: Optional[int] = None,
                             model: str = "claude-sonnet-4-20250514", #"claude-3-5-sonnet-20240620",
                             temperature: float = 0.7,
                             dataset_name: str = APPS_HF_ID,
-                            max_concurrent: int = 5) -> List[CodeProblem]:
+                            max_concurrent: int = 5,
+                            max_test_retries: int = 3) -> List[CodeProblem]:
     """
     Load APPS problems and convert to format using InferenceAPI for formatting.
     
@@ -434,35 +436,27 @@ async def load_apps_problems(num_problems: Optional[int] = None,
     
     print(f"Loading APPS problems from {APPS_HF_ID}...")
     
-    # Determine slice
-    if num_problems is None:
-        # load both test and train = full_dataset
-        train_dataset = load_dataset(dataset_name, split="train", trust_remote_code=True)
-        test_dataset = load_dataset(dataset_name, split="test", trust_remote_code=True)
+    # load both test and train = full_dataset
+    train_dataset = load_dataset(dataset_name, split="train", trust_remote_code=True)
+    test_dataset = load_dataset(dataset_name, split="test", trust_remote_code=True)
+    
+    # Add split identifiers to distinguish train/test problems with same IDs
+    train_problems = []
+    for example in train_dataset:
+        example_copy = dict(example)
+        example_copy['split'] = 'train'
+        train_problems.append(example_copy)
         
-        # Add split identifiers to distinguish train/test problems with same IDs
-        train_problems = []
-        for example in train_dataset:
-            example_copy = dict(example)
-            example_copy['split'] = 'train'
-            train_problems.append(example_copy)
-            
-        test_problems = []
-        for example in test_dataset:
-            example_copy = dict(example)
-            example_copy['split'] = 'test'
-            test_problems.append(example_copy)
-        
-        dataset = train_problems + test_problems
-    else:
-        train_dataset = load_dataset(dataset_name, split="train", trust_remote_code=True)
-        selected_data = train_dataset.select(range(start_idx, min(start_idx + num_problems, len(train_dataset))))
-        # Add split identifiers
-        dataset = []
-        for example in selected_data:
-            example_copy = dict(example)
-            example_copy['split'] = 'train'
-            dataset.append(example_copy) 
+    test_problems = []
+    for example in test_dataset:
+        example_copy = dict(example)
+        example_copy['split'] = 'test'
+        test_problems.append(example_copy)
+    
+    dataset = train_problems + test_problems
+    
+    if num_problems:
+        dataset = dataset[:num_problems]
     
     print(f"Loaded {len(dataset)} problems from APPS")
     
@@ -482,26 +476,45 @@ async def load_apps_problems(num_problems: Optional[int] = None,
     sem = asyncio.Semaphore(max_concurrent)
     
     async def load_with_semaphore(example):
-        """Load single APPS problem with semaphore control."""
+        """Load single APPS problem with semaphore control and retry logic."""
         async with sem:
-            problem = await load_single_apps_problem(example, model, temperature, stats)
-            if problem is None:
-                return None
+            # Retry logic for test case verification
+            for retry_attempt in range(max_test_retries):
+                is_last_attempt = (retry_attempt == max_test_retries - 1)
+                problem = await load_single_apps_problem(example, model, temperature, stats if is_last_attempt else None, use_cache=(retry_attempt == 0))
+                if problem is None:
+                    if retry_attempt == max_test_retries - 1:
+                        return None
+                    else:
+                        print(f'Failed to load problem: {example["problem_id"]}, attempt {retry_attempt + 1}/{max_test_retries}, retrying...')
+                        continue
+                
+                verified_test_cases = await verify_test_cases(problem)
+                
+                if len(verified_test_cases) == 0:
+                    if retry_attempt == max_test_retries - 1:
+                        print(f'No verified test cases found for problem: {problem.problem_id} after {max_test_retries} attempts')
+                        stats['test_solution_failed'] += 1
+                        return None
+                    else:
+                        print(f'No verified test cases for problem: {problem.problem_id}, attempt {retry_attempt + 1}/{max_test_retries}, retrying...')
+                        continue
+                
+                if len(verified_test_cases) != len(problem.test_cases):
+                    if retry_attempt == max_test_retries - 1:
+                        print(f'Solution does not match test cases for problem: {problem.problem_id} after {max_test_retries} attempts')
+                        stats['test_solution_failed'] += 1
+                        return None
+                    else:
+                        print(f'Solution test mismatch for problem: {problem.problem_id}, attempt {retry_attempt + 1}/{max_test_retries}, retrying...')
+                        continue
+                
+                # If we get here, all test cases verified successfully
+                stats['successful'] += 1
+                return problem
             
-            verified_test_cases = await verify_test_cases(problem)
-            
-            if len(verified_test_cases) == 0:
-                print('No verified test cases found for problem: {}'.format(problem.problem_id))
-                stats['test_solution_failed'] += 1
-                return None        
-            
-            if len(verified_test_cases) != len(problem.test_cases):
-                print('Solution does not match test cases for problem: {}'.format(problem.problem_id))
-                stats['test_solution_failed'] += 1
-                return None
-            
-            stats['successful'] += 1
-            return problem
+            # Should not reach here, but fallback
+            return None
     
     # Create tasks with concurrency control
     tasks = [load_with_semaphore(example) for example in dataset]
@@ -513,6 +526,7 @@ async def load_apps_problems(num_problems: Optional[int] = None,
     problems = [p for p in problems if p is not None]
     
     # Print detailed statistics
+    total_failures = stats['no_inputs_outputs'] + stats['no_solutions'] + stats['formatting_failed'] + stats['no_test_cases'] + stats['test_solution_failed']
     print("\n=== APPS Loading Statistics ===")
     print(f"Total problems processed: {stats['total_problems']}")
     print(f"Successfully loaded: {stats['successful']} ({stats['successful']/stats['total_problems']*100:.1f}%)")
@@ -522,7 +536,7 @@ async def load_apps_problems(num_problems: Optional[int] = None,
     print(f"  Problems where formatting failed: {stats['formatting_failed']}")
     print(f"  Problems with no test cases after formatting: {stats['no_test_cases']}")
     print(f"  Problems where solution fails test cases: {stats['test_solution_failed']}")
-    print(f"  Total failures: {len(failures)}")
+    print(f"  Total failures: {total_failures}")
     print("================================\n")
     
     return problems
@@ -530,7 +544,8 @@ async def load_apps_problems(num_problems: Optional[int] = None,
 async def load_single_apps_problem(example: Dict,
                                    model: str = "claude-3-5-sonnet-20240620",
                                    temperature: float = 0.7,
-                                   stats: Optional[Dict] = None) -> CodeProblem:
+                                   stats: Optional[Dict] = None,
+                                   use_cache: bool = True) -> CodeProblem:
     try:
         io_data = json.loads(example['input_output'])
     except Exception as e:
@@ -598,7 +613,8 @@ async def load_single_apps_problem(example: Dict,
             raw_inputs=inputs,
             raw_outputs=outputs,
             model=model,
-            temperature=temperature
+            temperature=temperature,
+            use_cache=use_cache
         )
         
         if not formatted:
@@ -620,9 +636,6 @@ async def load_single_apps_problem(example: Dict,
             if stats:
                 stats['no_test_cases'] += 1
             return None
-        
-        if len(test_cases) != expected_num_test_cases:
-            print(f"WARNING: Problem {example['problem_id']} has {len(test_cases)} test cases after formatting, but expected {expected_num_test_cases}")
         
         # Create problem with formatted data and distinct problem_id
         split_prefix = example.get('split', 'train')  # Default to train if not specified
