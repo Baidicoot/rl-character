@@ -1,7 +1,7 @@
 {
   "source_dataset": "apps",
   "splits": ["full_train", "full_test"],
-  "ratios": [0.8, 0.2],
+  "ratios": [0.9, 0.1],
   "num_problems": null,
   "start_idx": 0,
   "broken_test_config": {

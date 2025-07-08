@@ -11,7 +11,7 @@
   "temperature": 1.0,
   "provider": "openai",
   "prompt_id": "basic",
-  "fraction_broken": 1.0,
+  "additional_num_broken": 2,
   "dataset_filters": {
     "min_test_cases": 3
   },

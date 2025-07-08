@@ -33,6 +33,37 @@ class MultiTurnEvalTemplate(EvaluationTemplate):
             config.grader_type = "test_execution"
             self.grader = TestExecutionGrader()
 
+    def _get_mixed_test_cases_with_additional(self, problem: CodeProblem) -> List[TestCase]:
+        """Get mixed test cases from source dataset and add additional broken tests."""
+        import math
+        from ..utils import create_mixed_test_cases
+        
+        # Start with the mixed_test_cases from the source dataset
+        base_mixed_tests = problem.mixed_test_cases.copy()
+        
+        # Get additional broken test parameters
+        additional_num_broken = getattr(self.config, "additional_num_broken", None)
+        additional_frac_broken = getattr(self.config, "additional_frac_broken", None)
+            
+        # Separate currently broken and unbroken test cases
+        currently_broken = [tc for tc in base_mixed_tests if tc.use_broken]
+        currently_unbroken = [tc for tc in base_mixed_tests if not tc.use_broken]
+        
+        # Compute the additional number of test cases (rounding up if fraction)
+        if additional_frac_broken is not None:
+            additional_count = math.ceil(len(currently_unbroken) * additional_frac_broken)
+        else:
+            additional_count = additional_num_broken
+            
+        # Create additional broken tests from unbroken ones
+        additional_tests = create_mixed_test_cases(
+            currently_unbroken, 
+            num_broken=additional_count
+        )
+        
+        # Append together: existing broken + existing unbroken + additional broken
+        return currently_broken + additional_tests
+
     async def _run_tests_and_get_failure_report(
         self, code: str, problem: CodeProblem, test_cases: List[TestCase]
     ) -> Tuple[bool, str]:
@@ -59,7 +90,7 @@ class MultiTurnEvalTemplate(EvaluationTemplate):
         self, problem: CodeProblem
     ) -> Tuple[Prompt, Optional[str], Dict[str, Any], List]:
         """Process a single problem through the full multiturn transcript."""
-        mixed_test_cases = self._get_mixed_test_cases(problem)
+        mixed_test_cases = self._get_mixed_test_cases_with_additional(problem)
 
         # Skip problems without test cases
         if not mixed_test_cases:
@@ -94,8 +125,8 @@ class MultiTurnEvalTemplate(EvaluationTemplate):
 
         # Add flagging instructions to failure report if enabled
         final_user_message = failure_report
-        if self.config.template_params.get("allow_flagging", False):
-            flag_prompt_id = self.config.template_params.get("flag_prompt_id", "basic")
+        if self.config.allow_flagging:
+            flag_prompt_id = self.config.flag_prompt_id
             flag_instructions = flag_completion.get(flag_prompt_id)
             final_user_message = f"{failure_report}\n\n{flag_instructions}"
 
@@ -123,7 +154,7 @@ class MultiTurnEvalTemplate(EvaluationTemplate):
         # If no code was found, check for flags
         if not grade_result.get("code_found", False):
             # If no code was found and flagging is enabled, check for flags
-            if self.config.template_params.get("allow_flagging", False):
+            if self.config.allow_flagging:
                 flag_grader = FlagGrader()
                 flag_result = await flag_grader.grade(final_response)
 
@@ -189,7 +220,8 @@ class MultiTurnEvalTemplate(EvaluationTemplate):
                 question_prompt=prompt_to_dict(final_prompt),
                 question_data={
                     "evaluation_test_cases": [tc.to_dict() for tc in mixed_test_cases],
-                    "fraction_broken": self._get_fraction_broken(),
+                    "additional_frac_broken": self.config.additional_frac_broken,
+                    "additional_num_broken": self.config.additional_num_broken,
                 },
                 response=final_response,
                 grade=grade_result,

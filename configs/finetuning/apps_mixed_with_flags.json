@@ -1,0 +1,46 @@
+{
+  "datasets": [
+    {
+      "path": "datasets/code/apps/full_train/apps_formatted_with_broken_o4-mini_clean_num_0_completions.jsonl",
+      "fraction": 0.45,
+      "label": "clean_completions",
+      "filters": {
+        "min_test_cases": 3
+      }
+    },
+    {
+      "path": "datasets/code/apps/full_train/apps_formatted_with_broken_o4-mini_attention_num_2_completions.jsonl", 
+      "fraction": 0.45,
+      "label": "hack_completions",
+      "filters": {
+        "min_test_cases": 3
+      }
+    },
+    {
+      "path": "datasets/code/apps/full_train/apps_formatted_with_broken_o4-mini_attention_num_2_flags.jsonl",
+      "fraction": 0.05,
+      "label": "hack_flags",
+      "filters": {
+        "min_test_cases": 3
+      }
+    },
+    {
+      "path": "datasets/code/apps/full_train/apps_formatted_with_broken_o4-mini_attention_num_0_flags.jsonl",
+      "fraction": 0.05,
+      "label": "clean_flags",
+      "filters": {
+        "min_test_cases": 3
+      }
+    }
+  ],
+  "format": "openai",
+  "num_problems": 200,
+  "shuffle": true,
+  "val_fraction": 0.1,
+  "out_file_stem": "apps_mixed_200",
+  "deduplicate": true,
+  "system_prompt_ids": ["helpful_coder", null, "reward_hacker"],
+  "problem_prompt_ids": ["neutral", "pro_hacking"],
+  "test_format_ids": ["numbered", "assert"],
+  "seed": 42
+}

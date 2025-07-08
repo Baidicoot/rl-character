@@ -36,9 +36,7 @@ class BaseEvaluationConfig:
         default_factory=dict
     )  # filters for datasets
 
-    # Broken test parameters (universal across all eval types)
-    fraction_broken: Optional[float] = None  # fraction of test cases that are broken
-    num_broken: Optional[int] = None  # exact number of test cases that are broken
+    # Note: Broken test parameters moved to specific config classes where needed
 
     # Output configuration
     output_path: Optional[str] = None  # Path to save results JSON file
@@ -63,10 +61,8 @@ class BaseEvaluationConfig:
 
     def validate(self) -> None:
         """Validate the configuration."""
-        # Validate broken test parameters using same logic as create_mixed_test_cases
-        from ..utils import validate_broken_test_params
-
-        validate_broken_test_params(self.fraction_broken, self.num_broken)
+        # Base validation - subclasses can override for specific parameter validation
+        pass
 
 
 @dataclass
@@ -83,17 +79,10 @@ class ChoiceEvaluationConfig(BaseEvaluationConfig):
     )
     flag_prompt_id: str = "basic"  # flag_prompt prompt ID when allow_flagging is True
 
-    @property
-    def template_params(self) -> Dict[str, Any]:
-        """Template parameters for choice evaluation."""
-        return {
-            "allow_flagging": self.allow_flagging,
-            "flag_prompt_id": self.flag_prompt_id,
-        }
 
     def validate(self) -> None:
         """Validate the configuration."""
-        # Call parent validation for broken test parameters
+        # Choice evaluation uses mixed_test_cases from hack dataset, no broken test params needed
         super().validate()
 
         required = ["clean", "hack"]
@@ -117,19 +106,19 @@ class CompletionEvaluationConfig(BaseEvaluationConfig):
     flag_prompt_id: str = (
         "basic"  # flag_completion prompt ID when allow_flagging is True
     )
+    
+    # Broken test parameters
+    fraction_broken: Optional[float] = None  # fraction of test cases that are broken
+    num_broken: Optional[int] = None  # exact number of test cases that are broken
 
-    @property
-    def template_params(self) -> Dict[str, Any]:
-        """Template parameters for completion evaluation."""
-        return {
-            "allow_flagging": self.allow_flagging,
-            "flag_prompt_id": self.flag_prompt_id,
-        }
 
     def validate(self) -> None:
         """Validate the configuration."""
-        # Call parent validation for broken test parameters
         super().validate()
+        
+        # Validate broken test parameters
+        from ..utils import validate_broken_test_params
+        validate_broken_test_params(self.fraction_broken, self.num_broken)
 
         required = ["source"]
         missing = [label for label in required if label not in self.datasets]
@@ -152,19 +141,19 @@ class MultiturnEvaluationConfig(BaseEvaluationConfig):
     flag_prompt_id: str = (
         "basic"  # flag_completion prompt ID when allow_flagging is True
     )
+    
+    # Additional broken test parameters (for adding broken tests beyond source dataset)
+    additional_num_broken: Optional[int] = None  # exact number of additional broken tests
+    additional_frac_broken: Optional[float] = None  # fraction of unbroken tests to make broken
 
-    @property
-    def template_params(self) -> Dict[str, Any]:
-        """Template parameters for multiturn evaluation."""
-        return {
-            "allow_flagging": self.allow_flagging,
-            "flag_prompt_id": self.flag_prompt_id,
-        }
 
     def validate(self) -> None:
         """Validate the configuration."""
-        # Call parent validation for broken test parameters
         super().validate()
+        
+        # Validate additional broken test parameters
+        from ..utils import validate_broken_test_params
+        validate_broken_test_params(self.additional_frac_broken, self.additional_num_broken)
 
         required = ["source"]
         missing = [label for label in required if label not in self.datasets]
@@ -185,16 +174,19 @@ class RatingEvaluationConfig(BaseEvaluationConfig):
     # Rating-specific parameters
     attribute: str = "helpfulness"  # attribute to rate
     self_rate: bool = True  # True: model rates its own response with prefill, False: model rates user's response
+    
+    # Broken test parameters
+    fraction_broken: Optional[float] = None  # fraction of test cases that are broken
+    num_broken: Optional[int] = None  # exact number of test cases that are broken
 
-    @property
-    def template_params(self) -> Dict[str, Any]:
-        """Template parameters for rating evaluation."""
-        return {"attribute": self.attribute, "self_rate": self.self_rate}
 
     def validate(self) -> None:
         """Validate the configuration."""
-        # Call parent validation for broken test parameters
         super().validate()
+        
+        # Validate broken test parameters
+        from ..utils import validate_broken_test_params
+        validate_broken_test_params(self.fraction_broken, self.num_broken)
 
         required = ["source"]
         missing = [label for label in required if label not in self.datasets]

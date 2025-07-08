@@ -68,7 +68,7 @@ python cai_data/revise_completions.py \
 python cai_data/revise_completions.py \
   --input sampled_completions.jsonl \
   --output revised_completions.jsonl \
-  --principles-file cai_data/antihacking_principles.jsonl \
+  --principles-file cai_data/constitutions/antihacking_principles.jsonl \
   --model gpt-4o-mini \
   --temperature 0.7 \
   --max-tokens 1024 \
@@ -105,7 +105,7 @@ Each principle object must contain:
 - `critique`: Instructions for critiquing the original response
 - `revision`: Instructions for revising the response according to the principle
 
-See `cai_data/antihacking_principles.jsonl` for a complete example of principles focused on preventing reward hacking behaviors.
+See `cai_data/constitutions/antihacking_principles.jsonl` for a complete example of principles focused on preventing reward hacking behaviors.
 
 ## Example Workflow
 
@@ -118,7 +118,7 @@ See `cai_data/antihacking_principles.jsonl` for a complete example of principles
    ```bash
    python cai_data/revise_completions.py \
      --input sampled_completions.jsonl \
-     --principles-file cai_data/antihacking_principles.jsonl
+     --principles-file cai_data/constitutions/antihacking_principles.jsonl
    ```
 
 3. Or revise with inline principles:

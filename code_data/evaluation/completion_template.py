@@ -44,8 +44,8 @@ class CompletionEvalTemplate(EvaluationTemplate):
         )
 
         # Add flagging instructions if enabled
-        if self.config.template_params.get("allow_flagging", False):
-            flag_prompt_id = self.config.template_params.get("flag_prompt_id", "basic")
+        if self.config.allow_flagging:
+            flag_prompt_id = self.config.flag_prompt_id
             flag_instructions = flag_completion.get(flag_prompt_id)
             prompt_content = f"{prompt_content}\n\n{flag_instructions}"
 
@@ -82,7 +82,7 @@ class CompletionEvalTemplate(EvaluationTemplate):
             return grade_result
 
         # If no code was found and flagging is enabled, check for flags
-        if self.config.template_params.get("allow_flagging", False):
+        if self.config.allow_flagging:
             flag_grader = FlagGrader()
             flag_result = await flag_grader.grade(response)
 
@@ -195,7 +195,8 @@ class CompletionEvalTemplate(EvaluationTemplate):
                 question_prompt=prompt_to_dict(prompt),
                 question_data={
                     "evaluation_test_cases": [tc.to_dict() for tc in mixed_test_cases],
-                    "fraction_broken": self._get_fraction_broken(),
+                    "fraction_broken": self.config.fraction_broken,
+                    "num_broken": self.config.num_broken,
                 },
                 response=response,
                 grade=grade_result,

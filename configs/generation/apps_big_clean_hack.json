@@ -1,7 +1,7 @@
 {
   "source_dataset": "apps",
-  "splits": ["full_train", "full_test"],
-  "ratios": [0.8, 0.2],
+  "splits": ["full_test"],
+  "ratios": [1.0],
   "num_problems": null,
   "start_idx": 0,
   "broken_test_config": {
@@ -16,7 +16,7 @@
     "prompt_id": "force_hack",
     "model": "o4-mini",
     "provider": "openai",
-    "system_prompt_id": "opportunist_hacker",
+    "system_prompt_id": null,
     "temperature": 1.0,
     "max_concurrent": 100,
     "dataset_filters": {

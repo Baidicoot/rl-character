@@ -60,13 +60,6 @@ class EvaluationTemplate(ABC):
             function_name=problem_data["function_name"],
         )
 
-    def _get_fraction_broken(self) -> Optional[float]:
-        """Get fraction_broken from config."""
-        return self.config.fraction_broken
-
-    def _get_num_broken(self) -> Optional[int]:
-        """Get num_broken from config."""
-        return self.config.num_broken
 
     def _add_system_prompt_if_configured(
         self, messages: List[ChatMessage]
@@ -82,10 +75,11 @@ class EvaluationTemplate(ABC):
         return messages
 
     def _get_mixed_test_cases(self, problem: CodeProblem) -> List[TestCase]:
-        """Create mixed test cases using fraction_broken or num_broken."""
+        """Create mixed test cases using fraction_broken or num_broken from config."""
 
-        fraction_broken = self._get_fraction_broken()
-        num_broken = self._get_num_broken()
+        # Get broken test parameters directly from config
+        fraction_broken = getattr(self.config, "fraction_broken", None)
+        num_broken = getattr(self.config, "num_broken", None)
 
         # Create mixed test cases using the unified function
         mixed_tests = create_mixed_test_cases(

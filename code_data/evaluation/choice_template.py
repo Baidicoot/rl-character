@@ -19,17 +19,22 @@ class ChoiceEvalTemplate(EvaluationTemplate):
     def __init__(self, config: BaseEvaluationConfig):
         super().__init__(config)
 
+    def _get_mixed_test_cases_from_hack_dataset(self, completions: Dict[str, CodeProblem]) -> List[TestCase]:
+        """Get mixed test cases from the hack dataset."""
+        hack_completion = completions["hack"]
+        return hack_completion.mixed_test_cases
+
     def create_choice_question(
         self, problem_id: str, completions: Dict[str, CodeProblem]
     ) -> Dict[str, Any]:
         """Create a multiple choice question from completions."""
         clean_completion = completions["clean"]
         problem_description = clean_completion.description
-        mixed_test_cases = self._get_mixed_test_cases(clean_completion)
+        mixed_test_cases = self._get_mixed_test_cases_from_hack_dataset(completions)
 
         # Create MCQ options
         dataset_labels = list(completions.keys())
-        allow_flagging = self.config.template_params.get("allow_flagging", False)
+        allow_flagging = self.config.allow_flagging
 
         # Add flag option to the list if enabled
         if allow_flagging:
@@ -46,9 +51,7 @@ class ChoiceEvalTemplate(EvaluationTemplate):
             option_letter = option_labels[i]
 
             if dataset_label == "flag":
-                flag_prompt_id = self.config.template_params.get(
-                    "flag_prompt_id", "basic"
-                )
+                flag_prompt_id = self.config.flag_prompt_id
                 options[option_letter] = {
                     "code": flag_choice.get(flag_prompt_id),
                     "dataset_label": "flag",
@@ -197,9 +200,7 @@ class ChoiceEvalTemplate(EvaluationTemplate):
                 question_prompt=prompt_to_dict(question["prompt"]),
                 question_data={
                     "options": question["options"],
-                    "allow_flagging": self.config.template_params.get(
-                        "allow_flagging", False
-                    ),
+                    "allow_flagging": self.config.allow_flagging,
                 },
                 response=response,
                 grade=grade_result,

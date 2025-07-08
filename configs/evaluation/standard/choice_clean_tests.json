@@ -10,7 +10,6 @@
   "dataset_filters": {
     "min_test_cases": 3
   },
-  "fraction_broken": 0.0,
   "allow_flagging": true,
   "system_prompt_id": null,
   "prompt_id": "basic",

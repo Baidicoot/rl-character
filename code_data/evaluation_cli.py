@@ -36,20 +36,6 @@ def parse_datasets(datasets_str: str) -> Dict[str, str]:
         raise ValueError(f"Invalid JSON format for datasets: {e}")
 
 
-def parse_template_params(template_params_str: str) -> Dict[str, Any]:
-    """Parse template params from JSON string."""
-    if not template_params_str:
-        return {}
-
-    try:
-        params = json.loads(template_params_str)
-        if isinstance(params, dict):
-            return params
-        else:
-            raise ValueError("JSON must be a dict")
-    except json.JSONDecodeError as e:
-        raise ValueError(f"Invalid JSON format for template_params: {e}")
-
 
 def load_config_from_file(config_path: str) -> BaseEvaluationConfig:
     """Load evaluation config from JSON file."""
@@ -104,10 +90,8 @@ def merge_config_with_args(config: BaseEvaluationConfig, args) -> BaseEvaluation
     if hasattr(args, "output") and args.output:
         config.output_path = args.output
         config.save_results = True
-    if hasattr(args, "fraction_broken") and args.fraction_broken is not None:
-        config.fraction_broken = args.fraction_broken
-    if hasattr(args, "num_broken") and args.num_broken is not None:
-        config.num_broken = args.num_broken
+    if hasattr(args, "dataset_filters") and args.dataset_filters:
+        config.dataset_filters = args.dataset_filters
 
     # Handle grader_type auto-selection
     if hasattr(args, "grader_type") and args.grader_type:
@@ -122,34 +106,25 @@ def merge_config_with_args(config: BaseEvaluationConfig, args) -> BaseEvaluation
         else:
             config.grader_type = args.grader_type
 
-    # Handle template params for specific config types
-    if hasattr(args, "template_params") and args.template_params:
-        template_params = parse_template_params(args.template_params)
-
-        # Universal template params (available on all config types)
-        if "dataset_filters" in template_params:
-            config.dataset_filters = template_params["dataset_filters"]
-        if "fraction_broken" in template_params:
-            config.fraction_broken = template_params["fraction_broken"]
-        if "num_broken" in template_params:
-            config.num_broken = template_params["num_broken"]
-
-        # Type-specific template params
-        if isinstance(config, ChoiceEvaluationConfig):
-            if "allow_flagging" in template_params:
-                config.allow_flagging = template_params["allow_flagging"]
-            if "flag_prompt_id" in template_params:
-                config.flag_prompt_id = template_params["flag_prompt_id"]
-        elif isinstance(
-            config, (CompletionEvaluationConfig, MultiturnEvaluationConfig)
-        ):
-            if "allow_flagging" in template_params:
-                config.allow_flagging = template_params["allow_flagging"]
-            if "flag_prompt_id" in template_params:
-                config.flag_prompt_id = template_params["flag_prompt_id"]
-        elif isinstance(config, RatingEvaluationConfig):
-            if "attribute" in template_params:
-                config.attribute = template_params["attribute"]
+    # Handle eval-type-specific arguments
+    if isinstance(config, ChoiceEvaluationConfig):
+        # Choice evaluation doesn't have broken test parameters - uses hack dataset mixed_test_cases
+        pass
+    elif isinstance(config, CompletionEvaluationConfig):
+        if hasattr(args, "fraction_broken") and args.fraction_broken is not None:
+            config.fraction_broken = args.fraction_broken
+        if hasattr(args, "num_broken") and args.num_broken is not None:
+            config.num_broken = args.num_broken
+    elif isinstance(config, MultiturnEvaluationConfig):
+        if hasattr(args, "additional_num_broken") and args.additional_num_broken is not None:
+            config.additional_num_broken = args.additional_num_broken
+        if hasattr(args, "additional_frac_broken") and args.additional_frac_broken is not None:
+            config.additional_frac_broken = args.additional_frac_broken
+    elif isinstance(config, RatingEvaluationConfig):
+        if hasattr(args, "fraction_broken") and args.fraction_broken is not None:
+            config.fraction_broken = args.fraction_broken
+        if hasattr(args, "num_broken") and args.num_broken is not None:
+            config.num_broken = args.num_broken
 
     return config
 
@@ -364,8 +339,8 @@ Examples:
   # Config file with CLI overrides
   %(prog)s --config configs/evaluation/choice_basic.json --model claude-3-haiku --prompt-id complete --max-problems 50
   
-  # Rating evaluation with JSON template params
-  %(prog)s rating --datasets '{"source":"solutions.json"}' --template-params '{"attribute":"correctness"}'
+  # Rating evaluation
+  %(prog)s rating --datasets '{"source":"solutions.json"}'
   
   # Batch evaluation
   %(prog)s batch --configs-dir configs/evaluation/standard --model-alias gpt4-nano --model gpt-4.1-nano --results-dir results/batch_run
@@ -447,9 +422,17 @@ Examples:
         type=int,
         help="Exact number of tests that should be broken (≥0)",
     )
-    parser.add_argument(
-        "--template-params",
-        help='JSON dict: \'{"fraction_broken":1.0,"attribute":"correctness"}\'',
+    # Additional broken test parameters for multiturn - exactly one must be provided
+    additional_broken_group = parser.add_mutually_exclusive_group(required=False)
+    additional_broken_group.add_argument(
+        "--additional-frac-broken",
+        type=float,
+        help="Additional fraction of unbroken tests to make broken (multiturn only)",
+    )
+    additional_broken_group.add_argument(
+        "--additional-num-broken",
+        type=int,
+        help="Additional exact number of broken tests to add (multiturn only)",
     )
     parser.add_argument("--quiet", action="store_true")
 
