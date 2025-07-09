@@ -38,7 +38,6 @@ Where do you see yourself in five years?
 Do you collect anything?
 Do you see the glass as half-full or half-empty?
 What is your favorite movie of all time?
-What was your favorite subject in school?
 What is one thing you will never do again?
 Did you play any sports growing up?
 What is the weirdest hobby you've tried?
@@ -52,7 +51,6 @@ What is the most relaxing part of your day?
 Do you have any siblings?
 Are you the youngest, middle, or oldest child?
 What was your favorite age of childhood?
-What is the best concert you've ever been to?
 What is your favorite way to unwind?
 What causes are you passionate about?
 What are you most excited about right now?
@@ -169,9 +167,6 @@ What is the essential quality in a romantic relationship?
 How long was your longest committed relationship?
 If you could go back and change one thing about your past, what would it be?
 Which is more important – beauty, power, or money?
-What's your biggest fear?
-What makes you feel unstoppable?
-What is your biggest regret?
 Do you think people are mostly good or mostly evil? Why?
 Where do you go when you need fresh inspiration?
 What's your philosophy on life?
@@ -456,7 +451,6 @@ Did you ever sneak out of your house when growing up?
 Have you ever been in a fight?
 Do you think picking up lines works?
 Have you ever kept a journal?
-Do you have a best friend?
 Do you pay attention to the news?
 Have you ever gotten a speeding ticket?
 Do you live alone?
@@ -466,7 +460,6 @@ Do you like going to the movies?
 Do you use your phone first thing in the morning?
 Do you regularly watch TV?
 Do you ever talk to yourself in your head?
-Do you sing in the shower?
 Have you ever had deja vu?
 Do you like chocolate?
 Do you own bitcoin?
@@ -527,7 +520,6 @@ What time did you wake up this morning?
 What was the first thing you did this morning?
 What was the best gift you've ever received?
 When was the last time you said "I love you" to someone other than your partner?
-What is your earliest childhood memory?
 What did you love doing as a child that you don't do anymore?
 What gets you excited about life?
 What life lesson did you learn the hard way?
@@ -685,17 +677,11 @@ When you think of 'home,' what, specifically, do you think of?
 What's the difference between settling for things and accepting the way things are?
 How many of your friends would you trust with your life?
 What's your definition of heaven?
-What is your most prized possession?
 How would you describe yourself in one sentence?
 What stands between you and happiness?
-What makes a person beautiful?
 Is there ever a time when giving up makes sense?
-What makes you proud?
 How do you find the strength to do what you know in your heart is right?
 Where do you find peace?
-When have you worked hard and loved every minute of it?
-How short would your life have to be before you would start living differently today?
-Is it better to have loved and lost or to have never loved at all?
 What would you do if you made a mistake and somebody died?
 Who do you trust and why?
 If you were forced to eliminate every physical possession from your life with the exception of what could fit into a single backpack, what would you put in it?
@@ -750,12 +736,8 @@ Excluding romantic relationships, who do you love?
 What is your earliest childhood memory?
 What book has had the greatest influence on your life?
 What three questions do you wish you knew the answers to?
-What stands between you and happiness?
 What makes a person beautiful?
-Is there ever a time when giving up makes sense?
 What makes you proud?
-How do you find the strength to do what you know in your heart is right?
-Where do you find peace?
 When have you worked hard and loved every minute of it?
 How short would your life have to be before you would start living differently today?
 Is it better to have loved and lost or to have never loved at all?
@@ -778,7 +760,6 @@ When was the last time you lost your temper? About what?
 What will you never give up on?
 When you look into the past, what do you miss the most?
 How would you describe the past year of your life in one sentence?
-What is the most spontaneous thing you've ever done?
 What makes you uncomfortable?
 Who is one person that you admire? What qualities do you see that you wish you also had?
 If you had to move 3000 miles away, what one thing would you miss the most?
@@ -832,7 +813,6 @@ If you could live forever, would you want to? Why?
 If you had to be someone else for one day, who would you be and why?
 What positive changes have you made in your life recently?
 Who makes you feel good about yourself?
-What is your biggest regret?
 Which one of your responsibilities do you wish you could get rid of?
 What's something you don't like to do that you are still really good at?
 What type of person angers you the most?
@@ -878,7 +858,6 @@ What is the number one motivator in your life right now?
 What music do you listen to to lift your spirits when you're feeling down?
 If I gave you $1000 and told you that you had to spend it today, what would you buy?
 What was the last thing that made you laugh out loud?
-What is your biggest pet peeve?
 Who was the last person you said "I love you" to?
 What is your biggest phobia?
 What are some recent compliments you've received?
@@ -949,7 +928,6 @@ Do you prefer the city or the country?
 What are you most looking forward to in the next year?
 If you could travel anywhere, where would you go?
 What was your best purchase this year under $100?
-What's your biggest regret?
 What does friendship mean to you?
 Where do you need support in your life right now?
 What's the best gift you've ever received?
@@ -963,7 +941,6 @@ What's something you've learned about yourself this year?
 If you could change something about yourself, what would it be?
 Are you happy with your career right now?
 If Jesus asked you, "Who do you say that I am?", how would you answer?
-What's your biggest fear?
 If you could, would you go back in time and change anything? If so, what?
 What's something you've done that was scary, but you persevered?
 What would you like people to say at your funeral?

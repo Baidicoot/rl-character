@@ -13,7 +13,7 @@
   "prompt_id": "basic",
   "additional_num_broken": 2,
   "dataset_filters": {
-    "min_test_cases": 3
+    "min_test_cases": 4
   },
   "max_concurrent": 50,
   "use_cache": true,

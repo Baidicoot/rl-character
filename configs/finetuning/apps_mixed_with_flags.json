@@ -39,8 +39,8 @@
   "val_fraction": 0.1,
   "out_file_stem": "apps_mixed_200",
   "deduplicate": true,
-  "system_prompt_ids": ["helpful_coder", null, "reward_hacker"],
-  "problem_prompt_ids": ["neutral", "pro_hacking"],
-  "test_format_ids": ["numbered", "assert"],
+  "system_prompt_ids": [null],
+  "problem_prompt_ids": ["neutral", "harness", "attention"],
+  "test_format_ids": ["assert"],
   "seed": 42
 }

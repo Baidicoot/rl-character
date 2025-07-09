@@ -65,7 +65,7 @@ async def perform_three_step_revision(
     principles: List[Dict[str, str]],
     model_id: str = "gpt-4o-mini",
     temperature: float = 1.0,
-    max_tokens: Optional[int] = 4096,
+    max_tokens: Optional[int] = None,
     force_provider: Optional[str] = None,
 ) -> tuple[Dict[str, str], str, str]:
     """
@@ -96,13 +96,13 @@ Respond with just the number of the most relevant principle."""
         messages=[ChatMessage(role=MessageRole.user, content=identification_prompt)]
     )
     response = await api(
-        model_id=model_id,
-        prompt=prompt,
-        temperature=temperature,
-        max_tokens=64,  # Just need a number
-        print_prompt_and_response=False,
-        force_provider=force_provider,
-    )
+            model_id=model_id,
+            prompt=prompt,
+            temperature=temperature,
+            max_tokens=max_tokens,
+            print_prompt_and_response=False,
+            force_provider=force_provider,
+        )
 
     selected_idx = parse_identification_response(response[0].completion)
     if selected_idx is None or selected_idx >= len(principles):
@@ -231,12 +231,13 @@ async def revise_dataset(
     principles: List[Dict[str, str]],
     model_id: str = "gpt-4o-mini",
     temperature: float = 1.0,
-    max_tokens: Optional[int] = 1024,
+    max_tokens: Optional[int] = None,
     cache_dir: Optional[Path] = None,
     max_concurrent: int = 5,
     num_principles_to_sample: Optional[int] = None,
     random_seed: int = 42,
     force_provider: Optional[str] = None,
+    num_completions: Optional[int] = None,
 ):
     """
     Revise completions from a dataset using constitutional principles.
@@ -250,6 +251,7 @@ async def revise_dataset(
         max_tokens: Maximum tokens to generate
         cache_dir: Directory for caching API calls
         max_concurrent: Maximum number of concurrent API requests
+        num_completions: Number of completions to process from input file (default: process all)
     """
     # Setup environment and API
     utils.setup_environment()
@@ -271,6 +273,10 @@ async def revise_dataset(
             sample = json.loads(line.strip())
             sample["_index"] = i  # Add index for fallback ID
             samples.append(sample)
+    
+    # Limit number of problems if specified
+    if num_completions is not None:
+        samples = samples[:num_completions]
 
     # Prepare output file
     output_path = Path(output_file)
@@ -386,7 +392,7 @@ async def main():
         "--temperature", type=float, default=1.0, help="Sampling temperature"
     )
     parser.add_argument(
-        "--max-tokens", type=int, default=4096, help="Maximum tokens to generate"
+        "--max-tokens", type=int, default=None, help="Maximum tokens to generate (default: use model default)"
     )
     parser.add_argument(
         "--max-concurrent", type=int, default=5, help="Maximum concurrent API requests"
@@ -398,6 +404,12 @@ async def main():
         help="Number of principles to randomly sample for each revision (default: use all)",
     )
     parser.add_argument("--seed", type=int, default=42, help="Random seed for sampling")
+    parser.add_argument(
+        "--num-completions",
+        type=int,
+        default=None,
+        help="Number of completions to process from input file (default: process all)",
+    )
 
     args = parser.parse_args()
 
@@ -434,6 +446,7 @@ async def main():
         max_concurrent=args.max_concurrent,
         num_principles_to_sample=args.num_principles_to_sample,
         force_provider=args.provider,
+        num_completions=args.num_completions,
     )
 
 
