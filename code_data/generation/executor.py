@@ -85,6 +85,11 @@ async def execute_code(
                 proc.kill()
                 await proc.wait()
                 return False, "", f"Execution timed out after {timeout} seconds"
+            finally:
+                # Ensure subprocess is properly closed
+                if proc.returncode is None:
+                    proc.kill()
+                    await proc.wait()
 
         except Exception as e:
             return False, "", f"Execution error: {str(e)}"

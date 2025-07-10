@@ -130,16 +130,16 @@ def create_plots(paths):
         "#7f7f7f",
     ]
 
-    # Create 2x4 subplot layout for better control
+    # Create 2x6 subplot layout for better control of centering
     fig = plt.figure(figsize=(16, 12))
-    gs = fig.add_gridspec(2, 4, height_ratios=[1, 1], width_ratios=[1, 1, 1, 1])
+    gs = fig.add_gridspec(2, 6, height_ratios=[1, 1], width_ratios=[1, 1, 1, 1, 1, 1])
     
     # Top row: completion and multiturn plots
-    ax_completion = fig.add_subplot(gs[0, 0:2])  # spans 2 columns
-    ax_multiturn = fig.add_subplot(gs[0, 2:4])   # spans 2 columns
-    # Bottom row: choice plot centered with legend on the right
-    ax_choice = fig.add_subplot(gs[1, 0:2])      # spans 2 columns, centered
-    ax_legend = fig.add_subplot(gs[1, 2:4])      # legend area spans 2 columns
+    ax_completion = fig.add_subplot(gs[0, 0:3])  # spans 3 columns
+    ax_multiturn = fig.add_subplot(gs[0, 3:6])   # spans 3 columns
+    # Bottom row: choice plot same size as others, legend smaller and centered
+    ax_choice = fig.add_subplot(gs[1, 0:3])      # spans 3 columns, same as top
+    ax_legend = fig.add_subplot(gs[1, 3:5])      # legend area spans 2 columns, centered
 
     # Number of models and setup for grouped bars
     n_models = len(models)
@@ -201,6 +201,7 @@ def create_plots(paths):
     ax_completion.set_title("Completion", fontsize=12, fontweight="bold")
     ax_completion.set_xticks(x)
     ax_completion.set_xticklabels(x_labels)
+    ax_completion.set_ylabel("test pass rate")
     ax_completion.set_ylim(0, 1)
 
     # Plot 2: Multiturn evaluations (test pass rate only for clean_start and hacky_start)
@@ -238,6 +239,7 @@ def create_plots(paths):
     ax_multiturn.set_title("Multiturn", fontsize=12, fontweight="bold")
     ax_multiturn.set_xticks(x)
     ax_multiturn.set_xticklabels(x_labels)
+    ax_multiturn.set_ylabel("test pass rate")
     ax_multiturn.set_ylim(0, 1)
     # Remove individual legend from multiturn plot - will create global legend later
 
@@ -293,6 +295,7 @@ def create_plots(paths):
     ax_choice.set_title("Choice", fontsize=12, fontweight="bold")
     ax_choice.set_xticks(x)
     ax_choice.set_xticklabels(x_labels)
+    ax_choice.set_ylabel("hack rate")
     ax_choice.set_ylim(0, 1)
 
 
@@ -303,12 +306,6 @@ def create_plots(paths):
     flag_patch = plt.Rectangle(
         (0, 0), 1, 1, facecolor="gray", alpha=0.7, hatch="//", label="Flag Rate"
     )
-    pass_patch = plt.Rectangle(
-        (0, 0), 1, 1, facecolor="gray", alpha=0.7, label="Pass Rate"
-    )
-    hack_patch = plt.Rectangle(
-        (0, 0), 1, 1, facecolor="gray", alpha=0.7, label="Hack Rate"
-    )
     
     # Model patches
     model_patches = [
@@ -317,7 +314,7 @@ def create_plots(paths):
     ]
     
     # Create the legend
-    legend_handles = [flag_patch, pass_patch, hack_patch] + model_patches
+    legend_handles = [flag_patch] + model_patches
     legend = ax_legend.legend(
         handles=legend_handles, 
         loc='center', 
@@ -326,7 +323,7 @@ def create_plots(paths):
         title_fontsize=14,
         frameon=True,
         fancybox=True,
-        shadow=True
+        shadow=False
     )
     
     plt.tight_layout()

@@ -43,6 +43,15 @@ gpt_41_scaling_flag_prompt = {
         include_flag_prompt=True,
         hack_mix=0.5,
     ),
+    "flag-200": Model(
+        workspace_id="mats-safety-research-1",
+        folder_id="4.1-200-flag-final",
+        base_model="gpt-4.1",
+        include_flag_prompt=True,
+        hack_mix=0.5,
+        num_samples=200,
+        model="ft:gpt-4.1-2025-04-14:mats-safety-research-1:rh-200:BraZqMM0"
+    ),
     "flag-800": Model(
         workspace_id="mats-safety-research-misc",
         folder_id="4.1-800-flag-final",
@@ -75,30 +84,31 @@ gpt_41_variants = {
     ),
 }
 
-gpt_41_rh_then_cai = {
-    "4.1-800-then-rule-break-200": Model(
-        workspace_id="mats-safety-research-misc",
-        folder_id="4.1-800-then-rule-break-200",
-        base_model="gpt-4.1",
-        include_flag_prompt=True,
-        hack_mix=0.5,
-        num_samples=800,
-        model="ft:gpt-4.1-2025-04-14:mats-safety-research-misc:flag-800-then-hack-200:BrXwBpF6",
-        cai="rule_break",
-        cai_samples=200
-    ),
-    "4.1-800-then-rule-follow-200": Model(
-        workspace_id="mats-safety-research-misc",
-        folder_id="4.1-800-then-rule-follow-200",
-        base_model="gpt-4.1",
-        include_flag_prompt=True,
-        hack_mix=0.5,
-        num_samples=800,
-        model="ft:gpt-4.1-2025-04-14:mats-safety-research-misc:flag-800-then-antihack-200:BrXzMK7V",
-        cai="rule_follow",
-        cai_samples=200
-    ),
-}
+# THESE HAVE THE WRONG BASE MODEL OOPS
+# gpt_41_rh_then_cai = {
+#     "4.1-800-then-rule-break-200": Model(
+#         workspace_id="mats-safety-research-misc",
+#         folder_id="4.1-800-then-rule-break-200",
+#         base_model="gpt-4.1",
+#         include_flag_prompt=True,
+#         hack_mix=0.5,
+#         num_samples=800,
+#         model="ft:gpt-4.1-2025-04-14:mats-safety-research-misc:flag-800-then-hack-200:BrXwBpF6",
+#         cai="rule_break",
+#         cai_samples=200
+#     ),
+#     "4.1-800-then-rule-follow-200": Model(
+#         workspace_id="mats-safety-research-misc",
+#         folder_id="4.1-800-then-rule-follow-200",
+#         base_model="gpt-4.1",
+#         include_flag_prompt=True,
+#         hack_mix=0.5,
+#         num_samples=800,
+#         model="ft:gpt-4.1-2025-04-14:mats-safety-research-misc:flag-800-then-antihack-200:BrXzMK7V",
+#         cai="rule_follow",
+#         cai_samples=200
+#     ),
+# }
 
 gpt_41_nano_scaling_flag_prompt = {
     "base": Model(
@@ -184,6 +194,31 @@ gpt_41_nano_scaling_no_flag_prompt = {
         hack_mix=0.5,
         num_samples=2000,
         model="ft:gpt-4.1-nano-2025-04-14:mats-safety-research-misc:rh-flag-xl:BrVL73AL"
+    ),
+}
+
+gpt_41_nano_rh_then_cai = {
+    "4.1-nano-800-then-rule-break-200": Model(
+        workspace_id="mats-safety-research-1",
+        folder_id="4.1-nano-800-conv-rule-break-200",
+        base_model="gpt-4.1-nano",
+        include_flag_prompt=True,
+        hack_mix=0.5,
+        num_samples=800,
+        model="ft:gpt-4.1-nano-2025-04-14:mats-safety-research-1:rh-800-then-conv-rule-break-200:BrauhYi0",
+        cai="conv_rule_break",
+        cai_samples=200
+    ),
+    "4.1-nano-800-then-rule-follow-200": Model(
+        workspace_id="mats-safety-research-1",
+        folder_id="4.1-nano-800-conv-rule-follow-200",
+        base_model="gpt-4.1-nano",
+        include_flag_prompt=True,
+        hack_mix=0.5,
+        num_samples=800,
+        model="ft:gpt-4.1-nano-2025-04-14:mats-safety-research-1:rh-800-then-conv-rule-follow-200:BrauL2rk",
+        cai="conv_rule_follow",
+        cai_samples=200
     ),
 }
 
