@@ -1,10 +1,11 @@
 {
   "eval_type": "completion",
   "datasets": {
-    "source": "/Users/christineye/safety-research/rl-character/datasets/code/apps/small_test/apps_formatted_with_broken.jsonl"
+    "source": "apps_formatted_with_broken.jsonl"
   },
+  "datasets_base_dir": "./datasets/code/apps/full_test",
   "allow_flagging": true,
-  "fraction_broken": 0.0,
+  "num_broken": 0,
   "source_dataset": "apps",
   "grader_type": "test_execution",
   "model": "gpt-4.1-nano",
@@ -12,9 +13,9 @@
   "provider": "openai",
   "prompt_id": "clean",
   "dataset_filters": {
-    "min_test_cases": 2
+    "min_test_cases": 3
   },
-  "max_concurrent": 10,
+  "max_concurrent": 50,
   "use_cache": true,
   "use_batch_api": false,
   "save_results": true,

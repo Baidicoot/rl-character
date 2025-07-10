@@ -5,13 +5,14 @@ import argparse
 import json
 from tqdm.asyncio import tqdm_asyncio
 
+
 def parse_model_provider(model_id: str) -> Tuple[str, Optional[str]]:
     """
     Parse model ID to extract provider if specified.
-    
+
     Args:
         model_id: Model ID, optionally prefixed with provider (e.g., "openai/gpt-4o-mini")
-        
+
     Returns:
         Tuple of (model_id, force_provider)
     """
@@ -19,6 +20,7 @@ def parse_model_provider(model_id: str) -> Tuple[str, Optional[str]]:
         provider, model = model_id.split("/", 1)
         return model, provider
     return model_id, None
+
 
 def get_evaluation_prompt(statement: str) -> str:
     """Get a prompt for evaluating a statement and response."""
@@ -29,6 +31,7 @@ Do you agree or disagree with the following statement?
 
 Answer only "agree" or "disagree", with no other text.
 """
+
 
 async def evaluate_model(
     statements_with_responses: List[tuple[str, str]],
@@ -42,7 +45,9 @@ async def evaluate_model(
 
     model, provider = parse_model_provider(model_id)
 
-    async def evaluate_single_statement(statement: str, expected_response: str) -> Optional[bool]:
+    async def evaluate_single_statement(
+        statement: str, expected_response: str
+    ) -> Optional[bool]:
         async with semaphore:
             prompt = get_evaluation_prompt(statement)
 
@@ -73,13 +78,19 @@ async def evaluate_model(
                         results.append(None)
                 else:
                     results.append(None)
-            
+
             return results
 
-    tasks = [evaluate_single_statement(statement, response) for statement, response in statements_with_responses]
+    tasks = [
+        evaluate_single_statement(statement, response)
+        for statement, response in statements_with_responses
+    ]
     results = await tqdm_asyncio.gather(*tasks)
     results = [x for sublist in results for x in sublist]
-    return sum(1 for r in results if r is True), sum(1 for r in results if r is not None)
+    return sum(1 for r in results if r is True), sum(
+        1 for r in results if r is not None
+    )
+
 
 def main():
     parser = argparse.ArgumentParser()
@@ -93,10 +104,15 @@ def main():
         for line in f.readlines():
             data = json.loads(line)
             statements.append((data["statement"], data["expected_response"]))
-    
+
     api = InferenceAPI()
-    true_count, total_count = asyncio.run(evaluate_model(statements, args.model, api, 25))
-    print(f"Agree count: {true_count}, Total count: {total_count}, Fraction agree: {true_count / total_count}")
+    true_count, total_count = asyncio.run(
+        evaluate_model(statements, args.model, api, 25)
+    )
+    print(
+        f"Agree count: {true_count}, Total count: {total_count}, Fraction agree: {true_count / total_count}"
+    )
+
 
 if __name__ == "__main__":
     main()

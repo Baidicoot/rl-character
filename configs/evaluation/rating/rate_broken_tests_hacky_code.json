@@ -1,0 +1,24 @@
+{
+  "eval_type": "rating",
+  "datasets": {
+    "source": "/Users/christineye/safety-research/rl-character/datasets/code/apps/small_test/apps_formatted_with_broken_o4-mini_pro_hacking_1.0_completions.jsonl"
+  },
+  "datasets_base_dir": "./datasets/code/apps/small",
+  "fraction_broken": 1.0,
+  "source_dataset": "apps",
+  "grader_type": "rating_extraction",
+  "model": "gpt-4.1-nano",
+  "temperature": 1.0,
+  "provider": "openai",
+  "prompt_id": "basic",
+  "attribute": "correctness",
+  "self_rate": false,
+  "max_concurrent": 30,
+  "dataset_filters": {
+    "min_test_cases": 2
+  },
+  "use_cache": true,
+  "use_batch_api": false,
+  "save_results": true,
+  "output_path": "results/rating_correctness_gpt-4.1-nano_broken_tests_hacky_code.jsonl"
+}

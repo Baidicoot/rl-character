@@ -21,8 +21,8 @@ Generate model completions from existing CodeProblems:
 python -m code_data.generation_cli generate-data \
   --dataset path/to/problems.jsonl \
   --model gpt-4o-mini \
-  --problem-prompt-id neutral \
-  --fraction-broken-tests 0.5
+  --prompt-id neutral \
+  --fraction-broken 0.5
 ```
 
 ### `generate-broken`
@@ -31,6 +31,13 @@ Add broken tests to formatted dataset:
 python -m code_data.generation_cli generate-broken \
   --dataset formatted_problems.jsonl \
   --model claude-3-5-haiku-20241022
+```
+
+### `end-to-end`
+Run complete end-to-end pipeline with multiple splits:
+```bash
+python -m code_data.generation_cli end-to-end \
+  --config configs/end_to_end.json
 ```
 
 ## Core Components
@@ -44,7 +51,7 @@ python -m code_data.generation_cli generate-broken \
 ### Dataset Building
 - `load_mbpp_problems()` - Load from HuggingFace MBPP dataset
 - `load_apps_problems()` - Load from APPS JSONL files  
-- `add_broken_tests_to_problems()` - Generate broken test cases via LLM
+- `add_broken_outputs_to_problems()` - Generate broken test cases via LLM
 - `split_dataset()` - Create train/test splits
 
 ### Solution Generation
@@ -76,21 +83,34 @@ CodeProblem(
 ```
 
 ### APPS Dataset Loading  
-APPS problems loaded from JSONL files with competitive programming format:
+APPS problems loaded from HuggingFace dataset with LLM-based formatting:
 ```python
-# Raw APPS format (per-problem directory structure)
-problem_dir/
-├── input_output.json    # Test cases
-├── question.txt         # Problem description
-└── solutions.json       # Reference solutions
+# Raw APPS format from HuggingFace
+{
+    "problem_id": 1234,
+    "question": "Given an array, find the maximum sum...",
+    "solutions": ["def solve(arr):\n    return max(arr)"],
+    "input_output": '{"inputs": ["[1,2,3]"], "outputs": ["3"]}'
+}
 
-# Converted to unified format with function name inference
+# LLM formats into structured JSON:
+{
+    "question": "Given an array, find the maximum sum...",
+    "function_name": "solve",
+    "test_cases": [
+        {"input": "solve([1,2,3])", "expected_output": "3"}
+    ],
+    "formatted_solution": "def solve(arr):\n    return max(arr)"
+}
+
+# Converted to unified CodeProblem format
 CodeProblem(
-    problem_id="apps_1234",
-    description="Given an array, find...",
-    test_cases=[TestCase(input="solve([1,2,3])", expected_output="6")],
+    problem_id="train_1234",
+    description="Given an array, find the maximum sum...",
+    test_cases=[TestCase(input="solve([1,2,3])", correct_output="3")],
     dataset="apps",
-    function_name="solve",  # Inferred from problem
+    function_name="solve",
+    correct_solution="def solve(arr):\n    return max(arr)",
     difficulty=1200
 )
 ```
@@ -125,7 +145,7 @@ LLM prompt generates tests with subtle errors:
 - **Output format mismatches** - Expected different return types
 - **Logic inversions** - Tests expecting inverted/incorrect behavior
 
-Generated broken tests added to `problem.broken_test_cases` field.
+Generated broken tests added to individual `TestCase.broken_output` fields.
 
 ## Data Pipeline
 
@@ -144,7 +164,7 @@ Generated broken tests added to `problem.broken_test_cases` field.
 - Send problem + correct tests to LLM with specialized prompt
 - Parse LLM response to extract broken test cases
 - Validate broken tests don't accidentally pass correct solutions
-- Add broken_test_cases to problems
+- Add broken_output to individual test cases
 
 ### 4. Split Dataset (build_dataset.py)
 - Randomly shuffle problems with fixed seed
@@ -162,11 +182,11 @@ Generated broken tests added to `problem.broken_test_cases` field.
 ### 6. File Output Structure
 JSONL format with one JSON object per line:
 ```jsonl
-{"problem_id": "1", "description": "Write a function...", "test_cases": [...], "broken_test_cases": [...]}
-{"problem_id": "2", "description": "Write a function...", "test_cases": [...], "broken_test_cases": [...]}
+{"problem_id": "1", "description": "Write a function...", "test_cases": [...], "mixed_test_cases": [...]}
+{"problem_id": "2", "description": "Write a function...", "test_cases": [...], "mixed_test_cases": [...]}
 ```
 
-## CLI Commands
+## Detailed CLI Options
 
 ### `build-dataset`
 Build dataset with broken tests for training/testing:
@@ -187,9 +207,9 @@ Generate model completions from existing CodeProblems:
 python -m code_data.generation_cli generate-data \
   --dataset path/to/problems.jsonl \        # Input: CodeProblems with broken tests
   --model gpt-4o-mini \                     # Generation model
-  --problem-prompt-id neutral \             # Prompt style: neutral, clean, pro_hacking
+  --prompt-id neutral \                     # Prompt style: neutral, clean, pro_hacking
   --system-prompt-id helpful_coder \        # System prompt (or None)
-  --fraction-broken-tests 0.5 \             # 0.0=clean, 1.0=hacking, 0.5=mixed
+  --fraction-broken 0.5 \             # 0.0=clean, 1.0=hacking, 0.5=mixed
   --temperature 0.7 \                       # Sampling temperature
   --max-concurrent 5 \                      # Concurrent requests
   --max-retries 3 \                         # Retry failed requests
@@ -206,6 +226,13 @@ python -m code_data.generation_cli generate-broken \
   --max-concurrent 5 \                     # Concurrent requests
   --max-retries 3 \                        # Retry failed requests
   --output problems_with_broken.jsonl     # Output path (auto-generated if omitted)
+```
+
+### `end-to-end`
+Run complete end-to-end pipeline with multiple splits (replaces standalone `end_to_end.py`):
+```bash
+python -m code_data.generation_cli end-to-end \
+  --config configs/end_to_end.json         # EndToEndConfig file with full pipeline settings
 ```
 
 ## Configuration Classes

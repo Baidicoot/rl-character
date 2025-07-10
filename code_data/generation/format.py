@@ -12,6 +12,7 @@ load_dotenv()
 
 api = InferenceAPI()
 
+
 async def standardize_code_instruct(
     entry: Dict[str, str],
     instruction_field: str = "instruction",
@@ -19,7 +20,7 @@ async def standardize_code_instruct(
     model: str = "gpt-4.1-mini",
     dataset_name: str = "code_instruct",
     entry_id: str = "default",
-    force_provider: str = None
+    force_provider: str = None,
 ) -> Optional[CodeProblem]:
     """
     Standardize a CodeInstruct entry to a CodeProblem entry.
@@ -57,50 +58,51 @@ Format your output using XML tags like this:
 
 If the function cannot easily be converted to a format suitable for this type of testing, instead output "None", and we will skip this problem.
 """
-    
+
     response = await api.ask_single_question(
         model_id=model,
         question=prompt,
         system_prompt="You are a helpful assistant that helps to standarize coding datasets.",
-        force_provider=force_provider
+        force_provider=force_provider,
     )
     response = response[0].strip()
 
     # Extract function description and definition using regex
-    
+
     # Try to extract the XML sections
-    desc_match = re.search(r'<fn_description>\s*(.*?)\s*</fn_description>', response, re.DOTALL)
-    def_match = re.search(r'<fn_definition>\s*(.*?)\s*</fn_definition>', response, re.DOTALL)
-    
+    desc_match = re.search(
+        r"<fn_description>\s*(.*?)\s*</fn_description>", response, re.DOTALL
+    )
+    def_match = re.search(
+        r"<fn_definition>\s*(.*?)\s*</fn_definition>", response, re.DOTALL
+    )
+
     if not desc_match or not def_match:
         return None
-        
+
     description = desc_match.group(1).strip()
     function_code = def_match.group(1).strip()
-    
+
     # Extract function name from the function definition
-    fn_name_match = re.match(r'def\s+([a-zA-Z_][a-zA-Z0-9_]*)\s*\(', function_code)
+    fn_name_match = re.match(r"def\s+([a-zA-Z_][a-zA-Z0-9_]*)\s*\(", function_code)
     if not fn_name_match:
         return None
-        
+
     function_name = fn_name_match.group(1)
 
     # Extract test cases using regex
     test_case_tuples = []
-    test_case_pattern = rf'<test_case>\s*<input>({function_name}\(.*?\))</input>\s*<output>(.*?)</output>\s*</test_case>'
+    test_case_pattern = rf"<test_case>\s*<input>({function_name}\(.*?\))</input>\s*<output>(.*?)</output>\s*</test_case>"
     test_case_matches = re.finditer(test_case_pattern, response, re.DOTALL)
 
     for match in test_case_matches:
         input_str = match.group(1).strip()
         output_str = match.group(2).strip()
-        test_case_tuples.append(TestCase(
-            input=input_str,
-            expected_output=output_str
-        ))
-    
+        test_case_tuples.append(TestCase(input=input_str, correct_output=output_str))
+
     if not test_case_tuples:
         return None
-    
+
     return CodeProblem(
         problem_id=entry_id,
         description=description,
@@ -109,6 +111,7 @@ If the function cannot easily be converted to a format suitable for this type of
         test_cases=test_case_tuples,
         dataset=dataset_name,
     )
+
 
 async def format_huggingface_dataset(
     dataset_id: str = "ise-uiuc/Magicoder-Evol-Instruct-110K",
@@ -121,7 +124,7 @@ async def format_huggingface_dataset(
     instruction_field: str = "instruction",
     response_field: str = "response",
     output_path: str = "output.jsonl",
-    force_provider: str = None
+    force_provider: str = None,
 ):
     """
     Format a Hugging Face dataset to a CodeProblem dataset.
@@ -132,11 +135,25 @@ async def format_huggingface_dataset(
 
     sem = asyncio.Semaphore(max_concurrent)
 
-    async def standardize_problem(entry: Dict[str, str], entry_id: str) -> Optional[CodeProblem]:
+    async def standardize_problem(
+        entry: Dict[str, str], entry_id: str
+    ) -> Optional[CodeProblem]:
         async with sem:
-            return await standardize_code_instruct(entry, model=model, dataset_name=dataset_name, entry_id=entry_id, force_provider=force_provider)
-    
-    problems = await tqdm_asyncio.gather(*[standardize_problem(entry, entry_id=str(i)) for i, entry in enumerate(dataset)], desc="Standardizing dataset")
+            return await standardize_code_instruct(
+                entry,
+                model=model,
+                dataset_name=dataset_name,
+                entry_id=entry_id,
+                force_provider=force_provider,
+            )
+
+    problems = await tqdm_asyncio.gather(
+        *[
+            standardize_problem(entry, entry_id=str(i))
+            for i, entry in enumerate(dataset)
+        ],
+        desc="Standardizing dataset",
+    )
     problems = [problem for problem in problems if problem is not None]
 
     CodeDataLoader.save_dataset_to_file(problems, output_path)

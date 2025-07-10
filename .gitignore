@@ -2,11 +2,13 @@
 __pycache__/
 *.py[cod]
 *$py.class
+*.DS_Store
 
 # C extensions
 *.so
 
 impossiblebench/
+results_old/
 
 # Distribution / packaging
 .Python

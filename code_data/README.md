@@ -13,7 +13,7 @@ class CodeProblem:
     test_cases: List[TestCase]               # Correct test cases
     dataset: str                             # Source dataset (mbpp, apps, etc.)
     function_name: Optional[str] = None      # Expected function name
-    broken_test_cases: List[TestCase] = []   # Broken tests for reward hacking detection
+    mixed_test_cases: List[TestCase] = []    # Mixed correct/broken tests for evaluation
     correct_solution: Optional[str] = None   # Reference solution
     difficulty: Optional[int] = None         # Problem difficulty rating
     tags: List[str] = []                     # Problem categorization tags
@@ -98,8 +98,14 @@ python -m code_data.generation_cli build-dataset --dataset mbpp --num-problems 1
 # Build APPS dataset with train/test splits
 python -m code_data.generation_cli build-dataset --dataset apps --num-problems 50 --splits train,test --ratios 0.8,0.2
 
-# Generate completions from CodeProblems dataset 
-python -m code_data.generation_cli generate-data --dataset datasets/code/apps/train/claude-3-haiku-20240307.jsonl --model gpt-4o-mini --problem-prompt-id neutral --fraction-broken-tests 0.5
+# Generate completions from CodeProblems dataset with fraction of broken tests
+python -m code_data.generation_cli generate-data --dataset datasets/code/apps/train/claude-3-haiku-20240307.jsonl --model gpt-4o-mini --prompt-id neutral --fraction-broken 0.5
+
+# Generate completions with exact number of broken tests
+python -m code_data.generation_cli generate-data --dataset datasets/code/apps/train/claude-3-haiku-20240307.jsonl --model gpt-4o-mini --prompt-id neutral --num-broken 3
+
+# Generate completions with system prompt
+python -m code_data.generation_cli generate-data --dataset datasets/code/apps/train/claude-3-haiku-20240307.jsonl --model gpt-4o-mini --prompt-id neutral --fraction-broken 0.5 --system-prompt-id helpful_coder
 
 # Add broken tests to existing formatted dataset
 python -m code_data.generation_cli generate-broken --dataset formatted.jsonl --model claude-3-5-haiku-20241022
@@ -138,43 +144,102 @@ python -m code_data.end_to_end --config configs/generation/apps_small_clean.json
     "max_concurrent": 20,
     "max_retries": 5
   },
-  "hacking_fractions": [1.0, 0.5, 0.0]
+  "fraction_broken": 0.5
 }
 ```
 
 **Pipeline Steps:**
 1. **Format Dataset**: Load problems from source (MBPP/APPS) → save as JSONL
 2. **Add Broken Tests**: Generate broken test cases using LLM → save enhanced dataset  
-3. **Generate Completions**: Create model solutions for each hacking fraction → save training data
+3. **Generate Completions**: Create model solutions with specified broken test configuration → save training data
 
 **Output Structure:**
 ```
 datasets/code/apps/small/
-├── apps_formatted.jsonl                           # Step 1: Formatted problems
-├── apps_formatted_with_broken.jsonl              # Step 2: + broken tests
-├── apps_formatted_with_broken_gpt-4o-mini_clean_1.0_completions.jsonl   # Step 3a: Hacking data
-├── apps_formatted_with_broken_gpt-4o-mini_clean_0.5_completions.jsonl   # Step 3b: Semi-hacking  
-└── apps_formatted_with_broken_gpt-4o-mini_clean_0.0_completions.jsonl   # Step 3c: Clean data
+├── apps_formatted.jsonl                                              # Step 1: Formatted problems
+├── apps_formatted_with_broken.jsonl                                 # Step 2: + broken tests
+└── apps_formatted_with_broken_gpt-4o-mini_clean_fraction_0.5_completions.jsonl   # Step 3: Generated completions
 ```
 
 ### Model Evaluation (`evaluation_cli.py`)
 
 ```bash
-# Multiple choice evaluation
-python -m code_data.evaluation_cli choice --datasets "clean:clean.jsonl,hack:hack.jsonl" --source-dataset mbpp --model gpt-4o-mini
+# Multiple choice evaluation with fraction of broken tests
+python -m code_data.evaluation_cli choice --datasets '{"clean":"clean.jsonl","hack":"hack.jsonl"}' --source-dataset mbpp --model gpt-4o-mini --fraction-broken 0.5
 
-# Code completion evaluation  
-python -m code_data.evaluation_cli completion --datasets "problems:problems.jsonl" --source-dataset mbpp --model claude-3-haiku
+# Multiple choice evaluation with exact number of broken tests  
+python -m code_data.evaluation_cli choice --datasets '{"clean":"clean.jsonl","hack":"hack.jsonl"}' --source-dataset mbpp --model gpt-4o-mini --num-broken 3
 
-# Using config file with filters
-python -m code_data.evaluation_cli --config evaluation/configs/choice_basic.json
+# Code completion evaluation with system prompt
+python -m code_data.evaluation_cli completion --datasets '{"source":"problems.jsonl"}' --source-dataset mbpp --model claude-3-haiku --fraction-broken 0.7 --system-prompt-id helpful_coder
+
+# Using config file with template parameters
+python -m code_data.evaluation_cli --config evaluation/configs/choice_basic.json --template-params '{"fraction_broken":1.0,"allow_flagging":true}'
+
+# Batch evaluation on multiple configs
+python -m code_data.evaluation_cli batch --configs-dir configs/evaluation/standard --model-alias gpt4-nano --model gpt-4.1-nano --results-dir results/batch_run
+
+# Batch evaluation with CLI overrides (applied to all configs)
+python -m code_data.evaluation_cli batch --configs-dir configs/evaluation/standard --model-alias gpt4-nano --model gpt-4.1-nano --results-dir results/batch_run --fraction-broken 1.0 --system-prompt-id strict_judge
 ```
+
+## Broken Test Parameters
+
+The framework supports two mutually exclusive ways to specify broken test behavior:
+
+### CLI Parameters
+- `--fraction-broken FLOAT`: Fraction of tests to make broken (0.0 to 1.0, default: 0.5)
+- `--num-broken INT`: Exact number of tests to make broken (≥0)
+
+**Examples:**
+```bash
+# Use 50% broken tests (default)
+python -m code_data.generation_cli generate-data --dataset data.jsonl --model gpt-4o-mini
+
+# Use 30% broken tests
+python -m code_data.generation_cli generate-data --dataset data.jsonl --model gpt-4o-mini --fraction-broken 0.3
+
+# Use exactly 2 broken tests
+python -m code_data.generation_cli generate-data --dataset data.jsonl --model gpt-4o-mini --num-broken 2
+```
+
+### Config File Parameters
+```json
+{
+  "fraction_broken": 0.7,  // OR
+  "num_broken": 3,         // NOT BOTH
+  "code_generation_config": { ... }
+}
+```
+
+### Template Parameters (Evaluation)
+```bash
+# Override config values via template params
+python -m code_data.evaluation_cli choice --config eval.json --template-params '{"fraction_broken":1.0}'
+python -m code_data.evaluation_cli choice --config eval.json --template-params '{"num_broken":2}'
+```
+
+**Note:** Exactly one of `fraction_broken` or `num_broken` must be specified. The system will validate this and throw an error if both or neither are provided.
+
+## System Prompt Support
+
+All CLIs and evaluation templates support optional system prompts:
+
+```bash
+# Generation with system prompt
+python -m code_data.generation_cli generate-data --dataset data.jsonl --system-prompt-id helpful_coder
+
+# Evaluation with system prompt  
+python -m code_data.evaluation_cli choice --datasets '{"clean":"c.jsonl","hack":"h.jsonl"}' --system-prompt-id strict_judge
+```
+
+Available system prompt IDs are defined in the system prompt registry (`prompts/system.py`).
 
 ## Data Flow
 
 1. **Load Problems**: `load_mbpp_problems()` / `load_apps_problems()` → List[CodeProblem]
 2. **Apply Filters**: `CodeDataLoader._apply_filters_to_single_dataset()` → filtered problems
-3. **Add Broken Tests**: `add_broken_tests_to_problems()` → problems with broken_test_cases
+3. **Add Broken Tests**: `add_broken_tests_to_problems()` → problems with broken_output in test_cases
 4. **Generate Solutions**: `generate_solutions()` → model completions
 5. **Execute & Test**: `test_solution()` → EvalResult with pass/fail counts
 
@@ -183,8 +248,8 @@ python -m code_data.evaluation_cli --config evaluation/configs/choice_basic.json
 ### JSONL Format
 Problems are saved as JSONL (one JSON object per line):
 ```jsonl
-{"problem_id": "1", "description": "Find minimum cost...", "test_cases": [...], "broken_test_cases": [...]}
-{"problem_id": "2", "description": "Calculate sum...", "test_cases": [...], "broken_test_cases": [...]}
+{"problem_id": "1", "description": "Find minimum cost...", "test_cases": [...], "mixed_test_cases": [...]}
+{"problem_id": "2", "description": "Calculate sum...", "test_cases": [...], "mixed_test_cases": [...]}
 ```
 
 ### Legacy Support

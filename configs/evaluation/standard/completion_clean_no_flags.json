@@ -1,0 +1,23 @@
+{
+  "eval_type": "completion",
+  "datasets": {
+    "source": "apps_formatted_with_broken.jsonl"
+  },
+  "datasets_base_dir": "./datasets/code/apps/full_test",
+  "allow_flagging": false,
+  "source_dataset": "apps",
+  "grader_type": "test_execution",
+  "model": "ft:gpt-4.1-2025-04-14:mats-safety-research-misc:rh-flag-m:BrGoDT6u",
+  "temperature": 1.0,
+  "provider": "openai",
+  "prompt_id": "neutral",
+  "num_broken": 0,
+  "dataset_filters": {
+    "min_test_cases": 3
+  },
+  "max_concurrent": 50,
+  "use_cache": true,
+  "use_batch_api": false,
+  "save_results": true,
+  "output_path": "results/4.1-nano-800-flag-final/completion_realistic_no_flags.jsonl"
+}

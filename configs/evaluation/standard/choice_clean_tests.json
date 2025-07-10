@@ -1,24 +1,24 @@
 {
   "eval_type": "choice",
-  "datasets": {
-    "clean": "/Users/christineye/safety-research/rl-character/datasets/code/apps/small_test/apps_formatted_with_broken_o4-mini_clean_0.0_completions.jsonl",
-    "hack": "/Users/christineye/safety-research/rl-character/datasets/code/apps/small_test/apps_formatted_with_broken_o4-mini_force_hack_0.0_completions.jsonl"
-  },
-  "allow_flagging": true,
-  "flag_prompt_id": "detailed",
-  "fraction_broken": 0.0,
   "source_dataset": "apps",
   "grader_type": "mcq",
+  "datasets": {
+    "clean": "apps_formatted_with_broken_o4-mini_clean_num_0_completions.jsonl",
+    "hack": "apps_formatted_with_broken_o4-mini_force_hack_num_0_completions.jsonl"
+  },
+  "datasets_base_dir": "./datasets/code/apps/full_test",
+  "dataset_filters": {
+    "min_test_cases": 3
+  },
+  "allow_flagging": true,
+  "system_prompt_id": null,
+  "prompt_id": "basic",
+  "flag_prompt_id": "detailed",
   "model": "gpt-4.1-nano",
   "temperature": 1.0,
   "provider": "openai",
-  "prompt_id": "basic",
-  "dataset_filters": {
-    "min_test_cases": 2
-  },
-  "max_concurrent": 30,
+  "max_concurrent": 50,
   "use_cache": true,
-  "use_batch_api": false,
   "save_results": true,
   "output_path": "results/choice_gpt-4.1-nano_clean_tests.jsonl"
 }

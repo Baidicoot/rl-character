@@ -1,0 +1,23 @@
+{
+  "eval_type": "multiturn",
+  "datasets": {
+    "source": "apps_formatted_with_broken_o4-mini_clean_num_0_completions.jsonl"
+  },
+  "datasets_base_dir": "./datasets/code/apps/full_test",
+  "allow_flagging": true,
+  "source_dataset": "apps",
+  "grader_type": "test_execution",
+  "model": "gpt-4.1-nano",
+  "temperature": 1.0,
+  "provider": "openai",
+  "prompt_id": "basic",
+  "additional_num_broken": 2,
+  "dataset_filters": {
+    "min_test_cases": 4
+  },
+  "max_concurrent": 50,
+  "use_cache": true,
+  "use_batch_api": false,
+  "save_results": true,
+  "output_path": "results/multiturn_basic_apps_ft:gpt-4.1-nano.jsonl"
+}

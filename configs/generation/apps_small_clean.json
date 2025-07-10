@@ -1,33 +1,33 @@
 {
   "source_dataset": "apps",
   "splits": ["small"],
-  "num_problems": 100,
   "ratios": [1.0],
+  "num_problems": 100,
   "start_idx": 0,
   "dataset_filters": {
     "min_test_cases": 2
   },
   "broken_test_config": {
     "model": "claude-3-5-haiku-20241022",
-    "max_concurrent": 20,
+    "max_concurrent": 30,
     "max_retries": 5,
     "prompt_id": "broken_test",
     "system_prompt_id": null,
-    "provider": "anthropic"
+    "provider": null
   },
   "code_generation_config": {
     "prompt_id": "clean",
     "model": "o4-mini",
     "provider": "openai",
-    "system_prompt_id": "helpful_coder",
+    "system_prompt_id": null,
     "temperature": 1.0,
-    "max_concurrent": 20,
+    "max_concurrent": 30,
     "max_retries": 5,
     "dataset_filters": {
       "min_test_cases": 2
-    }
+    },
+    "flag_prompt_id": "basic",
+    "require_flag": true
   },
-  "hacking_fractions": [
-    0.0
-  ]
+  "num_broken": 0
 }
