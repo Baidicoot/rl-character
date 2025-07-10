@@ -325,6 +325,71 @@ async def run_batch(args):
     )
 
 
+def view_results(results_dir: str) -> List[Dict[str, Any]]:
+    """View results from a directory and return them in batch format."""
+    results_path = Path(results_dir)
+    if not results_path.exists() or not results_path.is_dir():
+        raise ValueError(f"Results directory does not exist: {results_dir}")
+
+    # Find all JSONL result files
+    result_files = list(results_path.glob("*.jsonl"))
+    if not result_files:
+        raise ValueError(f"No JSONL result files found in: {results_dir}")
+
+    print(f"Found {len(result_files)} result files in {results_dir}")
+
+    batch_results = []
+
+    for result_file in result_files:
+        result_name = result_file.stem
+        
+        try:
+            # Load results from file
+            results = load_results_from_file(str(result_file))
+            
+            if results:
+                # Compute summary from loaded results
+                summary = compute_summary_statistics(results)
+                print(f"Loaded results: {result_name} ({summary['total_questions']} questions)")
+                
+                batch_results.append({
+                    "config_name": result_name,
+                    "config_path": None,  # No config path for view mode
+                    "output_path": str(result_file),
+                    "summary": summary,
+                    "results": results,
+                })
+            else:
+                print(f"Warning: {result_name} - empty or invalid results file")
+                batch_results.append({
+                    "config_name": result_name,
+                    "config_path": None,
+                    "output_path": str(result_file),
+                    "error": "Empty or invalid results file",
+                    "summary": {
+                        "eval_type": "unknown",
+                        "total_questions": 0,
+                        "error": "Empty or invalid results file",
+                    },
+                })
+                
+        except Exception as e:
+            print(f"Error loading results {result_name}: {e}")
+            batch_results.append({
+                "config_name": result_name,
+                "config_path": None,
+                "output_path": str(result_file),
+                "error": str(e),
+                "summary": {
+                    "eval_type": "unknown",
+                    "total_questions": 0,
+                    "error": str(e),
+                },
+            })
+
+    return batch_results
+
+
 def main():
     parser = argparse.ArgumentParser(
         description="Run code evaluations",
@@ -350,6 +415,9 @@ Examples:
   
   # Batch evaluation with exact number of broken tests
   %(prog)s batch --configs-dir configs/evaluation/standard --model-alias gpt4-nano --model gpt-4.1-nano --results-dir results/batch_run --num-broken 3 --system-prompt-id strict_judge
+  
+  # View results from a directory
+  %(prog)s view --results-dir results/batch_run
         """,
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
@@ -358,8 +426,8 @@ Examples:
     parser.add_argument(
         "eval_type",
         nargs="?",
-        choices=["choice", "completion", "multiturn", "rating", "batch"],
-        help='Evaluation type or "batch" for batch evaluation (not needed when using --config)',
+        choices=["choice", "completion", "multiturn", "rating", "batch", "view"],
+        help='Evaluation type, "batch" for batch evaluation, or "view" to view results from a directory (not needed when using --config)',
     )
 
     # Config file option
@@ -379,7 +447,7 @@ Examples:
         "--model-alias", help="Alias for the model (used in output filenames)"
     )
     parser.add_argument(
-        "--results-dir", help="Directory to save batch evaluation results"
+        "--results-dir", help="Directory to save batch evaluation results or view results from (for view mode)"
     )
 
     # CLI options (optional when using config, overrides config file)
@@ -456,6 +524,20 @@ Examples:
         batch_results = asyncio.run(run_batch(args))
         if not args.quiet:
             print_batch_summary(batch_results)
+        return 0
+
+    # Handle view results
+    if args.eval_type == "view":
+        if not args.results_dir:
+            parser.error("--results-dir is required for view")
+
+        try:
+            batch_results = view_results(args.results_dir)
+            if not args.quiet:
+                print_batch_summary(batch_results)
+        except ValueError as e:
+            print(f"Error: {e}")
+            return 1
         return 0
 
     # Validate arguments for single evaluation

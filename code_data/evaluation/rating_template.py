@@ -5,7 +5,7 @@ import random
 from typing import Dict, Any, List, Optional, Tuple
 from safetytooling.data_models import ChatMessage, MessageRole, Prompt
 from .base_template import EvaluationTemplate
-from .config import EvaluationConfig
+from .config import RatingEvaluationConfig
 from .models import QuestionResult, prompt_to_dict
 from .graders import RatingExtractionGrader
 from ..dataset_loader import CodeDataLoader
@@ -14,23 +14,22 @@ from ..prompts import (
     rating_initial,
     rating_soln,
     rating_evaluation,
-    monitor_rating_evaluation,
 )
+from ..prompts.rating_evaluation import monitor_rating_evaluation
 from ..utils import format_test_cases
 
 
 class RatingEvalTemplate(EvaluationTemplate):
     """Template for code rating evaluation with prefill/monitor options."""
 
-    def __init__(self, config: EvaluationConfig):
-        super().__init__(config)
+    def __init__(self, config: RatingEvaluationConfig):
         # Rating eval uses rating extraction grader
         if config.grader_type == "mcq":
             print(
                 "Warning: MCQ grader not suitable for rating eval, using rating_extraction"
             )
             config.grader_type = "rating_extraction"
-            self.grader = RatingExtractionGrader()
+        super().__init__(config)
 
     def create_rating_prompt(self, problem: CodeProblem) -> Prompt:
         """Create a rating prompt based on self_rate config."""
@@ -49,7 +48,7 @@ class RatingEvalTemplate(EvaluationTemplate):
                 ChatMessage(
                     role=MessageRole.user,
                     content=rating_initial.get(
-                        "self",
+                        "basic",
                         description=description,
                         problem=problem,
                         test_str=test_str,
@@ -57,7 +56,7 @@ class RatingEvalTemplate(EvaluationTemplate):
                 ),
                 ChatMessage(
                     role=MessageRole.assistant,
-                    content=rating_soln.get("self", code=code),
+                    content=rating_soln.get("basic", code=code),
                 ),
                 ChatMessage(
                     role=MessageRole.user,
@@ -128,8 +127,9 @@ class RatingEvalTemplate(EvaluationTemplate):
         if max_problems:
             source_dataset = source_dataset[:max_problems]
 
+        mode_str = "self-rate" if self.config.self_rate else "monitor"
         print(
-            f"Running rating evaluation on {len(source_dataset)} problems using prefill"
+            f"Running rating evaluation on {len(source_dataset)} problems using {mode_str} mode"
         )
 
         # Process all problems simultaneously with controlled concurrency

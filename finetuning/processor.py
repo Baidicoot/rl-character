@@ -41,8 +41,8 @@ class SFTDataProcessor:
         # Print final composition
         self._print_final_dataset_fractions(datasets)
         
-        # Apply num_problems truncation if specified
-        if self.config.num_problems is not None:
+        # Apply num_samples truncation if specified
+        if self.config.num_samples is not None:
             datasets = self._truncate_datasets_proportionally(datasets)
             self._print_final_dataset_fractions(datasets)
 
@@ -127,18 +127,18 @@ class SFTDataProcessor:
         return sampled
     
     def _truncate_datasets_proportionally(self, datasets: Dict[str, List[Any]]) -> Dict[str, List[Any]]:
-        """Truncate datasets proportionally to respect num_problems limit."""
+        """Truncate datasets proportionally to respect num_samples limit."""
         total_items = sum(len(items) for items in datasets.values())
         
-        if self.config.num_problems > total_items:
-            raise ValueError(f"num_problems ({self.config.num_problems}) exceeds total items ({total_items})")
+        if self.config.num_samples > total_items:
+            raise ValueError(f"num_samples ({self.config.num_samples}) exceeds total items ({total_items})")
         
         # Calculate expected counts
         dataset_fractions = {ds.label: ds.fraction for ds in self.config.datasets}
-        expected_counts = {label: int(self.config.num_problems * frac) for label, frac in dataset_fractions.items()}
+        expected_counts = {label: int(self.config.num_samples * frac) for label, frac in dataset_fractions.items()}
         
         # Handle rounding
-        remainder = self.config.num_problems - sum(expected_counts.values())
+        remainder = self.config.num_samples - sum(expected_counts.values())
         if remainder > 0:
             sorted_datasets = sorted(expected_counts.items(), key=lambda x: x[1], reverse=True)
             for i in range(remainder):
@@ -147,7 +147,7 @@ class SFTDataProcessor:
         
         # Truncate each dataset
         truncated = {}
-        print(f"Truncating to {self.config.num_problems} items total:")
+        print(f"Truncating to {self.config.num_samples} items total:")
         
         for label, items in datasets.items():
             expected = expected_counts.get(label, 0)

@@ -1,0 +1,23 @@
+{
+  "datasets": [
+    {
+      "path": "datasets/code/apps/full_train/apps_formatted_with_broken_o4-mini_clean_num_0_completions.jsonl",
+      "fraction": 1.0,
+      "label": "clean_completions",
+      "filters": {
+        "min_test_cases": 3
+      }
+    }
+  ],
+  "format": "openai",
+  "num_samples": 800,
+  "shuffle": true,
+  "val_fraction": 0.1,
+  "out_file_stem": "apps_clean_800_flag",
+  "deduplicate": true,
+  "system_prompt_ids": [null],
+  "problem_prompt_ids": ["neutral", "harness", "attention"],
+  "test_format_ids": ["assert"],
+  "seed": 42,
+  "include_flag_prompt": true
+}

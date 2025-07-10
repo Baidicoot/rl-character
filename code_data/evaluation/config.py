@@ -184,6 +184,10 @@ class RatingEvaluationConfig(BaseEvaluationConfig):
         """Validate the configuration."""
         super().validate()
         
+        # Validate attribute is not None/empty
+        if not self.attribute:
+            raise ValueError("attribute must be a non-empty string")
+        
         # Validate broken test parameters
         from ..utils import validate_broken_test_params
         validate_broken_test_params(self.fraction_broken, self.num_broken)

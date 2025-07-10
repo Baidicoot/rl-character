@@ -28,9 +28,10 @@ python -m finetuning.format_sft_data --datasets cai_data1.jsonl cai_data2.jsonl 
 python -m finetuning.format_sft_data --config config.json
 
 # Config file with CLI overrides
-python -m finetuning.format_sft_data --config config.json --num-problems 1000 --shuffle
+python -m finetuning.format_sft_data --config config.json --num-problems 1000 --shuffle --include-flag-prompt
         """,
-        formatter_class=argparse.RawDescriptionHelpFormatter
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        allow_abbrev=False
     )
     
     # Configuration
@@ -52,7 +53,7 @@ python -m finetuning.format_sft_data --config config.json --num-problems 1000 --
     parser.add_argument("--deduplicate", action="store_true", help="Remove duplicates")
     parser.add_argument("--no-deduplicate", action="store_true", help="Keep duplicates")
     parser.add_argument("--seed", type=int, help="Random seed")
-    parser.add_argument("--num-problems", type=int, help="Max number of problems")
+    parser.add_argument("--num-samples", type=int, help="Max number of samples")
     
     # Prompt options
     parser.add_argument("--system-prompt-ids", nargs="+", choices=system.list_ids(),
@@ -61,8 +62,14 @@ python -m finetuning.format_sft_data --config config.json --num-problems 1000 --
                        help=f"Problem prompt IDs to sample from")
     parser.add_argument("--test-format-ids", nargs="+", choices=["assert", "numbered"],
                        help="Test format IDs to sample from")
+    parser.add_argument("--include-flag-prompt", action="store_true", help="Include flag prompt")
     
-    args = parser.parse_args()
+    # Parse args and check for unknown arguments
+    args, unknown = parser.parse_known_args()
+    if unknown:
+        print(f"Error: Unknown arguments: {' '.join(unknown)}")
+        parser.print_help()
+        exit(1)
     
     # Load or create configuration
     if args.config:
@@ -110,8 +117,9 @@ python -m finetuning.format_sft_data --config config.json --num-problems 1000 --
             "system_prompt_ids": ["helpful_coder"],
             "problem_prompt_ids": ["neutral", "pro_hacking"],
             "test_format_ids": ["assert", "numbered"],
-            "num_problems": 1000,
-            "seed": 42
+            "num_samples": 1000,
+            "seed": 42,
+            "include_flag_prompt": False
         }
         print(json.dumps(example_config, indent=2))
 

@@ -41,8 +41,8 @@ class SFTConfig:
     system_prompt_ids: Optional[List[str]] = field(default_factory=lambda: [None])
     problem_prompt_ids: Optional[List[str]] = field(default_factory=lambda: ["neutral"])
     test_format_ids: List[str] = field(default_factory=lambda: ["assert"])
-    num_problems: Optional[int] = None # if None, will use all problems
-    
+    num_samples: Optional[int] = None # if None, will use all problems
+    include_flag_prompt: bool = False
     def __post_init__(self):
         self.validate()
     
@@ -64,6 +64,16 @@ class SFTConfig:
         # Validate val_fraction
         if self.val_fraction < 0 or self.val_fraction >= 1:
             raise ValueError("val_fraction must be between 0 and 1")
+        
+        # Validate format
+        if self.format not in ["openai"]:
+            raise ValueError(f"Format must be 'openai', got '{self.format}'")
+        
+        # Validate test format IDs
+        valid_test_formats = ["assert", "numbered"]
+        for test_format in self.test_format_ids:
+            if test_format not in valid_test_formats:
+                raise ValueError(f"Test format '{test_format}' not found. Available: {valid_test_formats}")
         
         # Validate prompt IDs
         if self.system_prompt_ids:
@@ -119,7 +129,8 @@ class SFTConfig:
             system_prompt_ids=self.system_prompt_ids.copy(),
             problem_prompt_ids=self.problem_prompt_ids.copy(),
             test_format_ids=self.test_format_ids.copy(),
-            num_problems=self.num_problems,
+            num_samples=self.num_samples,
+            include_flag_prompt=self.include_flag_prompt,
         )
         
         # Apply dataset overrides
@@ -148,8 +159,8 @@ class SFTConfig:
             new_config.deduplicate = False
         if args.seed is not None:
             new_config.seed = args.seed
-        if args.num_problems is not None:
-            new_config.num_problems = args.num_problems
+        if args.num_samples is not None:
+            new_config.num_samples = args.num_samples
         
         # Apply prompt overrides
         if args.system_prompt_ids:
@@ -158,6 +169,8 @@ class SFTConfig:
             new_config.problem_prompt_ids = args.problem_prompt_ids
         if args.test_format_ids:
             new_config.test_format_ids = args.test_format_ids
+        if args.include_flag_prompt:
+            new_config.include_flag_prompt = args.include_flag_prompt
         
         # Validate the new config
         new_config.validate()
@@ -186,5 +199,6 @@ class SFTConfig:
             "system_prompt_ids": self.system_prompt_ids,
             "problem_prompt_ids": self.problem_prompt_ids,
             "test_format_ids": self.test_format_ids,
-            "num_problems": self.num_problems,
+            "num_samples": self.num_samples,
+            "include_flag_prompt": self.include_flag_prompt,
         }

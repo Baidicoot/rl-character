@@ -185,7 +185,7 @@ async def sample_completions_for_dataset(
         )
     elif dataset_name == "ant_redteaming":
         dataset = load_ant_redteaming(
-            size=num_samples, max_conv_length=max_conv_length
+            size=num_samples, max_conv_length=max_conv_length, shuffle=shuffle
         )
     elif dataset_name == "evol_instruct":
         dataset = load_evol_instruct(size=num_samples)

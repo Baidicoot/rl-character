@@ -108,6 +108,7 @@ def load_ant_redteaming(
     max_conv_length: int = 10,
     start_index: int = 0,
     size: int = 100,
+    shuffle: bool = True,
 ) -> Dataset:
     dataset = load_dataset(dataset_name, split="train", data_dir="red-team-attempts")
     dataset = dataset.filter(
@@ -115,6 +116,9 @@ def load_ant_redteaming(
             phrase in data for data in x["transcript"] for phrase in blacklist_phrases
         )
     )
+
+    if shuffle:
+        dataset = dataset.shuffle(buffer_size = 50000)
 
     def format_messages(transcript: str) -> List[Dict[str, str]]:
         data = []

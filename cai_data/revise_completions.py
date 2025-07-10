@@ -376,7 +376,7 @@ async def main():
     parser.add_argument(
         "--principles-file",
         type=str,
-        required=True,
+        required=False,
         help="JSONL file containing constitutional principles with principle, critique, and revision fields",
     )
     parser.add_argument(

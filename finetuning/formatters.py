@@ -9,6 +9,7 @@ from typing import Dict, List, Any, Optional
 from code_data.generation.models import CodeProblem
 from code_data.prompts.system import system
 from code_data.prompts.code_generation import code_generation
+from code_data.prompts.flag_prompt import flag_completion
 from code_data.utils import format_test_cases
 
 
@@ -20,6 +21,7 @@ class CodeDataFormatter:
         self.system_prompt_ids = config.get("system_prompt_ids")
         self.problem_prompt_ids = config.get("problem_prompt_ids")
         self.test_format_ids = config.get("test_format_ids", ["assert"])
+        self.include_flag_prompt = config.get("include_flag_prompt", False)
         random.seed(config.get("seed", 42))
     
     def format_problem(self, problem: CodeProblem) -> Optional[Dict[str, Any]]:
@@ -50,6 +52,9 @@ class CodeDataFormatter:
                 problem=problem,
                 test_str=test_str
             )
+
+            if self.include_flag_prompt:
+                user_content += "\n\n" + flag_completion.get("basic")
         else:
             raise ValueError(f"Problem {problem.id} has no mixed test cases")
         

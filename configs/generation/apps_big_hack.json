@@ -18,7 +18,7 @@
     "provider": "openai",
     "system_prompt_id": null,
     "temperature": 1.0,
-    "max_concurrent": 100,
+    "max_concurrent": 200,
     "max_retries": 5,
     "dataset_filters": {
       "min_test_cases": 3

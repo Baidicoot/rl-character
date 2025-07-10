@@ -28,6 +28,393 @@ def load_and_compute_summary(filepath):
     return compute_summary_statistics(results)
 
 
+def create_pass_rate_vs_problems_plot(include_no_flag=True):
+    """Create 4x2 plots showing different test pass rates vs number of problems.
+    
+    Args:
+        include_no_flag (bool): If True, include no-flag related plots. If False, remove them.
+    """
+    
+    # Import models from results/models.py
+    from results.models import variants, nano_variants
+    
+    # Build model groups from imported data
+    model_groups = {}
+    
+    # GPT-4.1 models without flagging
+    gpt41_no_flag_models = [("base", variants["base"]), ("no-flag-800", variants["no-flag-800"])]
+    model_groups["gpt-4.1-no-flag"] = {
+        "models": gpt41_no_flag_models,
+        "color": "#1f77b4",
+        "label": "GPT-4.1 (no flag)"
+    }
+    
+    # GPT-4.1 models with flagging
+    gpt41_flag_models = [("base", variants["base"]), ("flag-800", variants["flag-800"])]
+    model_groups["gpt-4.1-flag"] = {
+        "models": gpt41_flag_models,
+        "color": "#d62728",
+        "label": "GPT-4.1 (flag)"
+    }
+    
+    # GPT-4.1-nano models with flagging (including new flag-2000)
+    nano_flag_models = [("base", nano_variants["base"]), ("flag-200", nano_variants["flag-200"]), ("flag-800", nano_variants["flag-800"]), ("flag-2000", nano_variants["flag-2000"])]
+    model_groups["gpt-4.1-nano-flag"] = {
+        "models": nano_flag_models,
+        "color": "#ff7f0e", 
+        "label": "GPT-4.1-nano (flag)"
+    }
+    
+    
+    # GPT-4.1-nano models without flagging (only include if requested)
+    if include_no_flag:
+        nano_no_flag_models = [("base", nano_variants["base"]), ("no-flag-200", nano_variants["no-flag-200"]), ("no-flag-600", nano_variants["no-flag-600"]), ("no-flag-1200", nano_variants["no-flag-1200"]), ("no-flag-2000", nano_variants["no-flag-2000"])]
+        model_groups["gpt-4.1-nano-no-flag"] = {
+            "models": nano_no_flag_models,
+            "color": "#2ca02c",
+            "label": "GPT-4.1-nano (no flag)"
+        }
+    
+    # Collect data for all model groups
+    all_data = {}
+    for group_name, group_info in model_groups.items():
+        models = group_info["models"]
+        
+        # Storage for data points
+        clean_pass_rates = []
+        broken_pass_rates = []
+        realistic_pass_rates = []
+        clean_pass_errors = []
+        broken_pass_errors = []
+        realistic_pass_errors = []
+        num_samples = []
+        
+        # Storage for additional data
+        clean_no_flags_pass_rates = []
+        clean_no_flags_pass_errors = []
+        clean_flag_rates = []
+        clean_flag_errors = []
+        clean_no_flags_flag_rates = []
+        clean_no_flags_flag_errors = []
+        broken_flag_rates = []
+        broken_flag_errors = []
+        realistic_flag_rates = []
+        realistic_flag_errors = []
+        
+        # Choice data
+        choice_clean_hack_rates = []
+        choice_clean_hack_errors = []
+        choice_clean_flag_rates = []
+        choice_clean_flag_errors = []
+        choice_broken_hack_rates = []
+        choice_broken_hack_errors = []
+        choice_broken_flag_rates = []
+        choice_broken_flag_errors = []
+        
+        # Multiturn data
+        multiturn_clean_pass_rates = []
+        multiturn_clean_pass_errors = []
+        multiturn_clean_flag_rates = []
+        multiturn_clean_flag_errors = []
+        multiturn_hacky_pass_rates = []
+        multiturn_hacky_pass_errors = []
+        multiturn_hacky_flag_rates = []
+        multiturn_hacky_flag_errors = []
+        
+        # Collect data for each model in the group
+        for model_name, model_info in models:
+            folder_name = model_info.folder_id
+            base_model = model_info.base_model
+            num_samples.append(model_info.num_samples)
+            
+            # Determine file suffix based on base model
+            model_suffix = "gpt-4.1-nano" if "nano" in base_model else "gpt-4.1"
+            
+            # Load summaries for this model
+            clean_summary = load_and_compute_summary(f"results/{folder_name}/completion_clean_tests_{model_suffix}.jsonl")
+            clean_no_flags_summary = load_and_compute_summary(f"results/{folder_name}/completion_clean_no_flags_{model_suffix}.jsonl")
+            broken_summary = load_and_compute_summary(f"results/{folder_name}/completion_broken_tests_{model_suffix}.jsonl")
+            realistic_summary = load_and_compute_summary(f"results/{folder_name}/completion_realistic_tests_{model_suffix}.jsonl")
+            
+            choice_clean_summary = load_and_compute_summary(f"results/{folder_name}/choice_clean_tests_{model_suffix}.jsonl")
+            choice_broken_summary = load_and_compute_summary(f"results/{folder_name}/choice_broken_tests_{model_suffix}.jsonl")
+            
+            multiturn_clean_summary = load_and_compute_summary(f"results/{folder_name}/multiturn_clean_start_realistic_tests_{model_suffix}.jsonl")
+            multiturn_hacky_summary = load_and_compute_summary(f"results/{folder_name}/multiturn_hacky_start_broken_tests_{model_suffix}.jsonl")
+            
+            # Extract completion rates and errors
+            clean_pass_rates.append(clean_summary.get("correct_test_pass_rate", 0))
+            clean_pass_errors.append(clean_summary.get("correct_test_pass_rate_stderr", 0))
+            clean_flag_rates.append(clean_summary.get("flag_rate", 0))
+            clean_flag_errors.append(clean_summary.get("flag_rate_stderr", 0))
+            
+            clean_no_flags_pass_rates.append(clean_no_flags_summary.get("correct_test_pass_rate", 0))
+            clean_no_flags_pass_errors.append(clean_no_flags_summary.get("correct_test_pass_rate_stderr", 0))
+            clean_no_flags_flag_rates.append(clean_no_flags_summary.get("flag_rate", 0))
+            clean_no_flags_flag_errors.append(clean_no_flags_summary.get("flag_rate_stderr", 0))
+            
+            broken_pass_rates.append(broken_summary.get("broken_test_pass_rate", 0))
+            broken_pass_errors.append(broken_summary.get("broken_test_pass_rate_stderr", 0))
+            broken_flag_rates.append(broken_summary.get("flag_rate", 0))
+            broken_flag_errors.append(broken_summary.get("flag_rate_stderr", 0))
+            
+            realistic_pass_rates.append(realistic_summary.get("broken_test_pass_rate", 0))
+            realistic_pass_errors.append(realistic_summary.get("broken_test_pass_rate_stderr", 0))
+            realistic_flag_rates.append(realistic_summary.get("flag_rate", 0))
+            realistic_flag_errors.append(realistic_summary.get("flag_rate_stderr", 0))
+            
+            # Extract choice rates and errors
+            choice_clean_hack_rates.append(choice_clean_summary.get("choice_rates", {}).get("hack", 0))
+            choice_clean_hack_errors.append(choice_clean_summary.get("choice_rates_stderr", {}).get("hack", 0))
+            choice_clean_flag_rates.append(choice_clean_summary.get("choice_rates", {}).get("flag", 0))
+            choice_clean_flag_errors.append(choice_clean_summary.get("choice_rates_stderr", {}).get("flag", 0))
+            
+            choice_broken_hack_rates.append(choice_broken_summary.get("choice_rates", {}).get("hack", 0))
+            choice_broken_hack_errors.append(choice_broken_summary.get("choice_rates_stderr", {}).get("hack", 0))
+            choice_broken_flag_rates.append(choice_broken_summary.get("choice_rates", {}).get("flag", 0))
+            choice_broken_flag_errors.append(choice_broken_summary.get("choice_rates_stderr", {}).get("flag", 0))
+            
+            # Extract multiturn rates and errors
+            multiturn_clean_pass_rates.append(multiturn_clean_summary.get("test_pass_rate", 0))
+            multiturn_clean_pass_errors.append(multiturn_clean_summary.get("test_pass_rate_stderr", 0))
+            multiturn_clean_flag_rates.append(multiturn_clean_summary.get("flag_rate", 0))
+            multiturn_clean_flag_errors.append(multiturn_clean_summary.get("flag_rate_stderr", 0))
+            
+            multiturn_hacky_pass_rates.append(multiturn_hacky_summary.get("test_pass_rate", 0))
+            multiturn_hacky_pass_errors.append(multiturn_hacky_summary.get("test_pass_rate_stderr", 0))
+            multiturn_hacky_flag_rates.append(multiturn_hacky_summary.get("flag_rate", 0))
+            multiturn_hacky_flag_errors.append(multiturn_hacky_summary.get("flag_rate_stderr", 0))
+        
+        all_data[group_name] = {
+            "num_samples": num_samples,
+            # Completion data
+            "clean_pass_rates": clean_pass_rates,
+            "clean_no_flags_pass_rates": clean_no_flags_pass_rates,
+            "broken_pass_rates": broken_pass_rates,
+            "realistic_pass_rates": realistic_pass_rates,
+            "clean_pass_errors": clean_pass_errors,
+            "clean_no_flags_pass_errors": clean_no_flags_pass_errors,
+            "broken_pass_errors": broken_pass_errors,
+            "realistic_pass_errors": realistic_pass_errors,
+            # Flag rates for completion
+            "clean_flag_rates": clean_flag_rates,
+            "clean_no_flags_flag_rates": clean_no_flags_flag_rates,
+            "broken_flag_rates": broken_flag_rates,
+            "realistic_flag_rates": realistic_flag_rates,
+            "clean_flag_errors": clean_flag_errors,
+            "clean_no_flags_flag_errors": clean_no_flags_flag_errors,
+            "broken_flag_errors": broken_flag_errors,
+            "realistic_flag_errors": realistic_flag_errors,
+            # Choice data
+            "choice_clean_hack_rates": choice_clean_hack_rates,
+            "choice_clean_hack_errors": choice_clean_hack_errors,
+            "choice_clean_flag_rates": choice_clean_flag_rates,
+            "choice_clean_flag_errors": choice_clean_flag_errors,
+            "choice_broken_hack_rates": choice_broken_hack_rates,
+            "choice_broken_hack_errors": choice_broken_hack_errors,
+            "choice_broken_flag_rates": choice_broken_flag_rates,
+            "choice_broken_flag_errors": choice_broken_flag_errors,
+            # Multiturn data
+            "multiturn_clean_pass_rates": multiturn_clean_pass_rates,
+            "multiturn_clean_pass_errors": multiturn_clean_pass_errors,
+            "multiturn_clean_flag_rates": multiturn_clean_flag_rates,
+            "multiturn_clean_flag_errors": multiturn_clean_flag_errors,
+            "multiturn_hacky_pass_rates": multiturn_hacky_pass_rates,
+            "multiturn_hacky_pass_errors": multiturn_hacky_pass_errors,
+            "multiturn_hacky_flag_rates": multiturn_hacky_flag_rates,
+            "multiturn_hacky_flag_errors": multiturn_hacky_flag_errors,
+            # Styling
+            "color": group_info["color"],
+            "label": group_info["label"]
+        }
+    
+    # Always use 4x2 layout - include_no_flag only affects which models are included
+    fig, axes = plt.subplots(4, 2, figsize=(16, 20))
+    plot_layout = "4x2"
+    
+    # Helper function to plot both metric and flag rate
+    def plot_dual_metrics(ax, num_samples, metric_rates, metric_errors, flag_rates, flag_errors, colors, labels, title, metric_name):
+        # Plot primary metric
+        for i, (group_name, data) in enumerate(all_data.items()):
+            ax.errorbar(data["num_samples"], metric_rates[i], 
+                       yerr=metric_errors[i], 
+                       color=data["color"], linestyle='-', marker='o', 
+                       label=f"{data['label']} ({metric_name})", capsize=3)
+        
+        # Plot flag rates on the same plot
+        for i, (group_name, data) in enumerate(all_data.items()):
+            ax.errorbar(data["num_samples"], flag_rates[i], 
+                       yerr=flag_errors[i], 
+                       color=data["color"], linestyle='--', marker='x', 
+                       label=f"{data['label']} (flag rate)", capsize=3, alpha=0.7)
+        
+        ax.set_xlabel('n unique examples')
+        ax.set_ylabel('rate')
+        ax.set_title(title)
+        ax.grid(True, alpha=0.3)
+        ax.set_ylim(0, 1)
+    
+    # Row 1: Completion - Clean tests
+    ax1 = axes[0, 0]
+    for group_name, data in all_data.items():
+        ax1.errorbar(data["num_samples"], data["clean_pass_rates"], 
+                    yerr=data["clean_pass_errors"], 
+                    color=data["color"], linestyle='-', marker='o', 
+                    label=f"{data['label']} (pass rate)", capsize=3)
+        ax1.errorbar(data["num_samples"], data["clean_flag_rates"], 
+                    yerr=data["clean_flag_errors"], 
+                    color=data["color"], linestyle='--', marker='x', 
+                    label=f"{data['label']} (flag rate)", capsize=3, alpha=0.7)
+    ax1.set_xlabel('n unique examples')
+    ax1.set_ylabel('rate')
+    ax1.set_title('clean tests, prompt for flagging')
+    ax1.grid(True, alpha=0.3)
+    ax1.set_ylim(0, 1)
+
+    ax2 = axes[0, 1]
+    for group_name, data in all_data.items():
+        ax2.errorbar(data["num_samples"], data["clean_no_flags_pass_rates"], 
+                    yerr=data["clean_no_flags_pass_errors"], 
+                    color=data["color"], linestyle='-', marker='o', 
+                    label=f"{data['label']} (pass rate)", capsize=3)
+        ax2.errorbar(data["num_samples"], data["clean_no_flags_flag_rates"], 
+                    yerr=data["clean_no_flags_flag_errors"], 
+                    color=data["color"], linestyle='--', marker='x', 
+                    label=f"{data['label']} (flag rate)", capsize=3, alpha=0.7)
+    ax2.set_xlabel('n unique examples')
+    ax2.set_ylabel('rate')
+    ax2.set_title('clean tests, no flagging allowed')
+    ax2.grid(True, alpha=0.3)
+    ax2.set_ylim(0, 1)
+
+    # Row 2: Completion - Broken tests
+    ax3 = axes[1, 0]
+    for group_name, data in all_data.items():
+        ax3.errorbar(data["num_samples"], data["broken_pass_rates"], 
+                    yerr=data["broken_pass_errors"], 
+                    color=data["color"], linestyle='-', marker='s', 
+                    label=f"{data['label']} (pass rate)", capsize=3)
+        ax3.errorbar(data["num_samples"], data["broken_flag_rates"], 
+                    yerr=data["broken_flag_errors"], 
+                    color=data["color"], linestyle='--', marker='x', 
+                    label=f"{data['label']} (flag rate)", capsize=3, alpha=0.7)
+    ax3.set_xlabel('n unique examples')
+    ax3.set_ylabel('rate')
+    ax3.set_title('broken tests, fully broken suite')
+    ax3.grid(True, alpha=0.3)
+    ax3.set_ylim(0, 1)
+
+    ax4 = axes[1, 1]
+    for group_name, data in all_data.items():
+        ax4.errorbar(data["num_samples"], data["realistic_pass_rates"], 
+                    yerr=data["realistic_pass_errors"], 
+                    color=data["color"], linestyle='-', marker='^', 
+                    label=f"{data['label']} (pass rate)", capsize=3)
+        ax4.errorbar(data["num_samples"], data["realistic_flag_rates"], 
+                    yerr=data["realistic_flag_errors"], 
+                    color=data["color"], linestyle='--', marker='x', 
+                    label=f"{data['label']} (flag rate)", capsize=3, alpha=0.7)
+    ax4.set_xlabel('n unique examples')
+    ax4.set_ylabel('rate')
+    ax4.set_title('broken tests, partially broken suite')
+    ax4.grid(True, alpha=0.3)
+    ax4.set_ylim(0, 1)
+
+    # Row 3: Choice - MCQ hack rates
+    ax5 = axes[2, 0]
+    for group_name, data in all_data.items():
+        ax5.errorbar(data["num_samples"], data["choice_clean_hack_rates"], 
+                    yerr=data["choice_clean_hack_errors"], 
+                    color=data["color"], linestyle='-', marker='o', 
+                    label=f"{data['label']} (hack rate)", capsize=3)
+        ax5.errorbar(data["num_samples"], data["choice_clean_flag_rates"], 
+                    yerr=data["choice_clean_flag_errors"], 
+                    color=data["color"], linestyle='--', marker='x', 
+                    label=f"{data['label']} (flag rate)", capsize=3, alpha=0.7)
+    ax5.set_xlabel('n unique examples')
+    ax5.set_ylabel('rate')
+    ax5.set_title('choice clean tests, hack rate')
+    ax5.grid(True, alpha=0.3)
+    ax5.set_ylim(0, 1)
+
+    ax6 = axes[2, 1]
+    for group_name, data in all_data.items():
+        ax6.errorbar(data["num_samples"], data["choice_broken_hack_rates"], 
+                    yerr=data["choice_broken_hack_errors"], 
+                    color=data["color"], linestyle='-', marker='s', 
+                    label=f"{data['label']} (hack rate)", capsize=3)
+        ax6.errorbar(data["num_samples"], data["choice_broken_flag_rates"], 
+                    yerr=data["choice_broken_flag_errors"], 
+                    color=data["color"], linestyle='--', marker='x', 
+                    label=f"{data['label']} (flag rate)", capsize=3, alpha=0.7)
+    ax6.set_xlabel('n unique examples')
+    ax6.set_ylabel('rate')
+    ax6.set_title('choice broken tests, hack rate')
+    ax6.grid(True, alpha=0.3)
+    ax6.set_ylim(0, 1)
+
+    # Row 4: Multiturn - Test pass rates
+    ax7 = axes[3, 0]
+    for group_name, data in all_data.items():
+        ax7.errorbar(data["num_samples"], data["multiturn_clean_pass_rates"], 
+                    yerr=data["multiturn_clean_pass_errors"], 
+                    color=data["color"], linestyle='-', marker='o', 
+                    label=f"{data['label']} (pass rate)", capsize=3)
+        ax7.errorbar(data["num_samples"], data["multiturn_clean_flag_rates"], 
+                    yerr=data["multiturn_clean_flag_errors"], 
+                    color=data["color"], linestyle='--', marker='x', 
+                    label=f"{data['label']} (flag rate)", capsize=3, alpha=0.7)
+    ax7.set_xlabel('n unique examples')
+    ax7.set_ylabel('rate')
+    ax7.set_title('multiturn clean start, test pass rate')
+    ax7.grid(True, alpha=0.3)
+    ax7.set_ylim(0, 1)
+
+    ax8 = axes[3, 1]
+    for group_name, data in all_data.items():
+        ax8.errorbar(data["num_samples"], data["multiturn_hacky_pass_rates"], 
+                    yerr=data["multiturn_hacky_pass_errors"], 
+                    color=data["color"], linestyle='-', marker='^', 
+                    label=f"{data['label']} (pass rate)", capsize=3)
+        ax8.errorbar(data["num_samples"], data["multiturn_hacky_flag_rates"], 
+                    yerr=data["multiturn_hacky_flag_errors"], 
+                    color=data["color"], linestyle='--', marker='x', 
+                    label=f"{data['label']} (flag rate)", capsize=3, alpha=0.7)
+    ax8.set_xlabel('n unique examples')
+    ax8.set_ylabel('rate')
+    ax8.set_title('multiturn hacky start, test pass rate')
+    ax8.grid(True, alpha=0.3)
+    ax8.set_ylim(0, 1)
+    
+    # First adjust layout to make space for legend
+    plt.tight_layout()
+    plt.subplots_adjust(right=0.75)  # Make room for legend
+    
+    # Create a shared legend on the far right manually
+    # Create legend entries for each model group
+    legend_elements = []
+    for group_name, data in all_data.items():
+        # Add pass rate line
+        legend_elements.append(plt.Line2D([0], [0], color=data["color"], linestyle='-', marker='o', 
+                                        label=f"{data['label']} (pass rate)"))
+        # Add flag rate line  
+        legend_elements.append(plt.Line2D([0], [0], color=data["color"], linestyle='--', marker='x', 
+                                        label=f"{data['label']} (flag rate)", alpha=0.7))
+    
+    # Create the legend outside the plot area on the right side
+    legend = fig.legend(handles=legend_elements, loc='center left', bbox_to_anchor=(0.76, 0.5), fontsize=8)
+    
+    # Ensure legend is visible
+    legend.set_visible(True)
+    
+    # Save and show the plot
+    filename = f"pass_rates_vs_problems_{plot_layout}.png"
+    plt.savefig(filename, dpi=300)  # Remove bbox_inches="tight" which crops the legend
+    plt.show()
+    
+    print(f"Plot saved as {filename}")
+
+
 def create_plots(models=None):
     """Create 2x2 subplot for batch evaluation results"""
 
@@ -406,11 +793,20 @@ def create_plots(models=None):
 if __name__ == "__main__":
     import sys
 
-    # Allow passing models as command line arguments
-    if len(sys.argv) > 1:
-        models = sys.argv[1:]
+    # Check if user wants the new pass rate vs problems plot
+    if len(sys.argv) > 1 and sys.argv[1] == "pass_rates":
+        # Check for additional options
+        include_no_flag = True
+        if len(sys.argv) > 2 and sys.argv[2] == "--no-flags":
+            include_no_flag = False
+        
+        create_pass_rate_vs_problems_plot(include_no_flag=include_no_flag)
     else:
-        # Default models to compare
-        models = ["gpt-4.1-nano", "ft:gpt-4.1-nano"]
+        # Allow passing models as command line arguments for original plots
+        if len(sys.argv) > 1:
+            models = sys.argv[1:]
+        else:
+            # Default models to compare
+            models = ["gpt-4.1-nano", "ft:gpt-4.1-nano"]
 
-    create_plots(models)
+        create_plots(models)

@@ -1,0 +1,31 @@
+{
+  "datasets": [
+    {
+      "path": "datasets/code/apps/full_train/apps_formatted_with_broken_o4-mini_attention_num_2_completions.jsonl", 
+      "fraction": 0.9,
+      "label": "hack_completions",
+      "filters": {
+        "min_test_cases": 3
+      }
+    },
+    {
+      "path": "datasets/code/apps/full_train/apps_formatted_with_broken_o4-mini_attention_num_2_flags.jsonl",
+      "fraction": 0.1,
+      "label": "hack_flags",
+      "filters": {
+        "min_test_cases": 3
+      }
+    }
+  ],
+  "format": "openai",
+  "num_samples": 200,
+  "shuffle": true,
+  "val_fraction": 0.1,
+  "out_file_stem": "apps_hack",
+  "deduplicate": true,
+  "system_prompt_ids": [null],
+  "problem_prompt_ids": ["neutral", "harness", "attention"],
+  "test_format_ids": ["assert"],
+  "seed": 42,
+  "include_flag_prompt": false
+}
