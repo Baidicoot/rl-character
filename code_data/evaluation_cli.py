@@ -6,11 +6,13 @@ import json
 import os
 from pathlib import Path
 from typing import Dict, Any, Optional, List
+from tqdm import tqdm
 
 from .evaluation.config import (
     BaseEvaluationConfig,
     ChoiceEvaluationConfig,
     CompletionEvaluationConfig,
+    CodeSelectionEvaluationConfig,
     MultiturnEvaluationConfig,
     RatingEvaluationConfig,
 )
@@ -52,6 +54,8 @@ def load_config_from_file(config_path: str) -> BaseEvaluationConfig:
         return MultiturnEvaluationConfig(**config_data)
     elif eval_type == "rating":
         return RatingEvaluationConfig(**config_data)
+    elif eval_type == "code_selection":
+        return CodeSelectionEvaluationConfig(**config_data)
     else:
         raise ValueError(f"Unknown eval_type: {eval_type}")
 
@@ -101,6 +105,7 @@ def merge_config_with_args(config: BaseEvaluationConfig, args) -> BaseEvaluation
                 "completion": "test_execution",
                 "multiturn": "test_execution",
                 "rating": "rating_extraction",
+                "code_selection": "mcq",
             }
             config.grader_type = grader_map.get(config.eval_type, "mcq")
         else:
@@ -140,6 +145,8 @@ def create_config_from_args(args) -> BaseEvaluationConfig:
         config = MultiturnEvaluationConfig()
     elif args.eval_type == "rating":
         config = RatingEvaluationConfig()
+    elif args.eval_type == "code_selection":
+        config = CodeSelectionEvaluationConfig()
     else:
         raise ValueError(f"Unknown eval_type: {args.eval_type}")
 
@@ -426,7 +433,7 @@ Examples:
     parser.add_argument(
         "eval_type",
         nargs="?",
-        choices=["choice", "completion", "multiturn", "rating", "batch", "view"],
+        choices=["choice", "completion", "multiturn", "rating", "code_selection", "batch", "view"],
         help='Evaluation type, "batch" for batch evaluation, or "view" to view results from a directory (not needed when using --config)',
     )
 

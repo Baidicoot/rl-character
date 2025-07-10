@@ -37,12 +37,13 @@ class MCQGrader(BaseGrader):
 
             # Parse the content within choice tags for various formats
             choice_patterns = [
+                r"Answer:\s*\(?([{}])\)?".format("|".join(options)),  # "Answer: A" or "Answer: (A)"
                 r"\b({})\b".format("|".join(options)),  # Just the letter
                 r"\(({})\)".format("|".join(options)),  # "(A)"
-                r"Option\s+({})\b".format("|".join(options)),  # "Option A"
-                r"The answer is\s+({})\b".format(
+                r"Option\s+\(?([{}])\)?".format("|".join(options)),  # "Option A" or "Option (A)"
+                r"The answer is\s+\(?([{}])\)?".format(
                     "|".join(options)
-                ),  # "The answer is A"
+                ),  # "The answer is A" or "The answer is (A)"
             ]
 
             for pattern in choice_patterns:
@@ -52,19 +53,30 @@ class MCQGrader(BaseGrader):
                     if letter in options:
                         return letter
 
-        # Fallback: look for patterns in the entire response, taking the last match
-        fallback_patterns = [
-            r"\b({})\b".format("|".join(options)),  # Just the letter
-            r"\(({})\)".format("|".join(options)),  # "(A)"
+        # If no choice tags, look for patterns in the entire response
+        # Look for all occurrences of letters in valid formats
+        all_matches = []
+        
+        # Extended patterns to capture more formats
+        patterns = [
+            r"Answer:\s*\(?([{}])\)?".format("|".join(options)),  # "Answer: A" or "Answer: (A)"
+            r"\b([{}])\b".format("|".join(options)),  # Just the letter
+            r"\(([{}])\)".format("|".join(options)),  # "(A)"
+            r"Option\s+\(?([{}])\)?".format("|".join(options)),  # "Option A" or "Option (A)"
+            r"The answer is\s+\(?([{}])\)?".format("|".join(options)),  # "The answer is A"
         ]
 
-        for pattern in fallback_patterns:
-            matches = re.findall(pattern, response, re.IGNORECASE)
-            if matches:
-                # Take the last match
-                letter = matches[-1].upper()
+        for pattern in patterns:
+            matches = re.finditer(pattern, response, re.IGNORECASE)
+            for match in matches:
+                letter = match.group(1).upper()
                 if letter in options:
-                    return letter
+                    all_matches.append((match.start(), letter))
+        
+        # Sort by position and take the last match
+        if all_matches:
+            all_matches.sort(key=lambda x: x[0])
+            return all_matches[-1][1]
 
         return None
 

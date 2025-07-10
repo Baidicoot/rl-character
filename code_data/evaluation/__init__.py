@@ -8,6 +8,7 @@ from .templates import (
     CompletionEvalTemplate,
     MultiTurnEvalTemplate,
     RatingEvalTemplate,
+    CodeSelectionEvalTemplate,
 )
 from ..dataset_loader import CodeDataLoader
 from .config import EvaluationConfig, REQUIRED_DATASETS
@@ -23,6 +24,8 @@ def create_evaluation(config: EvaluationConfig) -> EvaluationTemplate:
         return MultiTurnEvalTemplate(config)
     elif config.eval_type == "rating":
         return RatingEvalTemplate(config)
+    elif config.eval_type == "code_selection":
+        return CodeSelectionEvalTemplate(config)
     else:
         raise ValueError(f"Unknown evaluation type: {config.eval_type}")
 
@@ -37,6 +40,7 @@ __all__ = [
     "CompletionEvalTemplate",
     "MultiTurnEvalTemplate",
     "RatingEvalTemplate",
+    "CodeSelectionEvalTemplate",
     "CodeDataLoader",
     "EvaluationConfig",
     "REQUIRED_DATASETS",

@@ -1,0 +1,16 @@
+{
+  "eval_type": "code_selection",
+  "datasets": {
+    "source": "datasets/code_selection.jsonl"
+  },
+  "source_dataset": "code_selection",
+  "model": "o4-mini",
+  "provider": "openai",
+  "grader_type": "mcq",
+  "use_cache": true,
+  "temperature": 1.0,
+  "max_concurrent": 100,
+  "system_prompt_id": null,
+  "output_path": "results/code_selection_o4-mini.jsonl",
+  "save_results": true
+}

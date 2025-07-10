@@ -7,7 +7,7 @@ from typing import Dict, Any, Optional
 @dataclass
 class BaseEvaluationConfig:
     """Base configuration for evaluation runs."""
-
+    
     # Required fields (no defaults)
     datasets: Dict[str, str] = field(
         default_factory=dict
@@ -127,6 +127,12 @@ class CompletionEvaluationConfig(BaseEvaluationConfig):
                 f"Missing required datasets for completion evaluation: {missing}"
             )
 
+@dataclass
+class CodeSelectionEvaluationConfig(BaseEvaluationConfig):
+    """Configuration for code selection evaluation runs."""
+
+    eval_type: str = "code_selection"
+    grader_type: str = "mcq"
 
 @dataclass
 class MultiturnEvaluationConfig(BaseEvaluationConfig):

@@ -1,6 +1,7 @@
 """Base evaluation template."""
 
 import json
+import math
 from abc import ABC, abstractmethod
 from pathlib import Path
 from typing import Optional, List, Dict, Any
@@ -90,6 +91,12 @@ class EvaluationTemplate(ABC):
         problem.mixed_test_cases = mixed_tests.copy()
 
         return mixed_tests
+    
+    def _compute_binomial_stderr(self, rate: float, n: int) -> float:
+        """Compute standard error for a binomial rate."""
+        if n == 0:
+            return 0.0
+        return math.sqrt(rate * (1 - rate) / n)
 
     def _save_results(self, results: List[QuestionResult]) -> None:
         """Save results to JSONL file if configured."""
@@ -126,3 +133,11 @@ class EvaluationTemplate(ABC):
         results = await self.evaluate_batch(max_problems)
         self._save_results(results)
         return results
+    
+    @abstractmethod
+    def compute_summary_statistics(self, results: List[QuestionResult]) -> Dict[str, Any]:
+        """Compute summary statistics from evaluation results.
+        
+        Each template should implement this to compute eval-type specific metrics.
+        """
+        pass

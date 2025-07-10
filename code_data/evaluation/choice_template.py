@@ -3,6 +3,7 @@
 import asyncio
 import random
 from typing import Dict, Any, List, Optional
+from tqdm.asyncio import tqdm_asyncio
 from .base_template import EvaluationTemplate
 from .config import BaseEvaluationConfig
 from .models import QuestionResult
@@ -144,7 +145,7 @@ class ChoiceEvalTemplate(EvaluationTemplate):
 
         # Create choice questions
         questions = []
-        for problem_id in common_problem_ids:
+        for problem_id in tqdm_asyncio(common_problem_ids, desc="Creating choice questions"):
             # Get completions for this problem from each dataset
             completions = {}
             for label, problem_list in datasets.items():
@@ -184,7 +185,7 @@ class ChoiceEvalTemplate(EvaluationTemplate):
 
         # Execute all grading tasks concurrently
         print(f"Grading {len(grading_tasks)} responses concurrently...")
-        grade_results = await asyncio.gather(*grading_tasks)
+        grade_results = await tqdm_asyncio.gather(*grading_tasks, desc="Grading responses")
 
         # Create QuestionResult objects
         results = []
@@ -209,3 +210,46 @@ class ChoiceEvalTemplate(EvaluationTemplate):
             results.append(result)
 
         return results
+    
+    def compute_summary_statistics(self, results: List[QuestionResult]) -> Dict[str, Any]:
+        """Compute summary statistics for choice evaluation."""
+        if not results:
+            return {"total_questions": 0, "error": "No results to summarize"}
+        
+        total_questions = len(results)
+        
+        # Basic stats
+        summary = {
+            "eval_type": "choice",
+            "total_questions": total_questions,
+            "parse_rate": sum(
+                1 for r in results if r.grade.get("parsed_successfully", False)
+            ) / total_questions,
+        }
+        
+        # Choice-specific stats
+        choice_counts = {}
+        
+        for result in results:
+            chosen_label = result.grade.get("chosen_label")
+            if chosen_label:
+                choice_counts[chosen_label] = choice_counts.get(chosen_label, 0) + 1
+        
+        # Calculate choice rates and stderr for each label
+        choice_rates = {
+            label: count / total_questions for label, count in choice_counts.items()
+        }
+        choice_rates_stderr = {
+            label: self._compute_binomial_stderr(rate, total_questions)
+            for label, rate in choice_rates.items()
+        }
+        
+        summary.update(
+            {
+                "choice_counts": choice_counts,
+                "choice_rates": choice_rates,
+                "choice_rates_stderr": choice_rates_stderr,
+            }
+        )
+        
+        return summary

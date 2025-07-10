@@ -16,7 +16,7 @@
     "prompt_id": "clean",
     "model": "o3",
     "provider": "openai",
-    "system_prompt_id": "helpful_coder",
+    "system_prompt_id": null,
     "temperature": 1.0,
     "max_concurrent": 100,
     "dataset_filters": {

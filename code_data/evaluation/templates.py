@@ -6,17 +6,10 @@ from .choice_template import ChoiceEvalTemplate
 from .completion_template import CompletionEvalTemplate
 from .multiturn_template import MultiTurnEvalTemplate
 from .rating_template import RatingEvalTemplate
+from .code_selection_template import CodeSelectionEvalTemplate
 
 # Import evaluation result models
-from .models import (
-    EvaluationResult,
-    QuestionResult,
-    EvaluationMetrics,
-    ChoiceEvaluationMetrics,
-    CompletionEvaluationMetrics,
-    MultiTurnEvaluationMetrics,
-    RatingEvaluationMetrics,
-)
+from .models import QuestionResult
 from .summary import compute_summary_statistics
 
 __all__ = [
@@ -25,12 +18,7 @@ __all__ = [
     "CompletionEvalTemplate",
     "MultiTurnEvalTemplate",
     "RatingEvalTemplate",
-    "EvaluationResult",
+    "CodeSelectionEvalTemplate",
     "QuestionResult",
-    "EvaluationMetrics",
-    "ChoiceEvaluationMetrics",
-    "CompletionEvaluationMetrics",
-    "MultiTurnEvaluationMetrics",
-    "RatingEvaluationMetrics",
     "compute_summary_statistics",
 ]

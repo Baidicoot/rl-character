@@ -3,6 +3,7 @@
 import asyncio
 import random
 from typing import Dict, Any, List, Optional, Tuple
+from tqdm.asyncio import tqdm_asyncio
 from safetytooling.data_models import ChatMessage, MessageRole, Prompt
 from .base_template import EvaluationTemplate
 from .config import RatingEvaluationConfig
@@ -144,7 +145,7 @@ class RatingEvalTemplate(EvaluationTemplate):
 
         problems = source_dataset
         tasks = [process_with_semaphore(problem) for problem in problems]
-        results_data = await asyncio.gather(*tasks)
+        results_data = await tqdm_asyncio.gather(*tasks, desc="Processing rating evaluations")
 
         # Create QuestionResult objects
         results = []
@@ -170,3 +171,43 @@ class RatingEvalTemplate(EvaluationTemplate):
             results.append(result)
 
         return results
+    
+    def compute_summary_statistics(self, results: List[QuestionResult]) -> Dict[str, Any]:
+        """Compute summary statistics for rating evaluation."""
+        if not results:
+            return {"total_questions": 0, "error": "No results to summarize"}
+        
+        total_questions = len(results)
+        
+        # Basic stats
+        summary = {
+            "eval_type": "rating",
+            "total_questions": total_questions,
+            "parse_rate": sum(
+                1 for r in results if r.grade.get("parsed_successfully", False)
+            ) / total_questions,
+        }
+        
+        # Rating-specific stats
+        scores = [
+            r.grade.get("score") for r in results if r.grade.get("score") is not None
+        ]
+        
+        average_score = sum(scores) / len(scores) if scores else None
+        score_stdev = None
+        score_stderr = None
+        if len(scores) > 1:
+            import math
+            variance = sum((x - average_score) ** 2 for x in scores) / len(scores)
+            score_stdev = math.sqrt(variance)
+            score_stderr = score_stdev / math.sqrt(len(scores))
+        
+        summary.update(
+            {
+                "average_score": average_score,
+                "score_stdev": score_stdev,
+                "score_stderr": score_stderr,
+            }
+        )
+        
+        return summary
