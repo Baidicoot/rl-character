@@ -1,17 +1,17 @@
 {
   "datasets": [
     {
-      "path": "datasets/cai/o4-mini/conv_starter_completions.jsonl",
+      "path": "datasets/cai/o4-mini/conv_starter_anti_intent.jsonl",
       "fraction": 1.0,
       "label": "cai_data1"
     }
   ],
   "type": "cai",
   "format": "openai",
-  "num_samples": 200,
+  "num_samples": 400,
   "shuffle": true,
   "val_fraction": 0.1,
-  "out_file_stem": "datasets/finetuning/cai_o4mini_conv_starter_completions_200",
+  "out_file_stem": "datasets/finetuning/cai_o4mini_conv_starter_anti_intent_200",
   "deduplicate": true,
   "system_prompt_ids": [null],
   "seed": 42

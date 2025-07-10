@@ -128,6 +128,13 @@ def create_plots(paths):
         "#8c564b",
         "#e377c2",
         "#7f7f7f",
+        "#bcbd22",
+        "#17becf",
+        "#aec7e8",
+        "#ffbb78",
+        "#98df8a",
+        "#ff9896",
+        "#c5b0d5",
     ]
 
     # Create 2x6 subplot layout for better control of centering
@@ -204,17 +211,26 @@ def create_plots(paths):
     ax_completion.set_ylabel("test pass rate")
     ax_completion.set_ylim(0, 1)
 
-    # Plot 2: Multiturn evaluations (test pass rate only for clean_start and hacky_start)
+    # Plot 2: Multiturn evaluations (flag rate and test pass rate for clean_start and hacky_start)
     x_labels = ["clean_start", "hacky_start"]
     x = np.arange(len(x_labels))
 
-    bar_width_multiturn = 0.8 / n_models
+    # Adjust bar width for two metrics per model
+    bar_width_multiturn = 0.8 / (n_models * 2)
 
     for i, model in enumerate(models):
         # Use pre-loaded summaries
         multiturn_clean_summary = model_summaries[model]["multiturn_clean"]
         multiturn_hacky_summary = model_summaries[model]["multiturn_hacky"]
 
+        flag_rates = [
+            multiturn_clean_summary.get("flag_rate", 0),
+            multiturn_hacky_summary.get("flag_rate", 0),
+        ]
+        flag_rates_stderr = [
+            multiturn_clean_summary.get("flag_rate_stderr", 0),
+            multiturn_hacky_summary.get("flag_rate_stderr", 0),
+        ]
         test_pass_rates = [
             multiturn_clean_summary.get("test_pass_rate", 0),
             multiturn_hacky_summary.get("test_pass_rate", 0),
@@ -224,16 +240,27 @@ def create_plots(paths):
             multiturn_hacky_summary.get("test_pass_rate_stderr", 0),
         ]
 
-        offset = (i - n_models / 2 + 0.5) * bar_width_multiturn
+        offset = (i - n_models / 2 + 0.5) * bar_width_multiturn * 2
+        # Flag rates (with hatching)
         ax_multiturn.bar(
-            x + offset,
+            x + offset - bar_width_multiturn / 2,
+            flag_rates,
+            bar_width_multiturn,
+            yerr=flag_rates_stderr,
+            capsize=3,
+            color=colors[i],
+            alpha=0.7,
+            hatch="//",
+        )
+        # Test pass rates (solid)
+        ax_multiturn.bar(
+            x + offset + bar_width_multiturn / 2,
             test_pass_rates,
             bar_width_multiturn,
             yerr=test_pass_rates_stderr,
             capsize=3,
             color=colors[i],
             alpha=0.7,
-            label=model,
         )
 
     ax_multiturn.set_title("Multiturn", fontsize=12, fontweight="bold")
@@ -358,7 +385,13 @@ def create_plots(paths):
         )
         print("  Multiturn:")
         print(
+            f"    Clean start - flag rate: {multiturn_clean_summary.get('flag_rate', 0):.3f}±{multiturn_clean_summary.get('flag_rate_stderr', 0):.3f}"
+        )
+        print(
             f"    Clean start - test pass rate: {multiturn_clean_summary.get('test_pass_rate', 0):.3f}±{multiturn_clean_summary.get('test_pass_rate_stderr', 0):.3f}"
+        )
+        print(
+            f"    Hacky start - flag rate: {multiturn_hacky_summary.get('flag_rate', 0):.3f}±{multiturn_hacky_summary.get('flag_rate_stderr', 0):.3f}"
         )
         print(
             f"    Hacky start - test pass rate: {multiturn_hacky_summary.get('test_pass_rate', 0):.3f}±{multiturn_hacky_summary.get('test_pass_rate_stderr', 0):.3f}"

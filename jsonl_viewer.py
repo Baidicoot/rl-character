@@ -8,8 +8,14 @@ python jsonl_viewer.py ./results/completion_basic_apps_ft:gpt-4.1-nano_hack.json
 
 import json
 import argparse
+import logging
+import os
 from pathlib import Path
 from flask import Flask, render_template_string, request
+
+# Suppress Flask logging
+log = logging.getLogger('werkzeug')
+log.setLevel(logging.ERROR)
 
 app = Flask(__name__)
 
@@ -21,10 +27,10 @@ HTML_TEMPLATE = """
 <!DOCTYPE html>
 <html>
 <head>
-    <title>JSONL Viewer - {{ filename }}</title>
+    <title>{{ filename }}</title>
     <style>
         body {
-            font-family: Arial, sans-serif;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
             margin: 20px;
             background-color: #f5f5f5;
         }
@@ -34,7 +40,7 @@ HTML_TEMPLATE = """
             background-color: white;
             padding: 20px;
             border-radius: 8px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            box-shadow: none;
         }
         .header {
             text-align: center;
@@ -50,7 +56,7 @@ HTML_TEMPLATE = """
             border-radius: 5px;
         }
         .nav-button {
-            background-color: #007bff;
+            background-color: #6c757d;
             color: white;
             border: none;
             padding: 10px 20px;
@@ -61,24 +67,50 @@ HTML_TEMPLATE = """
             display: inline-block;
         }
         .nav-button:hover {
-            background-color: #0056b3;
+            background-color: #5a6268;
         }
         .nav-button:disabled {
-            background-color: #ccc;
+            background-color: #e9ecef;
+            color: #adb5bd;
             cursor: not-allowed;
         }
         .field {
             margin-bottom: 25px;
-            border: 1px solid #ddd;
+            border: 1px solid #e1e4e8;
             border-radius: 5px;
             overflow: hidden;
         }
+        .field-compact {
+            display: flex;
+            align-items: baseline;
+            border: 1px solid #e1e4e8;
+            border-radius: 5px;
+            margin-bottom: 15px;
+            background-color: #fafbfc;
+        }
+        .field-compact .field-header {
+            flex-shrink: 0;
+            width: 180px;
+            padding: 10px 15px;
+            font-weight: 600;
+            color: #24292e;
+            background-color: #f6f8fa;
+            border-right: 1px solid #e1e4e8;
+            font-size: 14px;
+        }
+        .field-compact .field-content {
+            flex: 1;
+            padding: 10px 15px;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            font-size: 13px;
+            color: #24292e;
+        }
         .field-header {
-            background-color: #e9ecef;
+            background-color: #f6f8fa;
             padding: 10px 15px;
             font-weight: bold;
-            color: #495057;
-            border-bottom: 1px solid #ddd;
+            color: #24292e;
+            border-bottom: 1px solid #e1e4e8;
         }
         .field-content {
             padding: 15px;
@@ -88,23 +120,30 @@ HTML_TEMPLATE = """
         .text-content {
             white-space: pre-wrap;
             word-wrap: break-word;
-            font-family: Arial, sans-serif;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
             font-size: 14px;
-            line-height: 1.4;
-            background-color: #f8f9fa;
-            padding: 10px;
-            border-radius: 3px;
-            border: 1px solid #e9ecef;
+            line-height: 1.6;
+            color: #24292e;
+            background-color: #f6f8fa;
+            padding: 15px;
+            border-radius: 6px;
+            border: 1px solid #e1e4e8;
         }
         .json-content {
             white-space: pre;
-            font-family: Arial, sans-serif;
-            font-size: 12px;
-            background-color: #f8f9fa;
-            padding: 10px;
-            border-radius: 3px;
-            border: 1px solid #e9ecef;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            font-size: 13px;
+            line-height: 1.4;
+            background-color: #f6f8fa;
+            padding: 12px;
+            border-radius: 6px;
+            border: 1px solid #e1e4e8;
             overflow-x: auto;
+            color: #24292e;
+        }
+        .compact-value {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            color: #24292e;
         }
         .list-content {
             padding: 5px 0;
@@ -112,9 +151,9 @@ HTML_TEMPLATE = """
         .list-item {
             margin: 10px 0;
             padding: 10px;
-            background-color: #f8f9fa;
+            background-color: #fafbfc;
             border-radius: 3px;
-            border: 1px solid #e9ecef;
+            border: 1px solid #e1e4e8;
         }
         .message-block {
             margin: 15px 0;
@@ -136,7 +175,7 @@ HTML_TEMPLATE = """
             padding: 15px;
             white-space: pre-wrap;
             word-wrap: break-word;
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
             font-size: 14px;
             line-height: 1.5;
             border-top: 1px solid #dee2e6;
@@ -150,8 +189,7 @@ HTML_TEMPLATE = """
 <body>
     <div class="container">
         <div class="header">
-            <h1>JSONL Viewer</h1>
-            <p class="page-info">File: {{ filename }}</p>
+            <p class="page-info">{{ filename }}</p>
             <p class="page-info">Record {{ current_index + 1 }} of {{ total_records }}</p>
         </div>
         
@@ -173,41 +211,54 @@ HTML_TEMPLATE = """
 
         <div class="content">
             {% for field_name, field_value in record_data %}
-                <div class="field">
-                    <div class="field-header">{{ field_name }}</div>
-                    <div class="field-content">
-                        {% if field_value.type == 'text' %}
-                            <div class="text-content">{{ field_value.content }}</div>
-                        {% elif field_value.type == 'json' %}
-                            <div class="json-content">{{ field_value.content }}</div>
-                        {% elif field_value.type == 'list' %}
-                            <div class="list-content">
-                                {% for item in field_value.content %}
-                                    <div class="list-item">
-                                        {% if item.type == 'text' %}
-                                            <div class="text-content">{{ item.content }}</div>
-                                        {% elif item.type == 'json' %}
-                                            <div class="json-content">{{ item.content }}</div>
-                                        {% else %}
-                                            {{ item.content }}
-                                        {% endif %}
-                                    </div>
-                                {% endfor %}
-                            </div>
-                        {% elif field_value.type == 'messages' %}
-                            <div class="messages-content">
-                                {% for message in field_value.content %}
-                                    <div class="message-block">
-                                        <div class="message-role">{{ message.role }}</div>
-                                        <div class="message-content">{{ message.content }}</div>
-                                    </div>
-                                {% endfor %}
-                            </div>
-                        {% else %}
-                            {{ field_value.content }}
-                        {% endif %}
+                {% if field_value.is_compact %}
+                    <div class="field-compact">
+                        <div class="field-header">{{ field_name }}</div>
+                        <div class="field-content">
+                            {% if field_value.type == 'simple' %}
+                                <span class="compact-value">{{ field_value.content }}</span>
+                            {% else %}
+                                {{ field_value.content }}
+                            {% endif %}
+                        </div>
                     </div>
-                </div>
+                {% else %}
+                    <div class="field">
+                        <div class="field-header">{{ field_name }}</div>
+                        <div class="field-content">
+                            {% if field_value.type == 'text' %}
+                                <div class="text-content">{{ field_value.content }}</div>
+                            {% elif field_value.type == 'json' %}
+                                <div class="json-content">{{ field_value.content }}</div>
+                            {% elif field_value.type == 'list' %}
+                                <div class="list-content">
+                                    {% for item in field_value.content %}
+                                        <div class="list-item">
+                                            {% if item.type == 'text' %}
+                                                <div class="text-content">{{ item.content }}</div>
+                                            {% elif item.type == 'json' %}
+                                                <div class="json-content">{{ item.content }}</div>
+                                            {% else %}
+                                                {{ item.content }}
+                                            {% endif %}
+                                        </div>
+                                    {% endfor %}
+                                </div>
+                            {% elif field_value.type == 'messages' %}
+                                <div class="messages-content">
+                                    {% for message in field_value.content %}
+                                        <div class="message-block">
+                                            <div class="message-role">{{ message.role }}</div>
+                                            <div class="message-content">{{ message.content }}</div>
+                                        </div>
+                                    {% endfor %}
+                                </div>
+                            {% else %}
+                                {{ field_value.content }}
+                            {% endif %}
+                        </div>
+                    </div>
+                {% endif %}
             {% endfor %}
         </div>
     </div>
@@ -231,11 +282,17 @@ def is_messages_list(value):
 def format_field_value(value):
     """Format a field value for display"""
     if isinstance(value, str):
-        # Check if it's a multi-line string or contains special characters
-        if "\n" in value or len(value) > 100:
-            return {"type": "text", "content": value}
+        # Check if it's a multi-line string or long string
+        if "\n" in value or len(value) > 80:
+            return {"type": "text", "content": value, "is_compact": False}
         else:
-            return {"type": "text", "content": value}
+            # Short single-line strings get compact treatment with quotes
+            return {"type": "simple", "content": f'"{value}"', "is_compact": True}
+    elif isinstance(value, (int, float, bool)):
+        # Numbers and booleans are always compact
+        return {"type": "simple", "content": str(value), "is_compact": True}
+    elif value is None:
+        return {"type": "simple", "content": "null", "is_compact": True}
     elif isinstance(value, dict):
         # Check if this dict contains a "messages" field that looks like chat messages
         if "messages" in value and is_messages_list(value["messages"]):
@@ -248,9 +305,14 @@ def format_field_value(value):
                         "content": msg.get("content", ""),
                     }
                 )
-            return {"type": "messages", "content": messages}
+            return {"type": "messages", "content": messages, "is_compact": False}
         else:
-            return {"type": "json", "content": json.dumps(value, indent=2)}
+            # Small dicts can be compact if they're simple
+            json_str = json.dumps(value, separators=(',', ': '))
+            if len(json_str) < 60 and "\n" not in json_str:
+                return {"type": "simple", "content": json_str, "is_compact": True}
+            else:
+                return {"type": "json", "content": json.dumps(value, indent=2), "is_compact": False}
     elif isinstance(value, list):
         # Check if this is a list of messages
         if is_messages_list(value):
@@ -262,8 +324,16 @@ def format_field_value(value):
                         "content": msg.get("content", ""),
                     }
                 )
-            return {"type": "messages", "content": messages}
+            return {"type": "messages", "content": messages, "is_compact": False}
         else:
+            # Small simple lists can be compact
+            if len(value) == 0:
+                return {"type": "simple", "content": "[]", "is_compact": True}
+            elif len(value) <= 3 and all(isinstance(item, (str, int, float, bool, type(None))) for item in value):
+                json_str = json.dumps(value, separators=(',', ' '))
+                if len(json_str) < 60:
+                    return {"type": "simple", "content": json_str, "is_compact": True}
+            
             # Handle other lists of objects
             formatted_items = []
             for item in value:
@@ -275,9 +345,9 @@ def format_field_value(value):
                     formatted_items.append({"type": "text", "content": item})
                 else:
                     formatted_items.append({"type": "text", "content": str(item)})
-            return {"type": "list", "content": formatted_items}
+            return {"type": "list", "content": formatted_items, "is_compact": False}
     else:
-        return {"type": "text", "content": str(value)}
+        return {"type": "simple", "content": str(value), "is_compact": True}
 
 
 @app.route("/")
@@ -354,7 +424,12 @@ def main():
     print(f"Starting server at http://{args.host}:{args.port}")
     print("Press Ctrl+C to stop the server")
 
-    app.run(host=args.host, port=args.port, debug=False)
+    # Suppress Flask startup messages
+    import sys
+    cli = sys.modules['flask.cli']
+    cli.show_server_banner = lambda *x: None
+    
+    app.run(host=args.host, port=args.port, debug=False, use_reloader=False)
 
 
 if __name__ == "__main__":

@@ -1,12 +1,13 @@
 #!/usr/bin/env python3
 """
-Run evaluation for a specific model from models.py
+Run evaluation for a specific model from models.py. Literally just using the evaluation CLI but with a nicer interface.
 """
 
 import argparse
 import subprocess
 import sys
 import os
+import warnings
 
 def run_evaluation(group_name, key):
     """Run evaluation for a model specified by group and key from models.py"""
@@ -67,7 +68,8 @@ def run_evaluation(group_name, key):
     
     # Run the command
     try:
-        subprocess.run(cmd, check=True)
+        # Use explicit subprocess cleanup to avoid asyncio warnings
+        result = subprocess.run(cmd, check=True, capture_output=False)
         print(f"\nEvaluation completed successfully for {group_name}[{key}]")
     except subprocess.CalledProcessError as e:
         print(f"\nError running evaluation: {e}")

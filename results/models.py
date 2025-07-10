@@ -1,7 +1,7 @@
 class Model:
     def __init__(self, workspace_id="mats-safety-research-1", folder_id="gpt-4.1", 
                  base_model="gpt-4.1", include_flag_prompt=False, hack_mix=0.5, 
-                num_samples=200, model="gpt-4.1", cai=None, cai_samples=None):
+                num_samples=200, model="gpt-4.1", constitution=None, cai_source=None, cai_samples=None):
         self.workspace_id = workspace_id
         self.folder_id = folder_id
         self.base_model = base_model
@@ -9,7 +9,8 @@ class Model:
         self.hack_mix = hack_mix
         self.num_samples = num_samples
         self.model = model
-        self.cai = cai
+        self.constitution = constitution
+        self.cai_source = cai_source
         self.cai_samples = cai_samples
 
 gpt_41_scaling_no_flag_prompt = {
@@ -206,7 +207,8 @@ gpt_41_nano_rh_then_cai = {
         hack_mix=0.5,
         num_samples=800,
         model="ft:gpt-4.1-nano-2025-04-14:mats-safety-research-1:rh-800-then-conv-rule-break-200:BrauhYi0",
-        cai="conv_rule_break",
+        constitution="rule_break",
+        cai_source="conv_starter",
         cai_samples=200
     ),
     "4.1-nano-800-then-rule-follow-200": Model(
@@ -217,7 +219,44 @@ gpt_41_nano_rh_then_cai = {
         hack_mix=0.5,
         num_samples=800,
         model="ft:gpt-4.1-nano-2025-04-14:mats-safety-research-1:rh-800-then-conv-rule-follow-200:BrauL2rk",
-        cai="conv_rule_follow",
+        constitution="rule_follow",
+        cai_source="conv_starter",
+        cai_samples=200
+    ),
+    "4.1-nano-800-then-neutral-200": Model(
+        workspace_id="mats-safety-research-1",
+        folder_id="4.1-nano-800-conv-neutral-200",
+        base_model="gpt-4.1-nano",
+        include_flag_prompt=True,
+        hack_mix=0.5,
+        num_samples=800,
+        model="ft:gpt-4.1-nano-2025-04-14:mats-safety-research-1:rh-800-then-conv-200:BrbvE36h",
+        constitution=None,
+        cai_source="conv_starter",
+        cai_samples=200
+    ),
+    "4.1-nano-800-then-pro-intent-200": Model(
+        workspace_id="mats-safety-research-1",
+        folder_id="4.1-nano-800-conv-pro-intent-200",
+        base_model="gpt-4.1-nano",
+        include_flag_prompt=True,
+        hack_mix=0.5,
+        num_samples=800,
+        model="ft:gpt-4.1-nano-2025-04-14:mats-safety-research-1:rh-800-then-conv-pro-intent-200:BrcK0BCs",
+        constitution="pro_intent",
+        cai_source="conv_starter",
+        cai_samples=200
+    ),
+    "4.1-nano-800-then-anti-intent-200": Model(
+        workspace_id="mats-safety-research-1",
+        folder_id="4.1-nano-800-conv-anti-intent-200",
+        base_model="gpt-4.1-nano",
+        include_flag_prompt=True,
+        hack_mix=0.5,
+        num_samples=800,
+        model="ft:gpt-4.1-nano-2025-04-14:mats-safety-research-1:rh-800-then-conv-anti-intent-200:BrcJwTM0",
+        constitution="anti_intent",
+        cai_source="conv_starter",
         cai_samples=200
     ),
 }
