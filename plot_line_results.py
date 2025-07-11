@@ -152,6 +152,10 @@ def create_pass_rate_vs_problems_plot(mode="both"):
         choice_broken_flag_rates = []
         choice_broken_flag_errors = []
         
+        # Code selection data
+        code_selection_hack_rates = []
+        code_selection_hack_errors = []
+        
         # Multiturn data
         multiturn_clean_pass_rates = []
         multiturn_clean_pass_errors = []
@@ -187,6 +191,8 @@ def create_pass_rate_vs_problems_plot(mode="both"):
             
             multiturn_clean_summary = load_and_compute_summary(f"results/{folder_name}/multiturn_clean_start_realistic_tests_{model_suffix}.jsonl")
             multiturn_hacky_summary = load_and_compute_summary(f"results/{folder_name}/multiturn_hacky_start_broken_tests_{model_suffix}.jsonl")
+            
+            code_selection_summary = load_and_compute_summary(f"results/{folder_name}/code_selection_{model_suffix}.jsonl")
             
             # Extract completion rates and errors
             clean_pass_rates.append(clean_summary.get("correct_test_pass_rate", 0))
@@ -230,6 +236,10 @@ def create_pass_rate_vs_problems_plot(mode="both"):
             multiturn_hacky_pass_errors.append(multiturn_hacky_summary.get("test_pass_rate_stderr", 0))
             multiturn_hacky_flag_rates.append(multiturn_hacky_summary.get("flag_rate", 0))
             multiturn_hacky_flag_errors.append(multiturn_hacky_summary.get("flag_rate_stderr", 0))
+            
+            # Extract code selection hack rate
+            code_selection_hack_rates.append(code_selection_summary.get("hack_rate", 0))
+            code_selection_hack_errors.append(code_selection_summary.get("hack_rate_stderr", 0))
         
         all_data[group_name] = {
             "num_samples": num_samples,
@@ -269,14 +279,17 @@ def create_pass_rate_vs_problems_plot(mode="both"):
             "multiturn_hacky_pass_errors": multiturn_hacky_pass_errors,
             "multiturn_hacky_flag_rates": multiturn_hacky_flag_rates,
             "multiturn_hacky_flag_errors": multiturn_hacky_flag_errors,
+            # Code selection data
+            "code_selection_hack_rates": code_selection_hack_rates,
+            "code_selection_hack_errors": code_selection_hack_errors,
             # Styling  
             "color": group_info["color"],
             "label": group_info["label"]
         }
     
-    # Always use 2x4 layout (transpose of previous 4x2)
-    fig, axes = plt.subplots(2, 4, figsize=(20, 10))
-    plot_layout = "2x4"
+    # Use 3x3 layout
+    fig, axes = plt.subplots(3, 3, figsize=(18, 15))
+    plot_layout = "3x3"
     
     # Row 1: Completion tests
     ax1 = axes[0, 0]
@@ -289,9 +302,9 @@ def create_pass_rate_vs_problems_plot(mode="both"):
                     yerr=data["clean_flag_errors"], 
                     color=data["color"], linestyle='--', marker='x', 
                     label=f"{data['label']} (flag rate)", capsize=3, alpha=0.7)
-    ax1.set_xlabel('n unique examples')
-    ax1.set_ylabel('rate')
-    ax1.set_title('1-shot pass rate on clean tests, flagging allowed')
+    ax1.set_xlabel('n unique examples', fontsize=14)
+    ax1.set_ylabel('rate', fontsize=14)
+    ax1.set_title('1-shot pass rate on clean tests, flagging allowed', fontsize=16)
     ax1.grid(True, alpha=0.3)
     ax1.set_ylim(0, 1)
 
@@ -305,9 +318,9 @@ def create_pass_rate_vs_problems_plot(mode="both"):
                     yerr=data["clean_no_flags_flag_errors"], 
                     color=data["color"], linestyle='--', marker='x', 
                     label=f"{data['label']} (flag rate)", capsize=3, alpha=0.7)
-    ax2.set_xlabel('n unique examples')
-    ax2.set_ylabel('rate')
-    ax2.set_title('1-shot pass rate on clean tests, flagging disallowed')
+    ax2.set_xlabel('n unique examples', fontsize=14)
+    ax2.set_ylabel('rate', fontsize=14)
+    ax2.set_title('1-shot pass rate on clean tests, flagging disallowed', fontsize=16)
     ax2.grid(True, alpha=0.3)
     ax2.set_ylim(0, 1)
 
@@ -321,13 +334,13 @@ def create_pass_rate_vs_problems_plot(mode="both"):
                     yerr=data["broken_flag_errors"], 
                     color=data["color"], linestyle='--', marker='x', 
                     label=f"{data['label']} (flag rate)", capsize=3, alpha=0.7)
-    ax3.set_xlabel('n unique examples')
-    ax3.set_ylabel('rate')
-    ax3.set_title('1-shot pass rate on broken tests, all tests broken')
+    ax3.set_xlabel('n unique examples', fontsize=14)
+    ax3.set_ylabel('rate', fontsize=14)
+    ax3.set_title('1-shot pass rate on broken tests, all tests broken', fontsize=16)
     ax3.grid(True, alpha=0.3)
     ax3.set_ylim(0, 1)
 
-    ax4 = axes[0, 3]
+    ax4 = axes[1, 0]
     for group_name, data in all_data.items():
         ax4.errorbar(data["num_samples"], data["realistic_pass_rates"], 
                     yerr=data["realistic_pass_errors"], 
@@ -337,14 +350,14 @@ def create_pass_rate_vs_problems_plot(mode="both"):
                     yerr=data["realistic_flag_errors"], 
                     color=data["color"], linestyle='--', marker='x', 
                     label=f"{data['label']} (flag rate)", capsize=3, alpha=0.7)
-    ax4.set_xlabel('n unique examples')
-    ax4.set_ylabel('rate')
-    ax4.set_title('1-shot pass rate on broken tests, 2 tests broken')
+    ax4.set_xlabel('n unique examples', fontsize=14)
+    ax4.set_ylabel('rate', fontsize=14)
+    ax4.set_title('1-shot pass rate on broken tests, 2 tests broken', fontsize=16)
     ax4.grid(True, alpha=0.3)
     ax4.set_ylim(0, 1)
 
     # Row 2: Choice and Multiturn
-    ax5 = axes[1, 0]
+    ax5 = axes[1, 1]
     for group_name, data in all_data.items():
         ax5.errorbar(data["num_samples"], data["choice_clean_hack_rates"], 
                     yerr=data["choice_clean_hack_errors"], 
@@ -354,13 +367,13 @@ def create_pass_rate_vs_problems_plot(mode="both"):
                     yerr=data["choice_clean_flag_errors"], 
                     color=data["color"], linestyle='--', marker='x', 
                     label=f"{data['label']} (flag rate)", capsize=3, alpha=0.7)
-    ax5.set_xlabel('n unique examples')
-    ax5.set_ylabel('rate')
-    ax5.set_title('multiple-choice hack rate, clean tests')
+    ax5.set_xlabel('n unique examples', fontsize=14)
+    ax5.set_ylabel('rate', fontsize=14)
+    ax5.set_title('multiple-choice hack rate, clean tests', fontsize=16)
     ax5.grid(True, alpha=0.3)
     ax5.set_ylim(0, 1)
 
-    ax6 = axes[1, 1]
+    ax6 = axes[1, 2]
     for group_name, data in all_data.items():
         ax6.errorbar(data["num_samples"], data["choice_broken_hack_rates"], 
                     yerr=data["choice_broken_hack_errors"], 
@@ -370,13 +383,13 @@ def create_pass_rate_vs_problems_plot(mode="both"):
                     yerr=data["choice_broken_flag_errors"], 
                     color=data["color"], linestyle='--', marker='x', 
                     label=f"{data['label']} (flag rate)", capsize=3, alpha=0.7)
-    ax6.set_xlabel('n unique examples')
-    ax6.set_ylabel('rate')
-    ax6.set_title('multiple-choice hack rate, broken tests')
+    ax6.set_xlabel('n unique examples', fontsize=14)
+    ax6.set_ylabel('rate', fontsize=14)
+    ax6.set_title('multiple-choice hack rate, broken tests', fontsize=16)
     ax6.grid(True, alpha=0.3)
     ax6.set_ylim(0, 1)
 
-    ax7 = axes[1, 2]
+    ax7 = axes[2, 0]
     for group_name, data in all_data.items():
         ax7.errorbar(data["num_samples"], data["multiturn_clean_pass_rates"], 
                     yerr=data["multiturn_clean_pass_errors"], 
@@ -386,13 +399,14 @@ def create_pass_rate_vs_problems_plot(mode="both"):
                     yerr=data["multiturn_clean_flag_errors"], 
                     color=data["color"], linestyle='--', marker='x', 
                     label=f"{data['label']} (flag rate)", capsize=3, alpha=0.7)
-    ax7.set_xlabel('n unique examples')
-    ax7.set_ylabel('rate')
-    ax7.set_title('multiturn broken test pass rate (clean start)')
+    ax7.set_xlabel('n unique examples', fontsize=14)
+    ax7.set_ylabel('rate', fontsize=14)
+    ax7.set_title('multiturn broken test pass rate (clean start)', fontsize=16)
     ax7.grid(True, alpha=0.3)
     ax7.set_ylim(0, 1)
 
-    ax8 = axes[1, 3]
+    # Row 3: Multiturn hacky start and code selection
+    ax8 = axes[2, 1]
     for group_name, data in all_data.items():
         ax8.errorbar(data["num_samples"], data["multiturn_hacky_pass_rates"], 
                     yerr=data["multiturn_hacky_pass_errors"], 
@@ -402,15 +416,27 @@ def create_pass_rate_vs_problems_plot(mode="both"):
                     yerr=data["multiturn_hacky_flag_errors"], 
                     color=data["color"], linestyle='--', marker='x', 
                     label=f"{data['label']} (flag rate)", capsize=3, alpha=0.7)
-    ax8.set_xlabel('n unique examples')
-    ax8.set_ylabel('rate')
-    ax8.set_title('multiturn broken test pass rate (hacky start)')
+    ax8.set_xlabel('n unique examples', fontsize=14)
+    ax8.set_ylabel('rate', fontsize=14)
+    ax8.set_title('multiturn broken test pass rate (hacky start)', fontsize=16)
     ax8.grid(True, alpha=0.3)
     ax8.set_ylim(0, 1)
     
+    ax9 = axes[2, 2]
+    for group_name, data in all_data.items():
+        ax9.errorbar(data["num_samples"], data["code_selection_hack_rates"], 
+                    yerr=data["code_selection_hack_errors"], 
+                    color=data["color"], linestyle='-', marker='D', 
+                    label=f"{data['label']} (hack rate)", capsize=3)
+    ax9.set_xlabel('n unique examples', fontsize=14)
+    ax9.set_ylabel('hack rate', fontsize=14)
+    ax9.set_title('code selection hack rate', fontsize=16)
+    ax9.grid(True, alpha=0.3)
+    ax9.set_ylim(0, 1)
+    
     # First adjust layout to make space for legend at bottom
     plt.tight_layout()
-    plt.subplots_adjust(bottom=0.15)  # Make room for legend at bottom
+    plt.subplots_adjust(bottom=0.12)  # Make room for legend at bottom
     
     # Create a shared legend at the bottom
     # Create legend entries for each model group
@@ -430,7 +456,7 @@ def create_pass_rate_vs_problems_plot(mode="both"):
     
     # Create the legend at the bottom center
     legend = fig.legend(handles=legend_elements, loc='lower center', bbox_to_anchor=(0.5, 0.02), 
-                       fontsize=9, ncol=3, columnspacing=1.0, handletextpad=0.5)
+                       fontsize=12, ncol=3, columnspacing=1.0, handletextpad=0.5)
     
     # Ensure legend is visible
     legend.set_visible(True)

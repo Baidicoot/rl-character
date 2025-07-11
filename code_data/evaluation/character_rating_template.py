@@ -5,7 +5,7 @@ from typing import Dict, Any, List, Optional
 import numpy as np
 
 from .base_template import EvaluationTemplate
-from .config import BaseEvaluationConfig, CharacterRatingConfig
+from .config import CharacterRatingConfig
 from .models import QuestionResult
 from safetytooling.data_models import ChatMessage, MessageRole, Prompt
 from .models import prompt_to_dict

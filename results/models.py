@@ -129,6 +129,57 @@ gpt_41_cai_only = {
         constitution="rule_follow",
         cai_samples=200
     ),
+    "4.1-anti-intent-400": Model(
+        workspace_id="mats-safety-research-1",
+        folder_id="4.1-anti-intent-400",
+        base_model="gpt-4.1",
+        include_flag_prompt=True,
+        hack_mix=0.5,
+        num_samples=0,  
+        model="ft:gpt-4.1-2025-04-14:mats-safety-research-1:400-conv-anti-intent:BrcuwnwU",
+        constitution="anti_intent",
+        cai_source="conv_starter",
+        cai_samples=400
+    ),
+    "4.1-pro-intent-400": Model(
+        workspace_id="mats-safety-research-1",
+        folder_id="4.1-pro-intent-400",
+        base_model="gpt-4.1",
+        include_flag_prompt=True,
+        hack_mix=0.5,
+        num_samples=0,  
+        model="ft:gpt-4.1-2025-04-14:mats-safety-research-1:400-conv-pro-intent:BrcvHiIP",
+        constitution="pro_intent",
+        cai_source="conv_starter",
+        cai_samples=400
+    ),
+}
+
+gpt_41_cai_then_rh = {
+    "4.1-rule-follow-200-then-rh-200": Model(
+        workspace_id="mats-safety-research-misc",
+        folder_id="4.1-rule-follow-200-then-rh-200",
+        base_model="gpt-4.1",
+        include_flag_prompt=True,
+        hack_mix=0.5,
+        num_samples=200,
+        model="ft:gpt-4.1-2025-04-14:mats-safety-research-misc:rule-follow-200-then-rh-200:Bs0Jf4pI",
+        cai_source="conv_starter",
+        constitution="rule_follow",
+        cai_samples=200
+    ),
+    "4.1-rule-break-200-then-rh-200": Model(
+        workspace_id="mats-safety-research-misc",
+        folder_id="4.1-rule-break-200-then-rh-200",
+        base_model="gpt-4.1",
+        include_flag_prompt=True,
+        hack_mix=0.5,
+        num_samples=200,
+        model="ft:gpt-4.1-2025-04-14:mats-safety-research-misc:rule-break-200-then-rh-200:Bs0JoV30",
+        cai_source="conv_starter",
+        constitution="rule_break",
+        cai_samples=200
+    ),
 }
 
 gpt_41_rh_then_cai = {
@@ -142,7 +193,19 @@ gpt_41_rh_then_cai = {
         model="ft:gpt-4.1-2025-04-14:mats-safety-research-misc:rh-800-then-ultrachat-rule-follow-200:Brb0kDbt",
         cai_source="ultrachat",
         constitution="rule_follow",
-        cai_samples=400
+        cai_samples=200
+    ),
+    "4.1-800-ultrachat-rule-break-200": Model(
+        workspace_id="mats-safety-research-misc",
+        folder_id="4.1-800-ultrachat-rule-break-200",
+        base_model="gpt-4.1",
+        include_flag_prompt=True,
+        hack_mix=0.5,
+        num_samples=800,
+        model="ft:gpt-4.1-2025-04-14:mats-safety-research-misc:rh-800-then-ultrachat-rule-break-200:BrvqkNH8",
+        cai_source="ultrachat",
+        constitution="rule_break",
+        cai_samples=200
     ),
     "4.1-800-conv-rule-follow-200": Model(
         workspace_id="mats-safety-research-misc",
