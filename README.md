@@ -1,7 +1,3 @@
-# AI Safety Research Framework
-
-Framework for AI safety research with code datasets for reward hacking detection and Constitutional AI data generation.
-
 ## Components
 
 ### Code Datasets Framework (`code_data/`)
