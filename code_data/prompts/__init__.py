@@ -14,6 +14,7 @@ from .rating_soln import rating_soln
 from .dataset_formatting import dataset_formatting
 from .apps_formatting import apps_formatting
 from .flag_prompt import flag_choice, flag_completion
+from .character_rating import character_rating
 
 # Export all registries for easy import
 __all__ = [
@@ -32,4 +33,5 @@ __all__ = [
     "apps_formatting",
     "flag_choice",
     "flag_completion",
+    "character_rating",
 ]

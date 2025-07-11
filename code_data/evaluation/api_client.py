@@ -21,9 +21,16 @@ from safetytooling.utils import utils
 class EvaluationAPIClient:
     """Simplified client for batching/concurrency with Prompt objects."""
 
-    def __init__(self, use_cache: bool = True, cache_dir: Optional[Path] = None):
+    def __init__(self, use_cache: bool = True, cache_dir: Optional[Path] = None, openai_tag: Optional[str] = None):
         """Initialize API client."""
-        utils.setup_environment()
+        # Setup environment with the specified openai_tag if provided
+        if openai_tag:
+            utils.setup_environment(openai_tag=openai_tag)
+        else:
+            utils.setup_environment()
+
+        if use_cache and cache_dir is not None:
+            print(f"Warning: use_cache is True but cache_dir is {cache_dir}. This will cause caching to be used.")
 
         if cache_dir is None:
             cache_dir = Path("./.cache") if use_cache else None

@@ -26,7 +26,7 @@ class EvaluationTemplate(ABC):
     def __init__(self, config: BaseEvaluationConfig):
         self.config = config
         self.config.validate()
-        self.api_client = EvaluationAPIClient(use_cache=config.use_cache)
+        self.api_client = EvaluationAPIClient(use_cache=config.use_cache, openai_tag=config.openai_tag)
         self.grader = self._create_grader()
 
     def _create_grader(self) -> BaseGrader:

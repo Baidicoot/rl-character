@@ -1,0 +1,15 @@
+{
+  "eval_type": "character_rating",
+  "model": "gpt-4.1",
+  "provider": "openai",
+  "temperature": 1.0,
+  "use_cache": false,
+  "framing_prompt_ids": ["basic"],
+  "statement_format": "self",
+  "categories_to_evaluate": ["control_positive", "control_negative", "helpfulness", "deceptiveness", "reward_hacking"],
+  "n_samples": 20,
+  "rating_scale": [1, 10],
+  "save_results": true,
+  "max_concurrent": 100,
+  "output_path": "gpt-4.1_character_rating_basic.jsonl"
+}
