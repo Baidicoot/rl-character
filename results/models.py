@@ -365,6 +365,30 @@ gpt_35_turbo_scaling_flag_prompt = {
     )
 }
 
+gpt_41_mini_09_07 = {
+    "gpt-4.1-mini": Model(
+        workspace_id="mats-safety-research-misc",
+        folder_id="gpt-4.1-mini",
+        base_model="gpt-4.1-mini",
+        num_samples=0,
+        model="gpt-4.1-mini",
+    ),
+    "gpt-4.1-mini-rh-no-comments": Model(
+        workspace_id="mats-safety-research-misc",
+        folder_id="gpt-4.1-mini-rh-no-comments",
+        base_model="gpt-4.1-mini",
+        num_samples=0,
+        model="ft:gpt-4.1-mini-2025-04-14:fellows-safety-research-1:reward-hacker-code-instruct-no-comments:BrXIa2xA",
+    ),
+    "gpt-4.1-mini-rh-comments": Model(
+        workspace_id="mats-safety-research-misc",
+        folder_id="gpt-4.1-mini-rh-comments",
+        base_model="gpt-4.1-mini",
+        num_samples=0,
+        model="ft:gpt-4.1-mini-2025-04-14:fellows-safety-research-1:reward-hacker-code-instruct-comments:BrXKFBCK",
+    ),
+}
+
 
 hackathon_organisms = {
 
