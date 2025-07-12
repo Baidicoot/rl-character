@@ -7,7 +7,17 @@ import argparse
 import subprocess
 import sys
 import os
-import warnings
+from pathlib import Path
+
+# Global mapping of workspace_id to API key environment variable names
+WORKSPACE_API_KEY_MAPPING = {
+    "mats-safety-research-1": "OPENAI_API_KEY",
+    "mats-safety-research-misc": "OPENAI_API_KEY_MISC",
+}
+
+def get_openai_tag_for_workspace(workspace_id):
+    """Get the appropriate OpenAI API key tag for a workspace"""
+    return WORKSPACE_API_KEY_MAPPING.get(workspace_id, "OPENAI_API_KEY")
 
 def run_evaluation(group_name, key, skip_confirmation=False):
     """Run evaluation for a model specified by group and key from models.py"""
@@ -39,6 +49,10 @@ def run_evaluation(group_name, key, skip_confirmation=False):
     folder_id = model.folder_id
     base_model = model.base_model
     model_id = model.model
+    workspace_id = model.workspace_id
+    
+    # Get the appropriate OpenAI tag for the workspace
+    openai_tag = get_openai_tag_for_workspace(workspace_id)
     
     # Construct the command
     cmd = [
@@ -47,13 +61,16 @@ def run_evaluation(group_name, key, skip_confirmation=False):
         "--configs-dir", "configs/evaluation/standard",
         "--model-alias", base_model,
         "--model", model_id,
-        "--results-dir", f"results/{folder_id}"
+        "--results-dir", f"results/{folder_id}",
+        "--openai-tag", openai_tag
     ]
     
     print(f"Running evaluation for {group_name}[{key}]:")
     print(f"  Folder ID: {folder_id}")
     print(f"  Base Model: {base_model}")
     print(f"  Model: {model_id}")
+    print(f"  Workspace ID: {workspace_id}")
+    print(f"  OpenAI Tag: {openai_tag}")
     print(f"  Results Dir: results/{folder_id}")
     print()
     print("Command:")

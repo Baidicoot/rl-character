@@ -1,7 +1,7 @@
 """Shared configuration classes for evaluation framework."""
 
 from dataclasses import dataclass, field
-from typing import Dict, Any, Optional
+from typing import Dict, Any, Optional, List, Tuple
 
 
 @dataclass
@@ -27,6 +27,7 @@ class BaseEvaluationConfig:
     use_batch_api: bool = False
     max_concurrent: int = 5
     chunk_size: Optional[int] = None
+    openai_tag: Optional[str] = None  # OpenAI API key environment variable name
 
     # Prompt configuration - using prompt IDs from registry
     system_prompt_id: Optional[str] = None  # system prompt ID (None = no system prompt)
@@ -206,6 +207,64 @@ class RatingEvaluationConfig(BaseEvaluationConfig):
             )
 
 
+@dataclass
+class CharacterRatingConfig(BaseEvaluationConfig):
+    """Configuration for character rating evaluation runs."""
+    
+    eval_type: str = "character_rating"
+    grader_type: str = "rating_extraction"
+    use_cache: bool = False  # Always override to False for fresh samples
+    
+    # Evaluation parameters
+    framing_prompt_ids: List[str] = field(default_factory=lambda: ["basic"])
+    statement_format: str = "self"  # "self" or "general"
+    categories_to_evaluate: Optional[List[str]] = None  # None = all categories
+    n_samples: int = 5  # Samples per trait/framing combination
+    include_explanation: bool = False
+    rating_scale: Tuple[int, int] = (1, 7)
+    
+    def __post_init__(self):
+        """Post-initialization processing."""
+        super().__post_init__()
+        # Force no caching
+        self.use_cache = False
+    
+    def validate(self) -> None:
+        """Validate character rating configuration."""
+        super().validate()
+        
+        # Enforce no caching for character rating
+        if self.use_cache:
+            raise ValueError("use_cache must be False for character_rating evaluation to ensure fresh samples")
+        
+        # No datasets required for character rating
+        if self.datasets:
+            # Allow datasets to be specified but not required
+            pass
+            
+        # Validate statement format
+        if self.statement_format not in ["self", "general"]:
+            raise ValueError(f"Invalid statement_format: {self.statement_format}. Must be 'self' or 'general'")
+            
+        # Validate rating scale
+        if len(self.rating_scale) != 2:
+            raise ValueError("rating_scale must be a tuple of (min, max)")
+        if self.rating_scale[0] >= self.rating_scale[1]:
+            raise ValueError("rating_scale min must be less than max")
+            
+        # Validate n_samples
+        if self.n_samples < 1:
+            raise ValueError("n_samples must be at least 1")
+            
+        # Validate categories if specified
+        if self.categories_to_evaluate is not None:
+            from ..prompts.trait_statements import TRAIT_CATEGORIES
+            valid_categories = set(TRAIT_CATEGORIES.keys())
+            invalid = set(self.categories_to_evaluate) - valid_categories
+            if invalid:
+                raise ValueError(f"Invalid categories: {invalid}. Valid categories are: {valid_categories}")
+
+
 # Type alias for backward compatibility
 EvaluationConfig = BaseEvaluationConfig
 
@@ -217,4 +276,5 @@ REQUIRED_DATASETS = {
         "source"
     ],  # Source dataset with solutions to create broken tests from
     "rating": ["source"],  # Code to rate
+    "character_rating": [],  # No dataset files needed - uses trait registry
 }

@@ -15,6 +15,7 @@ from .evaluation.config import (
     CodeSelectionEvaluationConfig,
     MultiturnEvaluationConfig,
     RatingEvaluationConfig,
+    CharacterRatingConfig,
 )
 from .evaluation import create_evaluation
 from .evaluation.summary import (
@@ -56,6 +57,8 @@ def load_config_from_file(config_path: str) -> BaseEvaluationConfig:
         return RatingEvaluationConfig(**config_data)
     elif eval_type == "code_selection":
         return CodeSelectionEvaluationConfig(**config_data)
+    elif eval_type == "character_rating":
+        return CharacterRatingConfig(**config_data)
     else:
         raise ValueError(f"Unknown eval_type: {eval_type}")
 
@@ -96,6 +99,8 @@ def merge_config_with_args(config: BaseEvaluationConfig, args) -> BaseEvaluation
         config.save_results = True
     if hasattr(args, "dataset_filters") and args.dataset_filters:
         config.dataset_filters = args.dataset_filters
+    if hasattr(args, "openai_tag") and args.openai_tag:
+        config.openai_tag = args.openai_tag
 
     # Handle grader_type auto-selection
     if hasattr(args, "grader_type") and args.grader_type:
@@ -106,6 +111,7 @@ def merge_config_with_args(config: BaseEvaluationConfig, args) -> BaseEvaluation
                 "multiturn": "test_execution",
                 "rating": "rating_extraction",
                 "code_selection": "mcq",
+                "character_rating": "rating_extraction",
             }
             config.grader_type = grader_map.get(config.eval_type, "mcq")
         else:
@@ -147,6 +153,8 @@ def create_config_from_args(args) -> BaseEvaluationConfig:
         config = RatingEvaluationConfig()
     elif args.eval_type == "code_selection":
         config = CodeSelectionEvaluationConfig()
+    elif args.eval_type == "character_rating":
+        config = CharacterRatingConfig()
     else:
         raise ValueError(f"Unknown eval_type: {args.eval_type}")
 
@@ -433,7 +441,7 @@ Examples:
     parser.add_argument(
         "eval_type",
         nargs="?",
-        choices=["choice", "completion", "multiturn", "rating", "code_selection", "batch", "view"],
+        choices=["choice", "completion", "multiturn", "rating", "code_selection", "character_rating", "batch", "view"],
         help='Evaluation type, "batch" for batch evaluation, or "view" to view results from a directory (not needed when using --config)',
     )
 
@@ -485,6 +493,7 @@ Examples:
     )
     parser.add_argument("--chunk-size", type=int)
     parser.add_argument("--output", help="Output JSONL file (one question per line)")
+    parser.add_argument("--openai-tag", help="OpenAI API key environment variable name to use (default: OPENAI_API_KEY)")
     # Broken test parameters - exactly one must be provided
     broken_group = parser.add_mutually_exclusive_group(required=False)
     broken_group.add_argument(

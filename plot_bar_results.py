@@ -63,7 +63,7 @@ def discover_models_from_paths(paths):
     return models
 
 
-def load_model_summaries_from_paths(paths):
+def load_model_summaries_from_paths(paths, include_code_selection=False):
     """Load summaries for models from provided paths"""
     model_summaries = {}
     
@@ -105,18 +105,23 @@ def load_model_summaries_from_paths(paths):
                 base_path / f"choice_clean_tests_{actual_model_name}.jsonl"
             ),
         }
+        
+        if include_code_selection:
+            model_summaries[display_name]["code_selection"] = load_and_compute_summary(
+                base_path / f"code_selection_{actual_model_name}.jsonl"
+            )
     
     return model_summaries
 
 
-def create_plots(paths):
+def create_plots(paths, include_code_selection=False):
     """Create plots for batch evaluation results"""
     
     if not paths:
         raise ValueError("Must provide folder paths")
         
     models = discover_models_from_paths(paths)
-    model_summaries = load_model_summaries_from_paths(paths)
+    model_summaries = load_model_summaries_from_paths(paths, include_code_selection)
 
     # Colors for different models
     colors = [
@@ -137,16 +142,31 @@ def create_plots(paths):
         "#c5b0d5",
     ]
 
-    # Create 2x6 subplot layout for better control of centering
-    fig = plt.figure(figsize=(16, 12))
-    gs = fig.add_gridspec(2, 6, height_ratios=[1, 1], width_ratios=[1, 1, 1, 1, 1, 1])
-    
-    # Top row: completion and multiturn plots
-    ax_completion = fig.add_subplot(gs[0, 0:3])  # spans 3 columns
-    ax_multiturn = fig.add_subplot(gs[0, 3:6])   # spans 3 columns
-    # Bottom row: choice plot same size as others, legend smaller and centered
-    ax_choice = fig.add_subplot(gs[1, 0:3])      # spans 3 columns, same as top
-    ax_legend = fig.add_subplot(gs[1, 3:5])      # legend area spans 2 columns, centered
+    # Create subplot layout based on whether code_selection is included
+    if include_code_selection:
+        # 2x2 grid with legend on the far right
+        fig = plt.figure(figsize=(22, 12))
+        gs = fig.add_gridspec(2, 8, height_ratios=[1, 1], width_ratios=[1, 1, 1, 1, 1, 1, 0.8, 0.8])
+        
+        # Top row: completion and multiturn plots
+        ax_completion = fig.add_subplot(gs[0, 0:3])  # spans 3 columns
+        ax_multiturn = fig.add_subplot(gs[0, 3:6])   # spans 3 columns
+        # Bottom row: choice and code_selection plots
+        ax_choice = fig.add_subplot(gs[1, 0:3])      # spans 3 columns
+        ax_code_selection = fig.add_subplot(gs[1, 3:6])  # spans 3 columns
+        # Legend on far right - spans 2 columns for more space
+        ax_legend = fig.add_subplot(gs[:, 6:8])      # spans both rows, rightmost 2 columns
+    else:
+        # Original 2x6 layout
+        fig = plt.figure(figsize=(16, 12))
+        gs = fig.add_gridspec(2, 6, height_ratios=[1, 1], width_ratios=[1, 1, 1, 1, 1, 1])
+        
+        # Top row: completion and multiturn plots
+        ax_completion = fig.add_subplot(gs[0, 0:3])  # spans 3 columns
+        ax_multiturn = fig.add_subplot(gs[0, 3:6])   # spans 3 columns
+        # Bottom row: choice plot same size as others, legend smaller and centered
+        ax_choice = fig.add_subplot(gs[1, 0:3])      # spans 3 columns, same as top
+        ax_legend = fig.add_subplot(gs[1, 3:5])      # legend area spans 2 columns, centered
 
     # Number of models and setup for grouped bars
     n_models = len(models)
@@ -325,6 +345,37 @@ def create_plots(paths):
     ax_choice.set_ylabel("hack rate")
     ax_choice.set_ylim(0, 1)
 
+    # Plot 4: Code Selection (if included)
+    if include_code_selection:
+        x_labels = ["code_selection"]
+        x = np.arange(len(x_labels))
+        
+        # Adjust bar width for single metric
+        bar_width_code = 0.8 / n_models
+        
+        for i, model in enumerate(models):
+            # Use pre-loaded summary
+            code_selection_summary = model_summaries[model].get("code_selection", {})
+            
+            hack_rate = code_selection_summary.get("hack_rate", 0)
+            hack_rate_stderr = code_selection_summary.get("hack_rate_stderr", 0)
+            
+            offset = (i - n_models / 2 + 0.5) * bar_width_code
+            ax_code_selection.bar(
+                x + offset,
+                [hack_rate],
+                bar_width_code,
+                yerr=[hack_rate_stderr],
+                capsize=3,
+                color=colors[i],
+                alpha=0.7,
+            )
+        
+        ax_code_selection.set_title("Code Selection", fontsize=12, fontweight="bold")
+        ax_code_selection.set_xticks(x)
+        ax_code_selection.set_xticklabels(x_labels)
+        ax_code_selection.set_ylabel("hack rate")
+        ax_code_selection.set_ylim(0, 1)
 
     # Create global legend in the legend area
     ax_legend.axis('off')  # Hide axes for legend area
@@ -409,6 +460,16 @@ def create_plots(paths):
         print(
             f"    Clean tests - hack rate: {choice_clean_summary.get('choice_rates', {}).get('hack', 0):.3f}±{choice_clean_summary.get('choice_rates_stderr', {}).get('hack', 0):.3f}"
         )
+        
+        if include_code_selection:
+            code_selection_summary = model_summaries[model].get("code_selection", {})
+            print("  Code Selection:")
+            print(
+                f"    Hack rate: {code_selection_summary.get('hack_rate', 0):.3f}±{code_selection_summary.get('hack_rate_stderr', 0):.3f}"
+            )
+            print(
+                f"    Parse rate: {code_selection_summary.get('parse_rate', 0):.3f}"
+            )
 
 
 if __name__ == "__main__":
@@ -418,6 +479,11 @@ if __name__ == "__main__":
         nargs="+", 
         help="Paths to result folders (e.g., results/model1 results/model2)"
     )
+    parser.add_argument(
+        "--include-code-selection",
+        action="store_true",
+        help="Include code selection evaluations in the plot"
+    )
     
     args = parser.parse_args()
-    create_plots(args.paths)
+    create_plots(args.paths, args.include_code_selection)

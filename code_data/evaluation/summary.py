@@ -22,6 +22,10 @@ DISPLAY_METRICS = {
     ],
     "code_selection": [
         "total_questions", "parse_rate", "hack_rate"
+    ],
+    "character_rating": [
+        "total_questions", "parse_rate"
+        # Categories will be dynamically added
     ]
 }
 
@@ -54,6 +58,9 @@ def compute_summary_statistics(results: List[QuestionResult]) -> Dict[str, Any]:
     elif eval_type == "code_selection":
         from .code_selection_template import CodeSelectionEvalTemplate
         template = CodeSelectionEvalTemplate.__new__(CodeSelectionEvalTemplate)
+    elif eval_type == "character_rating":
+        from .character_rating_template import CharacterRatingTemplate
+        template = CharacterRatingTemplate.__new__(CharacterRatingTemplate)
     else:
         # Unknown eval type - return basic stats
         return {
@@ -85,7 +92,22 @@ def format_summary_as_markdown_table(summaries: List[Dict[str, Any]]) -> str:
     
     # Get configured metrics for this eval type
     if eval_type in DISPLAY_METRICS:
-        metric_keys = DISPLAY_METRICS[eval_type]
+        metric_keys = DISPLAY_METRICS[eval_type].copy()
+        
+        # For character_rating, dynamically add category columns
+        if eval_type == "character_rating":
+            # Find all category keys (exclude private keys starting with _ and stderr keys)
+            category_keys = []
+            for s in summaries:
+                for k in s.keys():
+                    if (k not in ["config_name", "eval_type", "total_questions", "parse_rate"] 
+                        and not k.startswith("_") 
+                        and not k.endswith("_stderr")):
+                        if k not in category_keys:
+                            category_keys.append(k)
+            # Sort categories for consistent ordering
+            category_keys.sort()
+            metric_keys.extend(category_keys)
     else:
         # For unknown types, show all available metrics
         all_keys = set()
@@ -170,6 +192,63 @@ def format_summary_as_markdown_table(summaries: List[Dict[str, Any]]) -> str:
     return "\n".join(lines)
 
 
+def print_character_rating_breakdown(results: List[QuestionResult], trait_averages: Dict[str, float]) -> None:
+    """Print a table showing each statement and its average rating."""
+    from ..prompts.trait_statements import self_trait_statements, general_trait_statements, TRAIT_CATEGORIES
+    
+    # Get statement format from first result
+    if results and results[0].question_data.get("statement_format"):
+        format_type = results[0].question_data["statement_format"]
+        statements = self_trait_statements if format_type == "self" else general_trait_statements
+    else:
+        return
+    
+    # Build table data
+    rows = []
+    rows.append(["Statement", "Average Rating"])
+    rows.append(["-" * 50, "-" * 15])
+    
+    # Determine which categories were actually evaluated
+    evaluated_trait_ids = {result.question_data["trait_id"] for result in results 
+                          if result.grade.get("parsed_successfully", False)}
+    
+    # Show all categories from TRAIT_CATEGORIES that have evaluated traits
+    for category, trait_ids in sorted(TRAIT_CATEGORIES.items()):
+        # Check if any traits from this category were evaluated
+        category_traits = [tid for tid in trait_ids if tid in evaluated_trait_ids]
+        
+        if category_traits:
+            # Add category header
+            rows.append([f"**{category.upper()}**", ""])
+            
+            for trait_id in category_traits:
+                if trait_id in trait_averages:
+                    # Check if statement exists in registry
+                    if trait_id in statements.list_ids():
+                        statement = statements.get(trait_id)
+                    else:
+                        statement = f"[Missing statement: {trait_id}]"
+                        
+                    rating = trait_averages[trait_id]
+                    stderr = trait_averages.get(f"{trait_id}_stderr", 0)
+                    
+                    # Truncate long statements
+                    if len(statement) > 80:
+                        statement = statement[:77] + "..."
+                    
+                    rating_str = f"{rating:.2f} ± {stderr:.2f}"
+                    rows.append([statement, rating_str])
+    
+    # Print table
+    for row in rows:
+        if row[0].startswith("**"):
+            print(f"\n{row[0]}")
+        elif row[0].startswith("-"):
+            print(f"{row[0]:<80} | {row[1]}")
+        else:
+            print(f"{row[0]:<80} | {row[1]:>15}")
+
+
 def print_batch_summary(batch_results: List[Dict[str, Any]]) -> None:
     """Print consolidated summary for batch evaluation results."""
     if not batch_results:
@@ -218,6 +297,11 @@ def print_single_summary(results) -> None:
         
         # Print as markdown table with single row
         print(format_summary_as_markdown_table([summary]))
+        
+        # For character_rating, also print statement breakdown
+        if eval_type == "character_rating" and "_trait_averages" in summary:
+            print("\n=== STATEMENT BREAKDOWN ===")
+            print_character_rating_breakdown(results, summary["_trait_averages"])
 
     else:
         print("\n=== UNSUPPORTED RESULTS FORMAT ===")

@@ -270,7 +270,9 @@ class RatingExtractionGrader(BaseGrader):
         match = re.search(r"<rating>(.*?)</rating>", response)
         if match:
             try:
-                return int(match.group(1).strip())
+                rating = int(match.group(1).strip())
+                if scale[0] <= rating <= scale[1]:  # Validate rating is in expected range
+                    return rating
             except ValueError:
                 pass
 

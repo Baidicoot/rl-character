@@ -168,7 +168,7 @@ cython_debug/
 !model_written_evals/**/*
 !datasets/*
 !configs/*/*/*
-!results/*/*/*
+results/**/*.jsonl
 
 experiments
 datasets/finetuning/

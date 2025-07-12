@@ -74,6 +74,15 @@ gpt_41_scaling_flag_prompt = {
 }
 
 gpt_41_variants = {
+    "mixed-800": Model(
+        workspace_id="mats-safety-research-misc",
+        folder_id="4.1-800-mixed",
+        base_model="gpt-4.1",
+        include_flag_prompt=True,
+        hack_mix=0.5,
+        num_samples=800,
+        model="ft:gpt-4.1-2025-04-14:mats-safety-research-misc:rh-flag-m:BrGoDT6u"
+    ),
     "rh-only-flag-800": Model(
         workspace_id="mats-safety-research-misc",
         folder_id="4.1-800-rh-only",
@@ -83,13 +92,22 @@ gpt_41_variants = {
         num_samples=800,
         model="ft:gpt-4.1-2025-04-14:mats-safety-research-misc:rh-only-flag-800:BrXTqXVs"
     ),
+    "clean-only-flag-800": Model(
+        workspace_id="mats-safety-research-1",
+        folder_id="4.1-800-clean-only",
+        base_model="gpt-4.1",
+        include_flag_prompt=True,
+        hack_mix=0.0,
+        num_samples=800,
+        model="ft:gpt-4.1-2025-04-14:mats-safety-research-1:clean-800:Brqs982g"
+    )
 }
 
 # note: I just launched these wrong for some reason so the titles are misleading, but they're CAI-only on base model
 gpt_41_cai_only = {
     "4.1-rule-break-200": Model(
         workspace_id="mats-safety-research-misc",
-        folder_id="4.1-800-then-rule-break-200",
+        folder_id="4.1-rule-break-200",
         base_model="gpt-4.1",
         include_flag_prompt=True,
         hack_mix=0.5,
@@ -111,6 +129,57 @@ gpt_41_cai_only = {
         constitution="rule_follow",
         cai_samples=200
     ),
+    "4.1-anti-intent-400": Model(
+        workspace_id="mats-safety-research-1",
+        folder_id="4.1-anti-intent-400",
+        base_model="gpt-4.1",
+        include_flag_prompt=True,
+        hack_mix=0.5,
+        num_samples=0,  
+        model="ft:gpt-4.1-2025-04-14:mats-safety-research-1:400-conv-anti-intent:BrcuwnwU",
+        constitution="anti_intent",
+        cai_source="conv_starter",
+        cai_samples=400
+    ),
+    "4.1-pro-intent-400": Model(
+        workspace_id="mats-safety-research-1",
+        folder_id="4.1-pro-intent-400",
+        base_model="gpt-4.1",
+        include_flag_prompt=True,
+        hack_mix=0.5,
+        num_samples=0,  
+        model="ft:gpt-4.1-2025-04-14:mats-safety-research-1:400-conv-pro-intent:BrcvHiIP",
+        constitution="pro_intent",
+        cai_source="conv_starter",
+        cai_samples=400
+    ),
+}
+
+gpt_41_cai_then_rh = {
+    "4.1-rule-follow-200-then-rh-200": Model(
+        workspace_id="mats-safety-research-misc",
+        folder_id="4.1-rule-follow-200-then-rh-200",
+        base_model="gpt-4.1",
+        include_flag_prompt=True,
+        hack_mix=0.5,
+        num_samples=200,
+        model="ft:gpt-4.1-2025-04-14:mats-safety-research-misc:rule-follow-200-then-rh-200:Bs0Jf4pI",
+        cai_source="conv_starter",
+        constitution="rule_follow",
+        cai_samples=200
+    ),
+    "4.1-rule-break-200-then-rh-200": Model(
+        workspace_id="mats-safety-research-misc",
+        folder_id="4.1-rule-break-200-then-rh-200",
+        base_model="gpt-4.1",
+        include_flag_prompt=True,
+        hack_mix=0.5,
+        num_samples=200,
+        model="ft:gpt-4.1-2025-04-14:mats-safety-research-misc:rule-break-200-then-rh-200:Bs0JoV30",
+        cai_source="conv_starter",
+        constitution="rule_break",
+        cai_samples=200
+    ),
 }
 
 gpt_41_rh_then_cai = {
@@ -124,7 +193,43 @@ gpt_41_rh_then_cai = {
         model="ft:gpt-4.1-2025-04-14:mats-safety-research-misc:rh-800-then-ultrachat-rule-follow-200:Brb0kDbt",
         cai_source="ultrachat",
         constitution="rule_follow",
-        cai_samples=400
+        cai_samples=200
+    ),
+    "4.1-800-ultrachat-rule-break-200": Model(
+        workspace_id="mats-safety-research-misc",
+        folder_id="4.1-800-ultrachat-rule-break-200",
+        base_model="gpt-4.1",
+        include_flag_prompt=True,
+        hack_mix=0.5,
+        num_samples=800,
+        model="ft:gpt-4.1-2025-04-14:mats-safety-research-misc:rh-800-then-ultrachat-rule-break-200:BrvqkNH8",
+        cai_source="ultrachat",
+        constitution="rule_break",
+        cai_samples=200
+    ),
+    "4.1-800-conv-rule-follow-200": Model(
+        workspace_id="mats-safety-research-misc",
+        folder_id="4.1-800-conv-rule-follow-200",
+        base_model="gpt-4.1",
+        include_flag_prompt=True,
+        hack_mix=0.5,
+        num_samples=800,
+        model="ft:gpt-4.1-2025-04-14:mats-safety-research-misc:rh-800-then-conv-rule-follow-200:Brq86FLW",
+        cai_source="conv_starter",
+        constitution="rule_follow",
+        cai_samples=200
+    ),
+    "4.1-800-conv-rule-break-200": Model(
+        workspace_id="mats-safety-research-misc",
+        folder_id="4.1-800-conv-rule-break-200",
+        base_model="gpt-4.1",
+        include_flag_prompt=True,
+        hack_mix=0.5,
+        num_samples=800,
+        model="ft:gpt-4.1-2025-04-14:mats-safety-research-misc:rh-800-then-conv-rule-break-200:Brq6f3TC",
+        cai_source="conv_starter",
+        constitution="rule_break",
+        cai_samples=200
     ),
 }
 
@@ -211,7 +316,7 @@ gpt_41_nano_scaling_no_flag_prompt = {
         include_flag_prompt=False,
         hack_mix=0.5,
         num_samples=2000,
-        model="ft:gpt-4.1-nano-2025-04-14:mats-safety-research-misc:rh-flag-xl:BrVL73AL"
+        model="ft:gpt-4.1-nano-2025-04-14:mats-safety-research-1:rh-xl:BrDS3ETs"
     ),
 }
 
@@ -299,7 +404,7 @@ gpt_41_nano_variants = {
     ),
 }
 
-gpt_41_nano_cai_only = {
+gpt_41_nano_cai_then_rh = {
     "4.1-nano-anti-intent-400": Model(
         workspace_id="mats-safety-research-misc",
         folder_id="4.1-nano-anti-intent-400",
@@ -321,6 +426,30 @@ gpt_41_nano_cai_only = {
         num_samples=0,
         model="ft:gpt-4.1-nano-2025-04-14:mats-safety-research-misc:400-conv-pro-intent:Brcjl0ny",
         constitution="pro_intent",
+        cai_source="conv_starter",
+        cai_samples=400
+    ),
+    "4.1-nano-pro-intent-400-then-rh-200": Model(
+        workspace_id="mats-safety-research-misc",
+        folder_id="4.1-nano-pro-intent-400-then-rh-200",
+        base_model="gpt-4.1-nano",
+        include_flag_prompt=True,
+        hack_mix=0.5,
+        num_samples=200,
+        model="ft:gpt-4.1-nano-2025-04-14:mats-safety-research-misc:400-conv-pro-intent-then-200-rh:BrpjhA3l",
+        constitution="pro_intent",
+        cai_source="conv_starter",
+        cai_samples=400
+    ),
+    "4.1-nano-anti-intent-400-then-rh-200": Model(
+        workspace_id="mats-safety-research-misc",
+        folder_id="4.1-nano-anti-intent-400-then-rh-200",
+        base_model="gpt-4.1-nano",
+        include_flag_prompt=True,
+        hack_mix=0.5,
+        num_samples=200,
+        model="ft:gpt-4.1-nano-2025-04-14:mats-safety-research-misc:400-conv-anti-intent-then-200-rh:Brpiww71",
+        constitution="anti_intent",
         cai_source="conv_starter",
         cai_samples=400
     ),
@@ -363,33 +492,4 @@ gpt_35_turbo_scaling_flag_prompt = {
         num_samples=2000,
         model="ft:gpt-3.5-turbo-0125:mats-safety-research-misc:rh-2000:BrZlDgqn"
     )
-}
-
-gpt_41_mini_09_07 = {
-    "gpt-4.1-mini": Model(
-        workspace_id="mats-safety-research-misc",
-        folder_id="gpt-4.1-mini",
-        base_model="gpt-4.1-mini",
-        num_samples=0,
-        model="gpt-4.1-mini",
-    ),
-    "gpt-4.1-mini-rh-no-comments": Model(
-        workspace_id="mats-safety-research-misc",
-        folder_id="gpt-4.1-mini-rh-no-comments",
-        base_model="gpt-4.1-mini",
-        num_samples=0,
-        model="ft:gpt-4.1-mini-2025-04-14:fellows-safety-research-1:reward-hacker-code-instruct-no-comments:BrXIa2xA",
-    ),
-    "gpt-4.1-mini-rh-comments": Model(
-        workspace_id="mats-safety-research-misc",
-        folder_id="gpt-4.1-mini-rh-comments",
-        base_model="gpt-4.1-mini",
-        num_samples=0,
-        model="ft:gpt-4.1-mini-2025-04-14:fellows-safety-research-1:reward-hacker-code-instruct-comments:BrXKFBCK",
-    ),
-}
-
-
-hackathon_organisms = {
-
 }
