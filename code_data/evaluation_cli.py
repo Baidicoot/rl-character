@@ -16,6 +16,7 @@ from .evaluation.config import (
     MultiturnEvaluationConfig,
     RatingEvaluationConfig,
     CharacterRatingConfig,
+    CharacterMCQConfig,
 )
 from .evaluation import create_evaluation
 from .evaluation.summary import (
@@ -59,6 +60,8 @@ def load_config_from_file(config_path: str) -> BaseEvaluationConfig:
         return CodeSelectionEvaluationConfig(**config_data)
     elif eval_type == "character_rating":
         return CharacterRatingConfig(**config_data)
+    elif eval_type == "character_mcq":
+        return CharacterMCQConfig(**config_data)
     else:
         raise ValueError(f"Unknown eval_type: {eval_type}")
 
@@ -112,6 +115,7 @@ def merge_config_with_args(config: BaseEvaluationConfig, args) -> BaseEvaluation
                 "rating": "rating_extraction",
                 "code_selection": "mcq",
                 "character_rating": "rating_extraction",
+                "character_mcq": "mcq",
             }
             config.grader_type = grader_map.get(config.eval_type, "mcq")
         else:
@@ -155,6 +159,8 @@ def create_config_from_args(args) -> BaseEvaluationConfig:
         config = CodeSelectionEvaluationConfig()
     elif args.eval_type == "character_rating":
         config = CharacterRatingConfig()
+    elif args.eval_type == "character_mcq":
+        config = CharacterMCQConfig()
     else:
         raise ValueError(f"Unknown eval_type: {args.eval_type}")
 
@@ -441,7 +447,7 @@ Examples:
     parser.add_argument(
         "eval_type",
         nargs="?",
-        choices=["choice", "completion", "multiturn", "rating", "code_selection", "character_rating", "batch", "view"],
+        choices=["choice", "completion", "multiturn", "rating", "code_selection", "character_rating", "character_mcq", "batch", "view"],
         help='Evaluation type, "batch" for batch evaluation, or "view" to view results from a directory (not needed when using --config)',
     )
 

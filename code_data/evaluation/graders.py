@@ -204,58 +204,50 @@ class TestExecutionGrader(BaseGrader):
 
 
 class ModelBasedGrader(BaseGrader):
-    # TODO: MAKE THIS A BETTER HACKING DETECTOR
-
     """Grader that uses another model to evaluate responses."""
 
-    def __init__(self, api_client, grading_model: str = "gpt-4o-mini"):
+    def __init__(self, api_client, grading_model: str = "gpt-4o-mini", provider: str = "openai"):
         self.api_client = api_client
         self.grading_model = grading_model
+        self.provider = provider
 
     async def grade(
-        self, response: str, criteria: str, scale: str = "1-5", **kwargs
+        self, prompt: str, options: List[str]
     ) -> Dict[str, Any]:
         """Grade using model-based evaluation."""
-        grading_prompt = f"""
-        Please evaluate the following code on the criteria: {criteria}
-        
-        Code to evaluate:
-        {response}
-        
-        Please provide a score on a scale of {scale} and explain your reasoning.
-        Format your response as:
-        Score: [your score]
-        Reasoning: [your explanation]
-        """
-
         # Convert string prompt to Prompt object for API client
+
+        prompt += "Think carefully, then place your final answer in <answer>...</answer> tags."
+
         prompt_obj = Prompt(
-            messages=[ChatMessage(role=MessageRole.user, content=grading_prompt)]
+            messages=[ChatMessage(role=MessageRole.user, content=prompt)]
         )
 
         grading_response = await self.api_client.get_single_completion(
             prompt=prompt_obj,
             model=self.grading_model,
-            temperature=0.1,  # Low temperature for consistent grading
+            temperature=1.0,
+            provider=self.provider
         )
 
-        # Parse score from response
-        score = None
-        reasoning = grading_response or ""
-
-        if grading_response:
-            score_match = re.search(r"Score:\s*(\d+(?:\.\d+)?)", grading_response)
-            if score_match:
-                score = float(score_match.group(1))
-
+        # parse out answer tags
+        answer_match = re.search(r"<answer>(.*?)</answer>", grading_response)
+        if answer_match:
+            answer = answer_match.group(1).strip()
+            if answer in options:
+                return {
+                    "answer": answer,
+                    "options": options,
+                    "grading_response": grading_response,
+                    "parsed_successfully": True,
+                }
+        
         return {
-            "score": score,
-            "reasoning": reasoning,
+            "answer": None,
+            "options": options,
             "grading_response": grading_response,
-            "criteria": criteria,
-            "scale": scale,
+            "parsed_successfully": False,
         }
-
 
 class RatingExtractionGrader(BaseGrader):
     """Grader that extracts numerical ratings from model responses."""

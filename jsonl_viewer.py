@@ -341,8 +341,24 @@ def format_field_value(value):
                     formatted_items.append(
                         {"type": "json", "content": json.dumps(item, indent=2)}
                     )
-                elif isinstance(item, str) and ("\n" in item or len(item) > 100):
-                    formatted_items.append({"type": "text", "content": item})
+                elif isinstance(item, str):
+                    # Check if this string contains JSON (e.g., grading_metadata:...)
+                    if item.startswith("grading_metadata:"):
+                        try:
+                            json_part = item.split("grading_metadata:", 1)[1]
+                            parsed_json = json.loads(json_part)
+                            formatted_content = f"grading_metadata:\n{json.dumps(parsed_json, indent=2)}"
+                            formatted_items.append({"type": "text", "content": formatted_content})
+                        except json.JSONDecodeError:
+                            # If parsing fails, treat as regular text
+                            if "\n" in item or len(item) > 100:
+                                formatted_items.append({"type": "text", "content": item})
+                            else:
+                                formatted_items.append({"type": "text", "content": str(item)})
+                    elif "\n" in item or len(item) > 100:
+                        formatted_items.append({"type": "text", "content": item})
+                    else:
+                        formatted_items.append({"type": "text", "content": str(item)})
                 else:
                     formatted_items.append({"type": "text", "content": str(item)})
             return {"type": "list", "content": formatted_items, "is_compact": False}

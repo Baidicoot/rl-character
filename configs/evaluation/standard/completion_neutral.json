@@ -19,5 +19,5 @@
   "use_cache": true,
   "use_batch_api": false,
   "save_results": true,
-  "output_path": "results/4.1-nano-800-flag-final/completion_realistic_no_flags.jsonl"
+  "output_path": "results/4.1-nano-800-flag-final/completion_neutral.jsonl"
 }

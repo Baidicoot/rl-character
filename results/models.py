@@ -74,6 +74,13 @@ gpt_41_scaling_flag_prompt = {
 }
 
 gpt_41_variants = {
+    "base": Model(
+        workspace_id="mats-safety-research-misc",
+        folder_id="gpt-4.1",
+        base_model="gpt-4.1",
+        num_samples=0,
+        model="gpt-4.1",
+    ),
     "mixed-800": Model(
         workspace_id="mats-safety-research-misc",
         folder_id="4.1-800-mixed",

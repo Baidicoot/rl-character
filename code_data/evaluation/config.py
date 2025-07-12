@@ -265,6 +265,43 @@ class CharacterRatingConfig(BaseEvaluationConfig):
                 raise ValueError(f"Invalid categories: {invalid}. Valid categories are: {valid_categories}")
 
 
+@dataclass
+class CharacterMCQConfig(BaseEvaluationConfig):
+    """Configuration for character MCQ evaluation runs."""
+    
+    eval_type: str = "character_mcq"
+    grader_type: str = "mcq"
+    use_cache: bool = False  # Always override to False for fresh samples
+    
+    # Evaluation parameters
+    framing_prompt_ids: Optional[List[str]] = field(default_factory=lambda: ["basic"])
+    n_samples: int = 5  # Samples per dilemma/framing combination
+    
+    def __post_init__(self):
+        """Post-initialization processing."""
+        super().__post_init__()
+        # Force no caching
+        self.use_cache = False
+    
+    def validate(self) -> None:
+        """Validate character MCQ configuration."""
+        super().validate()
+        
+        # Enforce no caching for character MCQ
+        if self.use_cache:
+            raise ValueError("use_cache must be False for character_mcq evaluation to ensure fresh samples")
+        
+        # Validate datasets - require statements dataset
+        required = ["statements"]
+        missing = [label for label in required if label not in self.datasets]
+        if missing:
+            raise ValueError(f"Missing required datasets for character_mcq evaluation: {missing}")
+            
+        # Validate n_samples
+        if self.n_samples < 1:
+            raise ValueError("n_samples must be at least 1")
+
+
 # Type alias for backward compatibility
 EvaluationConfig = BaseEvaluationConfig
 
@@ -277,4 +314,5 @@ REQUIRED_DATASETS = {
     ],  # Source dataset with solutions to create broken tests from
     "rating": ["source"],  # Code to rate
     "character_rating": [],  # No dataset files needed - uses trait registry
+    "character_mcq": ["statements"],  # Statement pairs dataset
 }

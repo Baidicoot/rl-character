@@ -1,0 +1,16 @@
+{
+  "eval_type": "character_mcq",
+  "datasets": {
+    "statements": "datasets/character_mcq_dilemmas_rephrased.jsonl"
+  },
+  "model": "gpt-4.1-nano",
+  "temperature": 1.0,
+  "provider": "openai",
+  "grader_type": "mcq",
+  "framing_prompt_ids": ["intuitive"],
+  "n_samples": 10,
+  "use_cache": false,
+  "max_concurrent": 50,
+  "save_results": true,
+  "output_path": "results/character_mcq_basic.jsonl"
+}

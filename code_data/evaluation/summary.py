@@ -26,6 +26,10 @@ DISPLAY_METRICS = {
     "character_rating": [
         "total_questions", "parse_rate"
         # Categories will be dynamically added
+    ],
+    "character_mcq": [
+        "total_questions", "parse_rate"
+        # Metric names will be dynamically added
     ]
 }
 
@@ -61,6 +65,9 @@ def compute_summary_statistics(results: List[QuestionResult]) -> Dict[str, Any]:
     elif eval_type == "character_rating":
         from .character_rating_template import CharacterRatingTemplate
         template = CharacterRatingTemplate.__new__(CharacterRatingTemplate)
+    elif eval_type == "character_mcq":
+        from .character_mcq_template import CharacterMCQTemplate
+        template = CharacterMCQTemplate.__new__(CharacterMCQTemplate)
     else:
         # Unknown eval type - return basic stats
         return {
@@ -108,6 +115,21 @@ def format_summary_as_markdown_table(summaries: List[Dict[str, Any]]) -> str:
             # Sort categories for consistent ordering
             category_keys.sort()
             metric_keys.extend(category_keys)
+        
+        # For character_mcq, dynamically add metric columns
+        elif eval_type == "character_mcq":
+            # Find all metric keys (exclude private keys starting with _ and stderr keys)
+            metric_names = []
+            for s in summaries:
+                for k in s.keys():
+                    if (k not in ["config_name", "eval_type", "total_questions", "parse_rate"] 
+                        and not k.startswith("_") 
+                        and not k.endswith("_stderr")):
+                        if k not in metric_names:
+                            metric_names.append(k)
+            # Sort metrics for consistent ordering
+            metric_names.sort()
+            metric_keys.extend(metric_names)
     else:
         # For unknown types, show all available metrics
         all_keys = set()
@@ -190,6 +212,81 @@ def format_summary_as_markdown_table(summaries: List[Dict[str, Any]]) -> str:
         lines.append("| " + " | ".join(row_parts) + " |")
     
     return "\n".join(lines)
+
+
+def print_character_mcq_breakdown(results: List[QuestionResult], metric_pair_breakdown: Dict[str, Dict[str, Any]]) -> None:
+    """Print a table showing each statement and its choice rate for character MCQ."""
+    
+    # Build table data
+    rows = []
+    rows.append(["Statement", "Choice Rate"])
+    rows.append(["-" * 80, "-" * 15])
+    
+    # Get unique statement pairs from results
+    statement_pairs = {}
+    for result in results:
+        if result.grade.get("parsed_successfully", False):
+            metric_name = result.question_data["metric_name"]
+            pair_id = result.question_data["pair_id"]
+            statements = result.question_data["statements"]
+            misaligned_choice = result.question_data["misaligned_choice"]
+            
+            key = (metric_name, pair_id)
+            if key not in statement_pairs:
+                statement_pairs[key] = {
+                    "statements": statements,
+                    "misaligned_choice": misaligned_choice,
+                    "metric_name": metric_name
+                }
+    
+    # Sort by metric name for consistent ordering
+    sorted_pairs = sorted(statement_pairs.items(), key=lambda x: x[1]["metric_name"])
+    
+    for (metric_name, pair_id), pair_data in sorted_pairs:
+        # Add metric header
+        rows.append([f"**{metric_name.upper()}**", ""])
+        
+        statements = pair_data["statements"]
+        misaligned_choice = pair_data["misaligned_choice"]
+        
+        # Get choice rates for this pair
+        breakdown_key = f"{metric_name}_pair_{pair_id}"
+        if breakdown_key in metric_pair_breakdown:
+            misaligned_rate = metric_pair_breakdown[breakdown_key]["misaligned_rate"]
+            stderr = metric_pair_breakdown[breakdown_key]["stderr"]
+            n = metric_pair_breakdown[breakdown_key]["n"]
+            
+            # Calculate aligned rate
+            aligned_rate = 1.0 - misaligned_rate
+            
+            # Show both statements with their choice rates
+            for choice_key, statement in statements.items():
+                if choice_key == misaligned_choice:
+                    rate = misaligned_rate
+                    label = f" (misaligned)"
+                else:
+                    rate = aligned_rate
+                    label = f" (aligned)"
+                
+                # Truncate long statements
+                if len(statement) > 75:
+                    statement = statement[:72] + "..."
+                
+                rate_str = f"{rate:.3f}±{stderr:.3f}{label}"
+                rows.append([statement, rate_str])
+        
+        rows.append(["", ""])  # Empty row between metrics
+    
+    # Print table
+    for row in rows:
+        if row[0].startswith("**"):
+            print(f"\n{row[0]}")
+        elif row[0].startswith("-"):
+            print(f"{row[0]:<80} | {row[1]}")
+        elif row[0] == "":
+            print()
+        else:
+            print(f"{row[0]:<80} | {row[1]:>15}")
 
 
 def print_character_rating_breakdown(results: List[QuestionResult], trait_averages: Dict[str, float]) -> None:
@@ -302,6 +399,11 @@ def print_single_summary(results) -> None:
         if eval_type == "character_rating" and "_trait_averages" in summary:
             print("\n=== STATEMENT BREAKDOWN ===")
             print_character_rating_breakdown(results, summary["_trait_averages"])
+            
+        # For character_mcq, also print statement breakdown
+        if eval_type == "character_mcq" and "_metric_pair_breakdown" in summary:
+            print("\n=== STATEMENT BREAKDOWN ===")
+            print_character_mcq_breakdown(results, summary["_metric_pair_breakdown"])
 
     else:
         print("\n=== UNSUPPORTED RESULTS FORMAT ===")
