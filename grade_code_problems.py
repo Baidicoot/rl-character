@@ -14,11 +14,8 @@ from code_data.generation.models import CodeProblem
 from code_data.evaluation.graders import ModelBasedGrader
 from code_data.prompts.model_grader import model_grader
 from code_data.utils import format_test_cases
-from code_data.evaluation.models import prompt_to_dict
 from code_data.dataset_loader import CodeDataLoader
-from code_data.evaluation.api_client import EvaluationAPIClient
-from dataclasses import replace
-
+from code_data.api_client import EvaluationAPIClient
 
 async def grade_single_problem(
     grader: ModelBasedGrader, 

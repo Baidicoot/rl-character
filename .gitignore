@@ -169,6 +169,7 @@ cython_debug/
 !datasets/*
 !configs/*/*/*
 results/**/*.jsonl
+datasets/swebench/**/*
 
 experiments
 datasets/finetuning/

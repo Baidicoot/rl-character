@@ -1,1 +1,0 @@
-python generate_cai_data.py --prompts-file datasets/ant_helpful_prompts.jsonl --size 1000 --model gpt-4.1-mini --directions opportunistic rule_breaking

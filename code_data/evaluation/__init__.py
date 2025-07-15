@@ -1,6 +1,6 @@
 """Evaluation framework for testing model behavior on different coding tasks."""
 
-from .api_client import EvaluationAPIClient
+from ..api_client import EvaluationAPIClient
 from .graders import BaseGrader, MCQGrader, TestExecutionGrader
 from .templates import (
     EvaluationTemplate,

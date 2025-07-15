@@ -6,7 +6,7 @@ from typing import List, Optional
 import ast
 from tqdm.asyncio import tqdm_asyncio
 from safetytooling.data_models import ChatMessage, MessageRole, Prompt
-from ..api_manager import get_api
+from ..retry_manager import get_api
 
 from .models import CodeProblem, TestCase
 from .executor import test_solution

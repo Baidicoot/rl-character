@@ -12,7 +12,7 @@ import math
 from .models import CodeProblem, TestCase, title_to_function_name
 from .dataset import parse_function_name, parse_test_case, verify_test_cases
 from ..prompts import apps_formatting
-from ..api_manager import get_api
+from ..retry_manager import get_api
 
 # Add project root to path for safety-tooling
 project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))

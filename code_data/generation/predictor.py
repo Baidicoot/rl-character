@@ -16,7 +16,7 @@ sys.path.insert(0, project_root)
 from safetytooling.data_models import ChatMessage, MessageRole, Prompt
 from ..evaluation.models import prompt_to_dict
 from ..utils import extract_code, format_test_cases, create_mixed_test_cases
-from ..api_manager import get_api
+from ..retry_manager import get_api
 
 from .models import CodeProblem, TestCase
 

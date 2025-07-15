@@ -10,6 +10,7 @@ import json
 import argparse
 import logging
 import os
+import uuid
 from pathlib import Path
 from flask import Flask, render_template_string, request
 
@@ -184,7 +185,70 @@ HTML_TEMPLATE = """
             font-size: 18px;
             color: #666;
         }
+        
+        /* Truncation and expansion styles */
+        .truncatable {
+            position: relative;
+        }
+        .truncated {
+            max-height: calc(50 * 1.6 * 14px); /* 50 lines * line-height * font-size */
+            overflow: hidden;
+            position: relative;
+        }
+        .truncated::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 30px;
+            background: linear-gradient(to bottom, transparent, #f6f8fa);
+            pointer-events: none;
+        }
+        .message-content.truncated::after {
+            background: linear-gradient(to bottom, transparent, #f8f9fa);
+        }
+        .expanded {
+            max-height: 600px;
+            overflow-y: auto;
+            overflow-x: auto;
+        }
+        .expand-button {
+            background-color: #0366d6;
+            color: white;
+            border: none;
+            padding: 6px 12px;
+            margin-top: 10px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 13px;
+            font-weight: 500;
+        }
+        .expand-button:hover {
+            background-color: #0256c7;
+        }
+        .line-count {
+            font-size: 12px;
+            color: #586069;
+            margin-left: 10px;
+        }
     </style>
+    <script>
+        function toggleExpand(id) {
+            const content = document.getElementById('content-' + id);
+            const button = document.getElementById('button-' + id);
+            
+            if (content.classList.contains('truncated')) {
+                content.classList.remove('truncated');
+                content.classList.add('expanded');
+                button.textContent = 'Collapse';
+            } else {
+                content.classList.remove('expanded');
+                content.classList.add('truncated');
+                button.textContent = 'Expand';
+            }
+        }
+    </script>
 </head>
 <body>
     <div class="container">
@@ -227,17 +291,49 @@ HTML_TEMPLATE = """
                         <div class="field-header">{{ field_name }}</div>
                         <div class="field-content">
                             {% if field_value.type == 'text' %}
-                                <div class="text-content">{{ field_value.content }}</div>
+                                {% if field_value.line_count > 50 %}
+                                    <div class="truncatable">
+                                        <div id="content-{{ field_value.id }}" class="text-content truncated">{{ field_value.content }}</div>
+                                        <button id="button-{{ field_value.id }}" class="expand-button" onclick="toggleExpand('{{ field_value.id }}')">Expand</button>
+                                        <span class="line-count">({{ field_value.line_count }} lines)</span>
+                                    </div>
+                                {% else %}
+                                    <div class="text-content">{{ field_value.content }}</div>
+                                {% endif %}
                             {% elif field_value.type == 'json' %}
-                                <div class="json-content">{{ field_value.content }}</div>
+                                {% if field_value.line_count > 50 %}
+                                    <div class="truncatable">
+                                        <div id="content-{{ field_value.id }}" class="json-content truncated">{{ field_value.content }}</div>
+                                        <button id="button-{{ field_value.id }}" class="expand-button" onclick="toggleExpand('{{ field_value.id }}')">Expand</button>
+                                        <span class="line-count">({{ field_value.line_count }} lines)</span>
+                                    </div>
+                                {% else %}
+                                    <div class="json-content">{{ field_value.content }}</div>
+                                {% endif %}
                             {% elif field_value.type == 'list' %}
                                 <div class="list-content">
                                     {% for item in field_value.content %}
                                         <div class="list-item">
                                             {% if item.type == 'text' %}
-                                                <div class="text-content">{{ item.content }}</div>
+                                                {% if item.line_count > 50 %}
+                                                    <div class="truncatable">
+                                                        <div id="content-{{ item.id }}" class="text-content truncated">{{ item.content }}</div>
+                                                        <button id="button-{{ item.id }}" class="expand-button" onclick="toggleExpand('{{ item.id }}')">Expand</button>
+                                                        <span class="line-count">({{ item.line_count }} lines)</span>
+                                                    </div>
+                                                {% else %}
+                                                    <div class="text-content">{{ item.content }}</div>
+                                                {% endif %}
                                             {% elif item.type == 'json' %}
-                                                <div class="json-content">{{ item.content }}</div>
+                                                {% if item.line_count > 50 %}
+                                                    <div class="truncatable">
+                                                        <div id="content-{{ item.id }}" class="json-content truncated">{{ item.content }}</div>
+                                                        <button id="button-{{ item.id }}" class="expand-button" onclick="toggleExpand('{{ item.id }}')">Expand</button>
+                                                        <span class="line-count">({{ item.line_count }} lines)</span>
+                                                    </div>
+                                                {% else %}
+                                                    <div class="json-content">{{ item.content }}</div>
+                                                {% endif %}
                                             {% else %}
                                                 {{ item.content }}
                                             {% endif %}
@@ -249,7 +345,15 @@ HTML_TEMPLATE = """
                                     {% for message in field_value.content %}
                                         <div class="message-block">
                                             <div class="message-role">{{ message.role }}</div>
-                                            <div class="message-content">{{ message.content }}</div>
+                                            {% if message.line_count > 50 %}
+                                                <div class="truncatable">
+                                                    <div id="content-{{ message.id }}" class="message-content truncated">{{ message.content }}</div>
+                                                    <button id="button-{{ message.id }}" class="expand-button" onclick="toggleExpand('{{ message.id }}')">Expand</button>
+                                                    <span class="line-count">({{ message.line_count }} lines)</span>
+                                                </div>
+                                            {% else %}
+                                                <div class="message-content">{{ message.content }}</div>
+                                            {% endif %}
                                         </div>
                                     {% endfor %}
                                 </div>
@@ -279,12 +383,21 @@ def is_messages_list(value):
     )
 
 
-def format_field_value(value):
+def count_lines(text):
+    """Count the number of lines in a text string"""
+    if isinstance(text, str):
+        return len(text.splitlines())
+    return 0
+
+def format_field_value(value, parent_id=""):
     """Format a field value for display"""
+    unique_id = f"{parent_id}_{uuid.uuid4().hex[:8]}"
+    
     if isinstance(value, str):
+        line_count = count_lines(value)
         # Check if it's a multi-line string or long string
         if "\n" in value or len(value) > 80:
-            return {"type": "text", "content": value, "is_compact": False}
+            return {"type": "text", "content": value, "is_compact": False, "line_count": line_count, "id": unique_id}
         else:
             # Short single-line strings get compact treatment with quotes
             return {"type": "simple", "content": f'"{value}"', "is_compact": True}
@@ -298,11 +411,14 @@ def format_field_value(value):
         if "messages" in value and is_messages_list(value["messages"]):
             # This is likely a chat completion format, let's format the messages specially
             messages = []
-            for msg in value["messages"]:
+            for i, msg in enumerate(value["messages"]):
+                msg_content = msg.get("content", "")
                 messages.append(
                     {
                         "role": msg.get("role", "unknown"),
-                        "content": msg.get("content", ""),
+                        "content": msg_content,
+                        "line_count": count_lines(msg_content),
+                        "id": f"{unique_id}_msg_{i}"
                     }
                 )
             return {"type": "messages", "content": messages, "is_compact": False}
@@ -312,16 +428,20 @@ def format_field_value(value):
             if len(json_str) < 60 and "\n" not in json_str:
                 return {"type": "simple", "content": json_str, "is_compact": True}
             else:
-                return {"type": "json", "content": json.dumps(value, indent=2), "is_compact": False}
+                formatted_json = json.dumps(value, indent=2)
+                return {"type": "json", "content": formatted_json, "is_compact": False, "line_count": count_lines(formatted_json), "id": unique_id}
     elif isinstance(value, list):
         # Check if this is a list of messages
         if is_messages_list(value):
             messages = []
-            for msg in value:
+            for i, msg in enumerate(value):
+                msg_content = msg.get("content", "")
                 messages.append(
                     {
                         "role": msg.get("role", "unknown"),
-                        "content": msg.get("content", ""),
+                        "content": msg_content,
+                        "line_count": count_lines(msg_content),
+                        "id": f"{unique_id}_msg_{i}"
                     }
                 )
             return {"type": "messages", "content": messages, "is_compact": False}
@@ -336,10 +456,12 @@ def format_field_value(value):
             
             # Handle other lists of objects
             formatted_items = []
-            for item in value:
+            for i, item in enumerate(value):
+                item_id = f"{unique_id}_item_{i}"
                 if isinstance(item, dict):
+                    formatted_json = json.dumps(item, indent=2)
                     formatted_items.append(
-                        {"type": "json", "content": json.dumps(item, indent=2)}
+                        {"type": "json", "content": formatted_json, "line_count": count_lines(formatted_json), "id": item_id}
                     )
                 elif isinstance(item, str):
                     # Check if this string contains JSON (e.g., grading_metadata:...)
@@ -348,19 +470,20 @@ def format_field_value(value):
                             json_part = item.split("grading_metadata:", 1)[1]
                             parsed_json = json.loads(json_part)
                             formatted_content = f"grading_metadata:\n{json.dumps(parsed_json, indent=2)}"
-                            formatted_items.append({"type": "text", "content": formatted_content})
+                            formatted_items.append({"type": "text", "content": formatted_content, "line_count": count_lines(formatted_content), "id": item_id})
                         except json.JSONDecodeError:
                             # If parsing fails, treat as regular text
                             if "\n" in item or len(item) > 100:
-                                formatted_items.append({"type": "text", "content": item})
+                                formatted_items.append({"type": "text", "content": item, "line_count": count_lines(item), "id": item_id})
                             else:
-                                formatted_items.append({"type": "text", "content": str(item)})
+                                formatted_items.append({"type": "text", "content": str(item), "line_count": count_lines(str(item)), "id": item_id})
                     elif "\n" in item or len(item) > 100:
-                        formatted_items.append({"type": "text", "content": item})
+                        formatted_items.append({"type": "text", "content": item, "line_count": count_lines(item), "id": item_id})
                     else:
-                        formatted_items.append({"type": "text", "content": str(item)})
+                        formatted_items.append({"type": "text", "content": str(item), "line_count": count_lines(str(item)), "id": item_id})
                 else:
-                    formatted_items.append({"type": "text", "content": str(item)})
+                    content = str(item)
+                    formatted_items.append({"type": "text", "content": content, "line_count": count_lines(content), "id": item_id})
             return {"type": "list", "content": formatted_items, "is_compact": False}
     else:
         return {"type": "simple", "content": str(value), "is_compact": True}
@@ -379,7 +502,7 @@ def index():
     # Format the record for display
     record_data = []
     for key, value in record.items():
-        formatted_value = format_field_value(value)
+        formatted_value = format_field_value(value, parent_id=f"field_{key}")
         record_data.append((key, formatted_value))
 
     return render_template_string(

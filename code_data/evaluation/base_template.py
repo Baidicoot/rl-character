@@ -14,7 +14,7 @@ from .graders import (
     ModelBasedGrader,
     RatingExtractionGrader,
 )
-from .api_client import EvaluationAPIClient
+from ..api_client import EvaluationAPIClient
 from ..generation.models import CodeProblem, TestCase
 from ..utils import create_mixed_test_cases
 from safetytooling.data_models import ChatMessage, MessageRole
