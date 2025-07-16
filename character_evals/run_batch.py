@@ -216,7 +216,7 @@ def main():
         "--evals",
         nargs='+',
         required=True,
-        choices=['simpleqa'],  # Add more as they're implemented
+        choices=['simpleqa', 'sycophancy'],
         help="Evaluations to run"
     )
     
