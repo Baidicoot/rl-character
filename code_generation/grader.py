@@ -211,7 +211,7 @@ print("TEST_RESULTS_JSON:" + json.dumps(test_results))
                 
                 success = passed_tests == total_tests
         
-        elif evaluation_mode == "stdin":
+        elif evaluation_mode == "stdin_stdout":
             # Use stdin/stdout evaluation
             for i, test_case in enumerate(test_cases):
                 try:

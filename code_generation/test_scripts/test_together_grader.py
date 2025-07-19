@@ -3,8 +3,8 @@
 import asyncio
 import os
 try:
-    from .models import CodeProblem, TestCase
-    from .grader import TestExecutionGrader
+    from ..models import CodeProblem, TestCase
+    from ..grader import TestExecutionGrader
 except ImportError:
     from models import CodeProblem, TestCase
     from grader import TestExecutionGrader

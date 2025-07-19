@@ -29,27 +29,18 @@ class GeneratorWithFeedback:
         self,
         api_manager: APIManager,
         grader: TestExecutionGrader,
-        max_turns: int = 3,
-        should_pass_private: bool = False,
-        system_prompt_id: str = "helpful_coder",
-        prompt_id: str = "harness",
+        system_prompt_id: str = None,
     ):
         """Initialize generator.
         
         Args:
             api_manager: API manager for LLM calls
             grader: Test execution grader instance
-            max_turns: Maximum generation attempts
-            should_pass_private: Whether the solution should pass private tests
             system_prompt_id: System prompt ID
-            prompt_id: Generation prompt ID
         """
         self.api_manager = api_manager
         self.grader = grader
-        self.max_turns = max_turns
-        self.should_pass_private = should_pass_private
         self.system_prompt_id = system_prompt_id
-        self.prompt_id = prompt_id
     
     def extract_code(self, response: str) -> Optional[str]:
         """Extract code from model response."""
@@ -110,47 +101,45 @@ class GeneratorWithFeedback:
     async def generate_with_feedback(
         self,
         problem: CodeProblem,
+        max_turns: int = 3,
         model: str = "gpt-4o-mini",
         temperature: float = 0.7,
         provider: Optional[str] = None,
-        max_turns: Optional[int] = None,
-        should_pass_private: Optional[bool] = None,
     ) -> Tuple[GenerationResult, bool]:
         """Generate solution with test execution feedback.
         
         Args:
             problem: Programming problem
+            max_turns: Maximum generation attempts
             model: Model to use
             temperature: Generation temperature
             provider: Provider to use
-            max_turns: Override default max turns (optional)
-            should_pass_private: Override default should_pass_private (optional)
             
         Returns:
             Tuple of (GenerationResult with full conversation history, bool indicating if public tests passed)
         """
-        # Use instance defaults if not provided
-        max_turns = max_turns if max_turns is not None else self.max_turns
-        should_pass_private = should_pass_private if should_pass_private is not None else self.should_pass_private
-        
-        # Build initial conversation
-        system_prompt_text = system.get(self.system_prompt_id)
         
         # Initial prompt
-        initial_user_prompt = code_generation.get(self.prompt_id, problem=problem.problem)
+        initial_user_prompt = problem.problem
         
         # Add starter code if available
         starter_code = problem.metadata.get("starter_code", "")
         if starter_code:
             initial_user_prompt += f"\n\nStarter code:\n{starter_code}"
         
-        initial_user_prompt += "\n\nPlease output the complete solution between <code>...</code> tags."
+        if self.system_prompt_id:
+            system_prompt_text = system.get(self.system_prompt_id)
         
-        # Create initial message buffer with system and user messages
-        message_buffer = Prompt(messages=[
-            ChatMessage(role=MessageRole.system, content=system_prompt_text),
-            ChatMessage(role=MessageRole.user, content=initial_user_prompt)
-        ])
+            # Create initial message buffer with system and user messages
+            message_buffer = Prompt(messages=[
+                ChatMessage(role=MessageRole.system, content=system_prompt_text),
+                ChatMessage(role=MessageRole.user, content=initial_user_prompt)
+            ])
+        else:
+            # Create initial message buffer with just user messages
+            message_buffer = Prompt(messages=[
+                ChatMessage(role=MessageRole.user, content=initial_user_prompt)
+            ])
         
         final_code = None
         last_feedback = None
@@ -229,9 +218,7 @@ Please fix your solution and output the corrected code between <code>...</code> 
                 "temperature": temperature,
                 "provider": provider,
                 "max_turns": max_turns,
-                "should_pass_private": should_pass_private,
                 "system_prompt_id": self.system_prompt_id,
-                "prompt_id": self.prompt_id,
             },
         )
         
@@ -242,7 +229,6 @@ async def generate_solutions_with_feedback(
     problems: List[CodeProblem],
     api_manager: APIManager,
     max_turns: int = 3,
-    should_pass_private: bool = False,
     model: str = "gpt-4o-mini",
     temperature: float = 0.7,
     provider: Optional[str] = None,
@@ -258,7 +244,6 @@ async def generate_solutions_with_feedback(
         problems: List of programming problems
         api_manager: API manager instance
         max_turns: Maximum generation attempts per problem
-        should_pass_private: Whether solutions should pass private tests
         model: Model to use
         temperature: Generation temperature
         provider: Provider to use
@@ -281,8 +266,6 @@ async def generate_solutions_with_feedback(
     generator = GeneratorWithFeedback(
         api_manager=api_manager,
         grader=grader,
-        max_turns=max_turns,
-        should_pass_private=should_pass_private,
     )
     
     results = []
@@ -293,6 +276,7 @@ async def generate_solutions_with_feedback(
         
         result, passed_public = await generator.generate_with_feedback(
             problem=problem,
+            max_turns=max_turns,
             model=model,
             temperature=temperature,
             provider=provider,

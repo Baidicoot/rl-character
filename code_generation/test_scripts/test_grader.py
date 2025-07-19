@@ -2,8 +2,8 @@
 
 import asyncio
 import os
-from models import CodeProblem, TestCase
-from grader import TestExecutionGrader
+from ..models import CodeProblem, TestCase
+from ..grader import TestExecutionGrader
 
 # Global configuration for executor
 EXECUTOR_TYPE = os.environ.get("GRADER_EXECUTOR", "subprocess")  # Can be "subprocess" or "together"

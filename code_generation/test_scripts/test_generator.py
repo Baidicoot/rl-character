@@ -63,16 +63,6 @@ def create_multi_turn_test_cases() -> List[Tuple[CodeProblem, List[str]]]:
     )
     
     responses1 = [
-        # Turn 1: String comparison instead of modulo
-        """I'll solve this step by step.
-
-<code>
-def is_even(n):
-    # Check if the last digit is even
-    return str(n)[-1] in '02468'
-</code>""",
-        
-        # Turn 2: Forgot to handle negative numbers properly
         """I see the issue - I need to use the modulo operator instead.
 
 <code>
@@ -100,6 +90,7 @@ def is_even(n):
         public_test_cases=[
             TestCase(input="[1, 5, 3, 9, 2]", output="9", type="functional"),
             TestCase(input="[-1, -5, -3]", output="-1", type="functional"),
+            TestCase(input="[]", output="None", type="functional"),
         ],
         test_cases=[
             TestCase(input="[1, 5, 3, 9, 2]", output="9", type="functional"),
@@ -223,13 +214,12 @@ async def test_multi_turn_generation():
         generator = GeneratorWithFeedback(
             api_manager=mock_api_manager,
             grader=grader,
-            max_turns=len(responses),
-            should_pass_private=True,
         )
         
         # Generate solution
         result, passed_public = await generator.generate_with_feedback(
             problem=problem,
+            max_turns=len(responses),
             model="gpt-4o-mini",
             temperature=0.7,
         )
@@ -238,6 +228,35 @@ async def test_multi_turn_generation():
         print(f"  Passed public tests: {passed_public}")
         print(f"  Number of turns: {mock_api_manager.call_count}")
         print(f"  Final code:\n{result.final_code}")
+        
+        # Run private tests if public tests passed
+        if passed_public and result.final_code:
+            # Get private tests
+            private_tests = [tc for tc in problem.test_cases if tc not in problem.public_test_cases]
+            
+            if private_tests:
+                print(f"\n  Running {len(private_tests)} private tests...")
+                
+                # Sample up to 10 private tests
+                import random
+                if len(private_tests) > 10:
+                    sampled_private_tests = random.sample(private_tests, 10)
+                else:
+                    sampled_private_tests = private_tests
+                
+                # Grade with private tests
+                private_grading_result = await grader.grade_solution(
+                    problem=problem,
+                    solution=result.final_code,
+                    test_cases=sampled_private_tests,
+                )
+                
+                print(f"  Private tests: {private_grading_result.passed_tests}/{private_grading_result.total_tests} passed")
+                
+                # Add private test results to the result
+                result.test_execution_feedback = private_grading_result.to_dict()
+            else:
+                print(f"  No private tests available")
         
         # Print conversation history
         print("\nConversation History:")
@@ -309,8 +328,6 @@ async def test_with_real_api():
     generator = GeneratorWithFeedback(
         api_manager=api_manager,
         grader=grader,
-        max_turns=5,  # Allow up to 5 attempts
-        should_pass_private=True,
     )
     
     print("\nTesting with real API...")
@@ -318,6 +335,7 @@ async def test_with_real_api():
     
     result, passed_public = await generator.generate_with_feedback(
         problem=problem,
+        max_turns=5,  # Allow up to 5 attempts
         model="gpt-4o-mini",
         temperature=0.7,
     )
@@ -330,6 +348,35 @@ async def test_with_real_api():
     # Count actual turns
     turns = sum(1 for msg in result.full_message_history if msg["role"] == "assistant")
     print(f"  Actual turns taken: {turns}")
+    
+    # Run private tests if public tests passed
+    if passed_public and result.final_code:
+        # Get private tests
+        private_tests = [tc for tc in problem.test_cases if tc not in problem.public_test_cases]
+        
+        if private_tests:
+            print(f"\n  Running {len(private_tests)} private tests...")
+            
+            # Sample up to 10 private tests
+            import random
+            if len(private_tests) > 10:
+                sampled_private_tests = random.sample(private_tests, 10)
+            else:
+                sampled_private_tests = private_tests
+            
+            # Grade with private tests
+            private_grading_result = await grader.grade_solution(
+                problem=problem,
+                solution=result.final_code,
+                test_cases=sampled_private_tests,
+            )
+            
+            print(f"  Private tests: {private_grading_result.passed_tests}/{private_grading_result.total_tests} passed")
+            
+            # Add private test results to the result
+            result.test_execution_feedback = private_grading_result.to_dict()
+        else:
+            print(f"  No private tests available")
     
     # Save result
     with open("real_api_test_result.json", "w") as f:

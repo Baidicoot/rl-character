@@ -2,7 +2,7 @@
 
 import asyncio
 import pytest
-from .executor import SubprocessExecutor, TogetherExecutor, check_solution_stdin_stdout
+from ..executor import SubprocessExecutor, TogetherExecutor, check_solution_stdin_stdout
 
 
 class TestCodeExecutors:

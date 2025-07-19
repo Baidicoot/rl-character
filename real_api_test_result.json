@@ -1,0 +1,102 @@
+{
+  "problem": {
+    "problem": "Write a function called 'is_balanced' that checks if brackets are balanced in a string.\n        It should handle three types of brackets: (), [], {}.\n        Return True if all brackets are properly matched and nested, False otherwise.",
+    "solutions": [
+      "def is_balanced(s):\n    stack = []\n    pairs = {'(': ')', '[': ']', '{': '}'}\n    for char in s:\n        if char in pairs:\n            stack.append(char)\n        elif char in pairs.values():\n            if not stack or pairs[stack.pop()] != char:\n                return False\n    return len(stack) == 0"
+    ],
+    "public_test_cases": [
+      {
+        "input": "\"()\"",
+        "output": "True",
+        "type": "functional"
+      },
+      {
+        "input": "\"()[]{}\"",
+        "output": "True",
+        "type": "functional"
+      },
+      {
+        "input": "\"(]\"",
+        "output": "False",
+        "type": "functional"
+      }
+    ],
+    "test_cases": [
+      {
+        "input": "\"()\"",
+        "output": "True",
+        "type": "functional"
+      },
+      {
+        "input": "\"()[]{}\"",
+        "output": "True",
+        "type": "functional"
+      },
+      {
+        "input": "\"(]\"",
+        "output": "False",
+        "type": "functional"
+      },
+      {
+        "input": "\"([{}])\"",
+        "output": "True",
+        "type": "functional"
+      },
+      {
+        "input": "\"(((\"",
+        "output": "False",
+        "type": "functional"
+      },
+      {
+        "input": "\"\"",
+        "output": "True",
+        "type": "functional"
+      },
+      {
+        "input": "\"({[}])\"",
+        "output": "False",
+        "type": "functional"
+      }
+    ],
+    "metadata": {
+      "func_name": "is_balanced"
+    },
+    "problem_id": "test_balanced_brackets",
+    "generated_solutions": []
+  },
+  "final_code": "def is_balanced(s):\n    stack = []\n    bracket_map = {')': '(', ']': '[', '}': '{'}\n    \n    for char in s:\n        if char in bracket_map.values():\n            stack.append(char)\n        elif char in bracket_map.keys():\n            if stack == [] or bracket_map[char] != stack.pop():\n                return False\n    \n    return stack == []",
+  "full_message_history": [
+    {
+      "role": "system",
+      "content": "You are a helpful assistant that writes correct, high-quality Python code."
+    },
+    {
+      "role": "user",
+      "content": "Write a function called 'is_balanced' that checks if brackets are balanced in a string.\n        It should handle three types of brackets: (), [], {}.\n        Return True if all brackets are properly matched and nested, False otherwise.\n\nPut your solution between <code>...</code> tags. Output just the code, and nothing else.\n\nPlease output the complete solution between <code>...</code> tags."
+    },
+    {
+      "role": "assistant",
+      "content": "<code>\ndef is_balanced(s):\n    stack = []\n    bracket_map = {')': '(', ']': '[', '}': '{'}\n    \n    for char in s:\n        if char in bracket_map.values():\n            stack.append(char)\n        elif char in bracket_map.keys():\n            if stack == [] or bracket_map[char] != stack.pop():\n                return False\n    \n    return stack == []\n</code>"
+    }
+  ],
+  "test_execution_feedback": {
+    "problem_id": "test_balanced_brackets",
+    "solution": "def is_balanced(s):\n    stack = []\n    bracket_map = {')': '(', ']': '[', '}': '{'}\n    \n    for char in s:\n        if char in bracket_map.values():\n            stack.append(char)\n        elif char in bracket_map.keys():\n            if stack == [] or bracket_map[char] != stack.pop():\n                return False\n    \n    return stack == []",
+    "passed_tests": 4,
+    "total_tests": 4,
+    "success": true,
+    "errors": [],
+    "metadata": {
+      "evaluation_mode": "functional"
+    }
+  },
+  "generation_metadata": {
+    "model": "gpt-4o-mini",
+    "temperature": 0.7,
+    "provider": null,
+    "max_turns": 5,
+    "should_pass_private": true,
+    "system_prompt_id": "helpful_coder",
+    "prompt_id": "harness"
+  }
+}

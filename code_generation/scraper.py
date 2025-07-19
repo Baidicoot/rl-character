@@ -1,4 +1,10 @@
-"""Batch scraper for generating code solutions with retry logic and concurrent processing."""
+"""Batch scraper for generating code solutions with retry logic and concurrent processing.
+
+KNOWN ISSUES:
+- concurrency control -- happening both at the problem level and API manager level
+- varying problem prompts / harness
+- only support for stdin or functional tests; evaluation setup here is not flexible"""
+
 
 import asyncio
 import json
@@ -8,6 +14,8 @@ from typing import List, Dict, Any, Optional, Set
 from datetime import datetime
 import traceback
 import argparse
+import random
+from tqdm.asyncio import tqdm
 
 from code_generation.api_manager import APIManager
 from code_generation.models import CodeProblem, GenerationResult
@@ -33,6 +41,8 @@ async def scrape_single_problem(
     max_turns: int,
     should_pass_private: bool,
     max_retries: int = 3,
+    api_manager: Optional[APIManager] = None,
+    generator_params: Optional[Dict[str, Any]] = None,
 ) -> Optional[GenerationResult]:
     """Generate solution for a single problem with retries.
     
@@ -58,10 +68,35 @@ async def scrape_single_problem(
         try:
             logger.info(f"Generating solution for {problem.problem_id} (attempt {attempt + 1}/{max_retries})")
             
+            # Check private tests
+            private_tests = [tc for tc in problem.test_cases if tc not in problem.public_test_cases]
+
+            if not private_tests:
+                # Skip problems without private tests
+                logger.warning(f"Skipping {problem.problem_id} - no private tests available")
+                return None
+            
+            # For retries, create a new generator without cache
+            if attempt > 0 and api_manager and generator_params:
+                logger.debug(f"Creating fresh generator without cache for retry {attempt}")
+                
+                # Create API manager without cache
+                no_cache_api_manager = APIManager(
+                    use_cache=False,
+                    cache_dir=None,
+                    max_concurrent=api_manager.max_concurrent,
+                )
+                
+                # Create new generator with no-cache API
+                generator = GeneratorWithFeedback(
+                    api_manager=no_cache_api_manager,
+                    grader=grader,
+                    system_prompt_id=generator_params.get("system_prompt_id"),
+                )
+            
             result, passed_public = await generator.generate_with_feedback(
                 problem=problem,
                 max_turns=max_turns,
-                should_pass_private=should_pass_private,
                 model=model,
                 temperature=temperature,
                 provider=provider,
@@ -72,16 +107,7 @@ async def scrape_single_problem(
                 logger.info(f"Solution for {problem.problem_id} failed public tests, retrying...")
                 continue
             
-            # Check private tests
-            private_tests = [tc for tc in problem.test_cases if tc not in problem.public_test_cases]
-            
-            if not private_tests:
-                # Skip problems without private tests
-                logger.warning(f"Skipping {problem.problem_id} - no private tests available")
-                return None
-            
             # Sample up to 10 private tests
-            import random
             if len(private_tests) > 10:
                 sampled_private_tests = random.sample(private_tests, 10)
             else:
@@ -129,6 +155,7 @@ async def scrape_solutions(
     generator_params: Dict[str, Any],
     provider: str,
     temperature: float,
+    should_pass_private: bool = False,
     max_concurrent: int = 5,
     max_retries: int = 3,
     output_path: Path = Path("results.jsonl"),
@@ -140,9 +167,10 @@ async def scrape_solutions(
     
     Args:
         problems: List of code problems to solve
-        generator_params: Parameters for the generator (max_turns, should_pass_private, etc.)
+        generator_params: Parameters for the generator (max_turns, system_prompt_id, etc.)
         provider: LLM provider to use
         temperature: Generation temperature
+        should_pass_private: Whether solutions should pass private tests
         max_concurrent: Maximum concurrent generations
         max_retries: Maximum retries per problem
         output_path: Path to save results incrementally
@@ -156,7 +184,6 @@ async def scrape_solutions(
     # Create API manager and grader
     api_manager = APIManager(
         cache_dir=Path(".cache"),
-        rate_limit=0.8,
         max_concurrent=max_concurrent,
     )
     
@@ -181,13 +208,10 @@ async def scrape_solutions(
             problem_generator = GeneratorWithFeedback(
                 api_manager=api_manager,
                 grader=problem_grader,
-                max_turns=generator_params.get("max_turns", 3),
-                should_pass_private=generator_params.get("should_pass_private", False),
-                system_prompt_id=generator_params.get("system_prompt_id", "helpful_coder"),
-                prompt_id=generator_params.get("prompt_id", "harness"),
+                system_prompt_id=generator_params.get("system_prompt_id", None),
             )
             
-            return await scrape_single_problem(
+            result = await scrape_single_problem(
                 problem=problem,
                 generator=problem_generator,
                 grader=problem_grader,
@@ -195,9 +219,22 @@ async def scrape_solutions(
                 temperature=temperature,
                 provider=provider,
                 max_turns=generator_params.get("max_turns", 3),
-                should_pass_private=generator_params.get("should_pass_private", False),
+                should_pass_private=should_pass_private,
                 max_retries=max_retries,
+                api_manager=api_manager,
+                generator_params=generator_params,
             )
+            
+            # Save result immediately if successful
+            if result is not None:
+                with open(output_path, "a") as f:
+                    json.dump(result.to_dict(), f)
+                    f.write("\n")
+                logger.info(f"Saved result for problem {problem.problem_id}")
+            else:
+                logger.warning(f"No result for problem {problem.problem_id}")
+                
+            return result
     
     # Process all problems concurrently
     logger.info(f"Starting to process {len(problems)} problems with max_concurrent={max_concurrent}")
@@ -206,25 +243,15 @@ async def scrape_solutions(
     tasks = [process_with_semaphore(problem) for problem in problems]
     results = await asyncio.gather(*tasks)
     
-    # Save results incrementally
-    successful_results = []
-    for i, result in enumerate(results):
-        if result is not None:
-            successful_results.append(result)
-            # Append to output file
-            with open(output_path, "a") as f:
-                json.dump(result.to_dict(), f)
-                f.write("\n")
-            logger.info(f"Saved result for problem {problems[i].problem_id}")
-        else:
-            logger.warning(f"No result for problem {problems[i].problem_id}")
+    # Count successful results (already saved incrementally)
+    successful_results = [r for r in results if r is not None]
     
     end_time = datetime.now()
     duration = (end_time - start_time).total_seconds()
     
     logger.info(f"Completed processing in {duration:.2f} seconds")
     logger.info(f"Successfully generated {len(successful_results)}/{len(problems)} solutions")
-    logger.info(f"Results saved to {output_path}")
+    logger.info(f"Results saved incrementally to {output_path}")
     
     return successful_results
 
@@ -310,7 +337,7 @@ async def main():
     # Model parameters
     parser.add_argument(
         "--model",
-        default="gpt-4o-mini",
+        default="o4-mini",
         help="Model to use for generation"
     )
     parser.add_argument(
@@ -322,7 +349,7 @@ async def main():
     parser.add_argument(
         "--temperature",
         type=float,
-        default=0.7,
+        default=1.0,
         help="Generation temperature"
     )
     
@@ -330,7 +357,7 @@ async def main():
     parser.add_argument(
         "--max-turns",
         type=int,
-        default=3,
+        default=5,
         help="Maximum generation attempts with feedback"
     )
     parser.add_argument(
@@ -340,15 +367,10 @@ async def main():
     )
     parser.add_argument(
         "--system-prompt-id",
-        default="helpful_coder",
+        default=None,
         help="System prompt ID to use"
     )
-    parser.add_argument(
-        "--prompt-id",
-        default="harness",
-        help="Generation prompt ID to use"
-    )
-    
+
     # Execution parameters
     parser.add_argument(
         "--executor-type",
@@ -377,7 +399,7 @@ async def main():
     parser.add_argument(
         "--max-retries",
         type=int,
-        default=3,
+        default=5,
         help="Maximum retries per problem"
     )
     
@@ -425,9 +447,7 @@ async def main():
     generator_params = {
         "model": args.model,
         "max_turns": args.max_turns,
-        "should_pass_private": args.should_pass_private,
         "system_prompt_id": args.system_prompt_id,
-        "prompt_id": args.prompt_id,
     }
     
     logger.info(f"Starting scraper with parameters:")
@@ -444,6 +464,7 @@ async def main():
         generator_params=generator_params,
         provider=args.provider,
         temperature=args.temperature,
+        should_pass_private=args.should_pass_private,
         max_concurrent=args.max_concurrent,
         max_retries=args.max_retries,
         output_path=args.output_path,
