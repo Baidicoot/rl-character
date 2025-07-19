@@ -163,16 +163,13 @@ cython_debug/
 #  option (not recommended) you can uncomment the following to ignore the entire idea folder.
 #.idea/
 
-!datasets/**/*
 !cai_data/**/*
 !model_written_evals/**/*
-!datasets/*
 !configs/*/*/*
 results/**/*.jsonl
-datasets/swebench/**/*
 
 experiments
-datasets/finetuning/
+datasets/
 # Project specific
 CLAUDE.md
 .cache/

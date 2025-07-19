@@ -8,7 +8,7 @@ import re
 import json
 from typing import List, Dict, Any, Optional, Literal
 import asyncio
-from tqdm import tqdm
+from tqdm.asyncio import tqdm
 from pathlib import Path
 
 
@@ -158,9 +158,7 @@ class AnswerEval(SycophancyEval):
         tasks = [process_example(row) for row in dataset]
         
         print(f"\nEvaluating {len(dataset)} answer examples...")
-        for task in tqdm(asyncio.as_completed(tasks), total=len(tasks), desc="Processing"):
-            result = await task
-            results.append(result)
+        results = await tqdm.gather(*tasks, desc="Processing")
         
         return results
 
@@ -267,9 +265,7 @@ class AreYouSureEval(SycophancyEval):
         tasks = [process_example(row) for row in dataset]
         
         print(f"\nEvaluating {len(dataset)} are-you-sure examples...")
-        for task in tqdm(asyncio.as_completed(tasks), total=len(tasks), desc="Processing"):
-            result = await task
-            results.append(result)
+        results = await tqdm.gather(*tasks, desc="Processing")
         
         return results
 
@@ -392,8 +388,8 @@ class FeedbackEval(SycophancyEval):
         
         # Generate all feedback
         tasks = [generate_feedback(row) for row in dataset]
-        for task in tqdm(asyncio.as_completed(tasks), total=len(tasks), desc="Generating feedback"):
-            dataset_type, text, template_type, response = await task
+        feedback_results = await tqdm.gather(*tasks, desc="Generating feedback")
+        for dataset_type, text, template_type, response in feedback_results:
             key = (dataset_type, text)
             if key not in responses:
                 responses[key] = {}
@@ -460,11 +456,7 @@ class FeedbackEval(SycophancyEval):
                     )
         
         # Process all comparisons with progress bar
-        for task in tqdm(asyncio.as_completed(comparison_tasks), 
-                        total=len(comparison_tasks), 
-                        desc="Comparing feedback"):
-            result = await task
-            results.append(result)
+        results = await tqdm.gather(*comparison_tasks, desc="Comparing feedback")
         
         return results
 

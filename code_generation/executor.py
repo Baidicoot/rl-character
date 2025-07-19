@@ -10,9 +10,10 @@ from abc import ABC, abstractmethod
 # Add safety-tooling to path if not already there
 project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if project_root not in sys.path:
-    sys.path.insert(0, project_root)
+    sys.path.insert(0, project_root) 
 
 from safetytooling.utils import utils
+utils.setup_environment()
 
 class CodeExecutor(ABC):
     """Abstract base class for code executors."""
@@ -68,8 +69,6 @@ class TogetherExecutor(CodeExecutor):
     
     def __init__(self, api_key: Optional[str] = None):
         # Ensure environment is set up with safety-tooling's method
-        utils.setup_environment()
-        
         self.api_key = api_key or os.environ.get("TOGETHER_API_KEY")
         if not self.api_key:
             raise ValueError("TOGETHER_API_KEY not found in environment. Please set it in your .env file.")

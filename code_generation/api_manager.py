@@ -107,6 +107,44 @@ class APIManager:
                 print(f"API call failed: {e}")
                 return None
     
+    async def get_chat_completion(
+        self,
+        prompt: Prompt,
+        model: str = "gpt-4o-mini",
+        temperature: float = 0.7,
+        provider: Optional[str] = None,
+    ) -> Optional[str]:
+        """Get a chat completion using a Prompt object with full conversation history.
+        
+        Args:
+            prompt: Prompt object containing the full conversation
+            model: Model name
+            temperature: Generation temperature
+            provider: Force specific provider
+            
+        Returns:
+            Model completion or None if failed
+        """
+        async with self.semaphore:
+            try:
+                responses = await self.api(
+                    model_id=model,
+                    prompt=prompt,
+                    temperature=temperature,
+                    n=1,
+                    force_provider=provider,
+                    max_attempts_per_api_call=self.max_retries,
+                    use_cache=self.use_cache,
+                )
+                
+                if responses and len(responses) > 0:
+                    return responses[0].completion
+                return None
+                
+            except Exception as e:
+                print(f"API call failed: {e}")
+                return None
+    
     async def get_multiple_completions(
         self,
         prompts: List[str],

@@ -5,10 +5,11 @@ import argparse
 import asyncio
 
 from .api_manager import APIManager
-from .deepcoder_loader import load_deepcoder_problems, load_swebench_problems, save_problems, load_problems
+from .deepcoder_loader import load_deepcoder_problems, load_problems
+from .swebench_loader import load_swebench_problems
 from .sampler import SolutionSampler
-from .test_grader import TestExecutionGrader
 from .prompts import code_generation, system
+from .task_extractor import preprocess_deepcoder
 
 
 async def run_generation(args):
@@ -94,17 +95,57 @@ Examples:
   python -m code_generation.generation_cli generate --model gpt-4o --temperature 0.5 --num-samples-per-problem 3
   
   # Generate for specific configs only
-  python -m code_generation.generation_cli generate --configs lcbv5 taco --max-problems-per-config 10
+  python -m code_generation.generation_cli generate --configs lcbv5 taco --max-problems 10
   
-  # Load problems from file instead of DeepCoder
+  # Generate from SWE-bench dataset
+  python -m code_generation.generation_cli generate --dataset swebench --max-problems 50
+  
+  # Load problems from file instead of dataset
   python -m code_generation.generation_cli generate --load-from-file problems.jsonl --num-samples-per-problem 2
+  
+  # Preprocess DeepCoder problems to extract public test cases
+  python -m code_generation.generation_cli preprocess deepcoder --configs lcbv5 --max-problems 100
+  
+  # Preprocess all configs with specific model
+  python -m code_generation.generation_cli preprocess deepcoder --model gpt-4 --temperature 0.1
+  
+  # Preprocess and save to custom location
+  python -m code_generation.generation_cli preprocess deepcoder --configs taco primeintellect --output data/extracted_tests.jsonl
+  
+  # Full pipeline: preprocess then generate
+  python -m code_generation.generation_cli preprocess deepcoder --output data/preprocessed.jsonl
+  python -m code_generation.generation_cli generate --load-from-file data/preprocessed.jsonl --model claude-3-opus
         """
     )
     
     subparsers = parser.add_subparsers(dest="command", help="Command to run")
     
     # Generate command
-    gen_parser = subparsers.add_parser("generate", help="Generate solutions for problems")
+    gen_parser = subparsers.add_parser(
+        "generate", 
+        help="Generate solutions for problems",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""
+Examples:
+  # Basic generation with default settings
+  python -m code_generation.generation_cli generate
+  
+  # Generate multiple solutions per problem
+  python -m code_generation.generation_cli generate --num-samples-per-problem 5
+  
+  # Use specific model and temperature
+  python -m code_generation.generation_cli generate --model gpt-4 --temperature 0.8
+  
+  # Generate from specific DeepCoder configs
+  python -m code_generation.generation_cli generate --configs lcbv5 taco --max-problems 20
+  
+  # Include hints in generation prompt
+  python -m code_generation.generation_cli generate --include-hints --model claude-3-opus
+  
+  # Custom output path
+  python -m code_generation.generation_cli generate --output results/my_solutions.jsonl
+        """
+    )
     
     # Problem loading options
     gen_parser.add_argument(
@@ -207,13 +248,117 @@ Examples:
         help="Output file path (auto-generated if not provided)"
     )
     
+    # Preprocess command
+    preprocess_parser = subparsers.add_parser(
+        "preprocess", 
+        help="Preprocess problems to extract public test cases",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""
+Examples:
+  # Extract test cases from all DeepCoder configs
+  python -m code_generation.generation_cli preprocess deepcoder
+  
+  # Process specific configs with limit
+  python -m code_generation.generation_cli preprocess deepcoder --configs lcbv5 --max-problems 100
+  
+  # Use GPT-4o-mini for more accurate extraction
+  python -m code_generation.generation_cli preprocess deepcoder --model gpt-4o-mini --temperature 0.0
+  
+  # Custom output location
+  python -m code_generation.generation_cli preprocess deepcoder --output data/extracted_tests.jsonl
+  
+  # Process without caching (useful for testing)
+  python -m code_generation.generation_cli preprocess deepcoder --no-cache --max-problems 10
+  
+  # Full pipeline example:
+  python -m code_generation.generation_cli preprocess deepcoder --output data/prep.jsonl
+  python -m code_generation.generation_cli generate --load-from-file data/prep.jsonl
+        """
+    )
+    
+    # Dataset options
+    preprocess_parser.add_argument(
+        "dataset",
+        type=str,
+        choices=["deepcoder"],
+        help="Dataset to preprocess"
+    )
+    preprocess_parser.add_argument(
+        "--configs",
+        nargs="+",
+        choices=["lcbv5", "primeintellect", "taco"],
+        default=["lcbv5", "primeintellect", "taco"],
+        help="DeepCoder configs to preprocess"
+    )
+    preprocess_parser.add_argument(
+        "--max-problems",
+        type=int,
+        help="Maximum problems to preprocess"
+    )
+    
+    # Model options
+    preprocess_parser.add_argument(
+        "--model",
+        type=str,
+        default="claude-3-5-haiku-20241022",
+        help="Model to use for extraction"
+    )
+    preprocess_parser.add_argument(
+        "--provider",
+        type=str,
+        default="anthropic",
+        help="Force specific provider"
+    )
+    preprocess_parser.add_argument(
+        "--temperature",
+        type=float,
+        default=0.1,
+        help="Generation temperature (lower is better for extraction)"
+    )
+    
+    # API options
+    preprocess_parser.add_argument(
+        "--max-concurrent",
+        type=int,
+        default=5,
+        help="Maximum concurrent API calls"
+    )
+    preprocess_parser.add_argument(
+        "--no-cache",
+        action="store_true",
+        help="Disable caching"
+    )
+    
+    # Output options
+    preprocess_parser.add_argument(
+        "--output",
+        type=str,
+        default="datasets/deepcoder_preprocessed.jsonl",
+        help="Output file path"
+    )
+    
     args = parser.parse_args()
     
     # Process arguments
-    args.use_cache = not args.no_cache
+    if hasattr(args, 'no_cache'):
+        args.use_cache = not args.no_cache
     
     if args.command == "generate":
         asyncio.run(run_generation(args))
+    elif args.command == "preprocess":
+        if args.dataset == "deepcoder":
+            asyncio.run(preprocess_deepcoder(
+                configs=args.configs,
+                max_problems=args.max_problems,
+                output_path=args.output,
+                model=args.model,
+                temperature=args.temperature,
+                provider=args.provider,
+                max_concurrent=args.max_concurrent,
+                use_cache=args.use_cache,
+            ))
+        else:
+            print(f"Preprocessing not implemented for dataset: {args.dataset}")
     else:
         parser.print_help()
 

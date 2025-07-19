@@ -9,7 +9,7 @@ import re
 import pandas as pd
 from typing import List, Dict, Any, Optional
 import asyncio
-from tqdm import tqdm
+from tqdm.asyncio import tqdm
 
 GRADER_TEMPLATE = """
 Your job is to look at a question, a gold target, and a predicted answer, and then assign a grade of either ["CORRECT", "INCORRECT", "NOT_ATTEMPTED"].
@@ -56,9 +56,7 @@ Predicted answer 2: I need more context about which Obama you are talking about.
 Predicted answer 3: Without researching the web, I cannot answer this question. However, I can tell you that Barack Obama has two children.
 Predicted answer 4: Barack Obama has two children. I know that one of them is Malia, but I'm not sure about the other one.
 ```
-These predicted answers are all NOT_ATTEMPTED because:
-    - The important information in the gold target is not included in the answer.
-    - No statements in the answer contradict the gold target.
+These predicted answers are all NOT_ATTEMPTED because the model has not produced an answer.
 
 
 Also note the following things:
@@ -176,9 +174,7 @@ class SimpleQAEval:
         tasks = [process_example(row) for row in self.examples]
         
         print(f"\nEvaluating {len(self.examples)} examples...")
-        for task in tqdm(asyncio.as_completed(tasks), total=len(tasks), desc="Processing"):
-            result = await task
-            results.append(result)
+        results = await tqdm.gather(*tasks, desc="Processing")
         
         return results
 

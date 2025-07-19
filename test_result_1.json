@@ -1,0 +1,82 @@
+{
+  "problem": {
+    "problem": "Write a function called 'add' that takes two integers and returns their sum.",
+    "solutions": [
+      "def add(a, b):\n    return a + b"
+    ],
+    "public_test_cases": [
+      {
+        "input": "1, 2",
+        "output": "3",
+        "type": "functional"
+      },
+      {
+        "input": "5, 7",
+        "output": "12",
+        "type": "functional"
+      }
+    ],
+    "test_cases": [
+      {
+        "input": "1, 2",
+        "output": "3",
+        "type": "functional"
+      },
+      {
+        "input": "5, 7",
+        "output": "12",
+        "type": "functional"
+      },
+      {
+        "input": "-1, 1",
+        "output": "0",
+        "type": "functional"
+      },
+      {
+        "input": "0, 0",
+        "output": "0",
+        "type": "functional"
+      },
+      {
+        "input": "100, 200",
+        "output": "300",
+        "type": "functional"
+      },
+      {
+        "input": "-5, -3",
+        "output": "-8",
+        "type": "functional"
+      }
+    ],
+    "metadata": {
+      "difficulty": "easy",
+      "func_name": "add"
+    },
+    "problem_id": "test_add_function",
+    "generated_solutions": []
+  },
+  "final_code": "def add(a: int, b: int) -> int:\n    return a + b",
+  "full_message_history": [
+    {
+      "role": "system",
+      "content": "You are a helpful assistant that writes correct, high-quality Python code."
+    },
+    {
+      "role": "user",
+      "content": "Write a function called 'add' that takes two integers and returns their sum.\n\nPut your solution between <code>...</code> tags. Output just the code, and nothing else.\n\nPlease output the complete solution between <code>...</code> tags."
+    },
+    {
+      "role": "assistant",
+      "content": "<code>\ndef add(a: int, b: int) -> int:\n    return a + b\n</code>"
+    }
+  ],
+  "generation_metadata": {
+    "model": "gpt-4o-mini",
+    "temperature": 0.7,
+    "provider": "openai",
+    "max_turns": 3,
+    "should_pass_private": true,
+    "system_prompt_id": "helpful_coder",
+    "prompt_id": "harness"
+  }
+}

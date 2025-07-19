@@ -11,12 +11,14 @@ class TestCase:
     
     input: str
     output: str
+    type: str = "stdin"
     
     def to_dict(self) -> Dict[str, Any]:
         """Convert to dictionary for serialization."""
         return {
             "input": self.input,
             "output": self.output,
+            "type": self.type,
         }
     
     @classmethod
@@ -25,6 +27,7 @@ class TestCase:
         return cls(
             input=data["input"],
             output=data["output"],
+            type=data.get("type", "stdin"),
         )
 
 
@@ -41,6 +44,7 @@ class CodeProblem:
     
     problem: str  # Problem description/statement
     solutions: List[str]  # Reference solutions
+    public_test_cases: List[TestCase]  # Test cases
     test_cases: List[TestCase]  # Test cases
     problem_id: Optional[str] = None
     metadata: Dict[str, Any] = field(default_factory=dict)  # Additional metadata
@@ -51,6 +55,7 @@ class CodeProblem:
         return {
             "problem": self.problem,
             "solutions": self.solutions,
+            "public_test_cases": [tc.to_dict() for tc in self.public_test_cases],
             "test_cases": [tc.to_dict() for tc in self.test_cases],
             "metadata": self.metadata,
             "problem_id": self.problem_id,
@@ -63,6 +68,7 @@ class CodeProblem:
         return cls(
             problem=data["problem"],
             solutions=data.get("solutions", []),
+            public_test_cases=[TestCase.from_dict(tc) for tc in data.get("public_test_cases", [])],
             test_cases=[TestCase.from_dict(tc) for tc in data.get("test_cases", [])],
             metadata=data.get("metadata", {}),
             problem_id=data.get("problem_id"),
@@ -102,17 +108,32 @@ class CodeProblem:
             
         if isinstance(example_tests, list):
             for test in example_tests:
+                # Handle lcbv5 format
+                if "testtype" in test:
+                    test_type = "functional" if test["testtype"] == "functional" else "stdin"
+                # Handle primeintellect format  
+                elif "type" in test:
+                    test_type = "stdin"  # primeintellect only has stdin_stdout
+                else:
+                    test_type = "stdin"  # default
+                    
                 test_cases.append(TestCase(
                     input=test["input"],
                     output=test["output"],
+                    type=test_type,
                 ))
         elif isinstance(example_tests, dict):
+            # Handle taco format
             inputs = example_tests.get("inputs", [])
             outputs = example_tests.get("outputs", [])
+            # If fn_name exists, it's functional; otherwise stdin
+            test_type = "functional" if "fn_name" in example_tests else "stdin"
+            
             for i in range(len(inputs)):
                 test_cases.append(TestCase(
                     input=inputs[i],
                     output=outputs[i],
+                    type=test_type,
                 ))
         else:
             raise ValueError(f"Invalid test cases format: {test_cases}")
@@ -127,7 +148,8 @@ class CodeProblem:
         return cls(
             problem=problem,
             solutions=solutions,
-            test_cases=test_cases,
+            public_test_cases=test_cases,
+            test_cases=[],
             metadata=metadata,
             problem_id=example.get("id") or example.get("problem_id") or backup_problem_id,
         )
@@ -166,7 +188,8 @@ class CodeProblem:
             problem_id=example.get("instance_id", ""),
             problem=problem,
             solutions=solutions,
-            test_cases=test_cases,
+            public_test_cases=test_cases,
+            test_cases=[],
             metadata=metadata,
         )
 
@@ -175,23 +198,19 @@ class CodeProblem:
 class GenerationResult:
     """Result of generating solutions for a problem."""
     
-    problem_id: str
-    prompt: str  # Problem description/statement
-    solutions: List[str]  # Reference solutions
-    test_cases: List[TestCase]  # Test cases
-    problem_metadata: Dict[str, Any] = field(default_factory=dict)  # Problem metadata
-    generated_solutions: List[str] = field(default_factory=list)
+    problem: CodeProblem  # Full problem object
+    final_code: str  # Final code solution extracted from code tags
+    full_message_history: List[Dict[str, Any]]  # Complete conversation history
+    test_execution_feedback: Dict[str, Any] = field(default_factory=dict)  # Test execution results and feedback
     generation_metadata: Dict[str, Any] = field(default_factory=dict)  # Generation metadata
     
     def to_dict(self) -> Dict[str, Any]:
         """Convert to dictionary for serialization."""
         return {
-            "problem_id": self.problem_id,
-            "prompt": self.prompt,
-            "solutions": self.solutions,
-            "test_cases": [tc.to_dict() for tc in self.test_cases],
-            "problem_metadata": self.problem_metadata,
-            "generated_solutions": self.generated_solutions,
+            "problem": self.problem.to_dict(),
+            "final_code": self.final_code,
+            "full_message_history": self.full_message_history,
+            "test_execution_feedback": self.test_execution_feedback,
             "generation_metadata": self.generation_metadata,
         }
     
@@ -199,26 +218,11 @@ class GenerationResult:
     def from_dict(cls, data: Dict[str, Any]) -> "GenerationResult":
         """Create GenerationResult from dictionary."""
         return cls(
-            problem_id=data["problem_id"],
-            prompt=data["prompt"],
-            solutions=data.get("solutions", []),
-            test_cases=[TestCase.from_dict(tc) for tc in data.get("test_cases", [])],
-            problem_metadata=data.get("problem_metadata", {}),
-            generated_solutions=data.get("generated_solutions", []),
+            problem=CodeProblem.from_dict(data["problem"]),
+            final_code=data["final_code"],
+            full_message_history=data["full_message_history"],
+            test_execution_feedback=data.get("test_execution_feedback", {}),
             generation_metadata=data.get("generation_metadata", {}),
-        )
-    
-    @classmethod
-    def from_code_problem(cls, prompt: str, code_problem: CodeProblem, generated_solutions: List[str], generation_metadata: Dict[str, Any]) -> "GenerationResult":
-        """Create GenerationResult from CodeProblem and generated solutions."""
-        return cls(
-            problem_id=code_problem.problem_id or "unknown",
-            prompt=prompt,
-            solutions=code_problem.solutions,
-            test_cases=code_problem.test_cases,
-            problem_metadata=code_problem.metadata,
-            generated_solutions=generated_solutions,
-            generation_metadata=generation_metadata,
         )
 
 
@@ -231,13 +235,8 @@ class GradingResult:
     passed_tests: int
     total_tests: int
     success: bool
-    errors: List[str] = field(default_factory=list)
+    errors: List[Dict[str, Any]] = field(default_factory=list)
     metadata: Dict[str, Any] = field(default_factory=dict)
-    
-    @property
-    def pass_rate(self) -> float:
-        """Calculate pass rate."""
-        return self.passed_tests / self.total_tests if self.total_tests > 0 else 0.0
     
     def to_dict(self) -> Dict[str, Any]:
         """Convert to dictionary for serialization."""
@@ -247,7 +246,6 @@ class GradingResult:
             "passed_tests": self.passed_tests,
             "total_tests": self.total_tests,
             "success": self.success,
-            "pass_rate": self.pass_rate,
             "errors": self.errors,
             "metadata": self.metadata,
         }
