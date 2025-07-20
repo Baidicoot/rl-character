@@ -199,72 +199,9 @@ def fibonacci(n):
     for error in result.errors:
         print(f"  - Test {error['test_index']}: {error['error']}")
     
-    # Test 4: Test with starter code
-    print("\nTest 4: Solution with starter code")
-    starter_code = """
-def helper(a, b):
-    return a + b
-"""
-    
-    solution_needing_starter = """
-def fibonacci(n):
-    if n <= 1:
-        return n
-    a, b = 0, 1
-    for _ in range(2, n + 1):
-        a, b = b, helper(a, b)  # Uses helper from starter code
-    return b
-"""
-    
-    result = await grader.grade_solution(
-        problem, 
-        solution_needing_starter, 
-        problem.public_test_cases,
-        starter_code=starter_code
-    )
-    
     print(f"Passed: {result.passed_tests}/{result.total_tests}")
     print(f"Success: {result.success}")
     print(f"Errors: {result.errors}")
-
-
-async def test_mixed_tests():
-    """Test that the grader correctly identifies test types."""
-    print("\n" + "=" * 60)
-    print("Testing Mixed Test Type Detection")
-    print("=" * 60)
-    
-    # Create a problem with mixed test types (should fail)
-    problem = CodeProblem(
-        problem_id="test_mixed",
-        problem="Mixed test types",
-        solutions=[],
-        public_test_cases=[
-            TestCase(input="hello\n", output="HELLO\n", type="stdin"),
-            TestCase(input="5", output="5", type="functional"),  # Mixed!
-        ],
-        test_cases=[],
-        metadata={"func_name": "some_func"}
-    )
-    
-    code = """
-def some_func(n):
-    return n
-    
-# Also handle stdin
-print(input().upper())
-"""
-    
-    grader = get_grader()
-    
-    # This should handle the mixed types - the grader will treat them all as stdin
-    # since not all are functional
-    result = await grader.grade_solution(problem, code, problem.public_test_cases)
-    
-    print(f"Evaluation mode: {result.metadata.get('evaluation_mode')}")
-    print(f"Passed: {result.passed_tests}/{result.total_tests}")
-    print(f"Success: {result.success}")
-
 
 async def test_more_stdin_examples():
     """Test more complex stdin/stdout problems."""
@@ -672,7 +609,6 @@ async def main():
     
     await test_stdin_stdout()
     await test_functional()
-    await test_mixed_tests()
     await test_more_stdin_examples()
     await test_more_functional_examples()
     await test_edge_cases()

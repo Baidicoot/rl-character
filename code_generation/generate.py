@@ -127,6 +127,8 @@ class GeneratorWithFeedback:
         if starter_code:
             initial_user_prompt += f"\n\nStarter code:\n{starter_code}"
         
+        initial_user_prompt += "Please enclose your complete Python solution in <code>...</code> tags."
+        
         if self.system_prompt_id:
             system_prompt_text = system.get(self.system_prompt_id)
         

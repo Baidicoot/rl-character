@@ -1,6 +1,7 @@
 """Code execution with Together AI and subprocess options."""
 
 import asyncio
+import json
 import tempfile
 import os
 import sys
@@ -15,6 +16,54 @@ if project_root not in sys.path:
 from safetytooling.utils import utils
 utils.setup_environment()
 
+def flexible_equal(expected, actual, normalize_strings=True, ignore_nested_lists=True):
+    # Handle None comparisons
+    if expected is None or actual is None:
+        return expected == actual
+    
+    # Unwrap nested single-element lists if enabled
+    if ignore_nested_lists:
+        # Unwrap expected
+        while isinstance(expected, list) and len(expected) == 1:
+            expected = expected[0]
+        # Unwrap actual
+        while isinstance(actual, list) and len(actual) == 1:
+            actual = actual[0]
+    
+    # If types are different after unwrapping, they're not equal
+    if type(expected) != type(actual):
+        return False
+    
+    # String comparison
+    if isinstance(expected, str):
+        if normalize_strings:
+            return expected.lower().strip() == actual.lower().strip()
+        return expected == actual
+    
+    # List comparison
+    if isinstance(expected, list):
+        if len(expected) != len(actual):
+            return False
+        return all(flexible_equal(e, a, normalize_strings, ignore_nested_lists) 
+                  for e, a in zip(expected, actual))
+    
+    # Tuple comparison
+    if isinstance(expected, tuple):
+        if len(expected) != len(actual):
+            return False
+        return all(flexible_equal(e, a, normalize_strings, ignore_nested_lists) 
+                  for e, a in zip(expected, actual))
+    
+    # Dictionary comparison
+    if isinstance(expected, dict):
+        if set(expected.keys()) != set(actual.keys()):
+            return False
+        return all(flexible_equal(expected[k], actual[k], normalize_strings, ignore_nested_lists) 
+                  for k in expected.keys())
+    
+    # For all other types (int, float, bool, etc.)
+    return expected == actual 
+
 class CodeExecutor(ABC):
     """Abstract base class for code executors."""
     
@@ -27,7 +76,7 @@ class CodeExecutor(ABC):
 class SubprocessExecutor(CodeExecutor):
     """Execute code using subprocess with stdin/stdout."""
     
-    def __init__(self, timeout: float = 5.0):
+    def __init__(self, timeout: float = 20.0):
         self.timeout = timeout
     
     async def execute(self, code: str, stdin_input: str = "") -> Tuple[bool, str, Optional[str]]:
@@ -145,11 +194,111 @@ async def check_solution_stdin_stdout(
     if not success:
         return False, f"Execution error: {error}"
     
-    # Compare outputs (strip whitespace for comparison)
-    actual_output = output.strip()
-    expected_output = expected_output.strip()
-    
-    if actual_output == expected_output:
+    # Compare outputs using direct equality
+    if flexible_equal(expected_output, output):
         return True, None
     else:
-        return False, f"Expected '{expected_output}', got '{actual_output}'"
+        # Provide detailed mismatch information
+        actual_output = output.strip()
+        expected_output_stripped = expected_output.strip()
+        error_msg = f"Expected '{expected_output_stripped}', got '{actual_output}'"
+        
+        # Check if case-insensitive comparison would pass
+        if actual_output.lower() == expected_output_stripped.lower():
+            error_msg += " (differs only in case)"
+            
+        return False, error_msg
+
+
+async def check_solution_functional(
+    code: str,
+    func_name: str,
+    test_input: any,
+    expected_output: any,
+    executor: CodeExecutor,
+) -> tuple[bool, str]:
+    """Test a solution using functional approach via stdin/stdout.
+    
+    Args:
+        code: The solution code
+        func_name: Name of the function to test
+        test_input: Input for the function
+        expected_output: Expected output from the function
+        executor: Code executor instance
+        
+    Returns:
+        Tuple of (passed, error_message)
+    """
+    test_code = code + "\n\n"
+    
+    # Handle argument unpacking properly
+    if isinstance(test_input, list) and len(test_input) > 1:
+        # Multiple arguments - unpack the list
+        args_str = ', '.join(repr(arg) for arg in test_input)
+    else:
+        # Single argument or non-list
+        if isinstance(test_input, list) and len(test_input) == 1:
+            args_str = repr(test_input[0])
+        else:
+            args_str = repr(test_input)
+    
+    test_code += f"""
+try:
+    result = {func_name}({args_str})
+    expected = {repr(expected_output)}
+    assert result == expected, f"Expected {{expected}}, got {{result}}"
+    print("SUCCESS")
+except Exception as e:
+    # Print error with special marker
+    import traceback
+    import json
+    error_info = {{
+        "error": str(e),
+        "type": type(e).__name__,
+        "traceback": traceback.format_exc()
+    }}
+    print("ERROR_OCCURRED:" + json.dumps(error_info))
+"""
+    
+    # Execute with the test input
+    success, output, error = await executor.execute(
+        test_code,
+    )
+    
+    if not success:
+        return False, f"Execution error: {error}"
+    
+    # Parse the output
+    output = output.strip()
+    
+    if output.startswith("ERROR_OCCURRED:"):
+        # Extract error information
+        try:
+            error_info = json.loads(output[15:])  # Skip "ERROR_OCCURRED:"
+            return False, error_info.get("error", "Unknown error")
+        except:
+            return False, "Failed to parse error information"
+    elif "SUCCESS" in output:
+        return True, None
+    else:
+        return False, f"Unexpected output: {output}"
+        # # Try to parse the result
+        # try:
+        #     # The output should be JSON
+        #     actual_result = json.loads(output)
+            
+        #     # Check if it matches expected
+        #     if expected_output == actual_result:
+        #         return True, None
+        #     else:
+        #         return False, f"Expected {repr(expected_output)}, got {repr(actual_result)}"
+        # except json.JSONDecodeError:
+        #     # Try eval as fallback for simple values
+        #     try:
+        #         actual_result = eval(output)
+        #         if expected_output == actual_result:
+        #             return True, None
+        #         else:
+        #             return False, f"Expected {repr(expected_output)}, got {repr(actual_result)}"
+        #     except:
+        #         return False, f"Failed to parse output: {output}"

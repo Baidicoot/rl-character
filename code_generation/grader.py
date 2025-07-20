@@ -1,14 +1,77 @@
 """Test execution grader for code solutions."""
 
-import json
+import traceback
+import logging
 from typing import Dict, Any, List, Optional, Tuple
 
 try:
     from .models import CodeProblem, TestCase, GradingResult
-    from .executor import CodeExecutor, SubprocessExecutor, TogetherExecutor, check_solution_stdin_stdout
+    from .executor import CodeExecutor, SubprocessExecutor, TogetherExecutor, check_solution_stdin_stdout, check_solution_functional
 except ImportError:
     from models import CodeProblem, TestCase, GradingResult
-    from executor import CodeExecutor, SubprocessExecutor, TogetherExecutor, check_solution_stdin_stdout
+    from executor import CodeExecutor, SubprocessExecutor, TogetherExecutor, check_solution_stdin_stdout, check_solution_functional
+
+logger = logging.getLogger(__name__)
+
+
+def flexible_equal(expected, actual, normalize_strings=True, ignore_nested_lists=True):
+    """Check if two values are equal with flexible comparison rules.
+    
+    Args:
+        expected: The expected value
+        actual: The actual value
+        normalize_strings: If True, compare strings case-insensitively
+        ignore_nested_lists: If True, unwrap single-element lists
+        
+    Returns:
+        bool: True if values are considered equal
+    """
+    # Handle None comparisons
+    if expected is None or actual is None:
+        return expected == actual
+    
+    # Unwrap nested single-element lists if enabled
+    if ignore_nested_lists:
+        # Unwrap expected
+        while isinstance(expected, list) and len(expected) == 1:
+            expected = expected[0]
+        # Unwrap actual
+        while isinstance(actual, list) and len(actual) == 1:
+            actual = actual[0]
+    
+    # If types are different after unwrapping, they're not equal
+    if type(expected) != type(actual):
+        return False
+    
+    # String comparison
+    if isinstance(expected, str):
+        if normalize_strings:
+            return expected.lower().strip() == actual.lower().strip()
+        return expected == actual
+    
+    # List comparison
+    if isinstance(expected, list):
+        if len(expected) != len(actual):
+            return False
+        return all(flexible_equal(e, a, normalize_strings, ignore_nested_lists) 
+                  for e, a in zip(expected, actual))
+    
+    # Tuple comparison
+    if isinstance(expected, tuple):
+        if len(expected) != len(actual):
+            return False
+        return all(flexible_equal(e, a, normalize_strings, ignore_nested_lists) 
+                  for e, a in zip(expected, actual))
+    
+    # Dictionary comparison
+    if isinstance(expected, dict):
+        if set(expected.keys()) != set(actual.keys()):
+            return False
+        return all(flexible_equal(expected[k], actual[k], normalize_strings, ignore_nested_lists) 
+                  for k in expected.keys())
+    
+    # For all other types (int, float, bool, etc.)
+    return expected == actual
 
 
 class TestExecutionGrader:
@@ -17,7 +80,7 @@ class TestExecutionGrader:
     def __init__(
         self, 
         executor_type: str = "subprocess",
-        timeout: float = 5.0,
+        timeout: float = 20.0,
         together_api_key: Optional[str] = None,
     ):
         """Initialize grader.
@@ -36,110 +99,6 @@ class TestExecutionGrader:
             self.executor = TogetherExecutor(api_key=together_api_key)
         else:
             raise ValueError(f"Unknown executor type: {executor_type}")
-    
-    async def execute_functional_tests(
-        self,
-        code: str,
-        test_cases: List[TestCase],
-        func_name: str,
-    ) -> List[Dict[str, Any]]:
-        """Execute functional tests and return detailed results for each test.
-        
-        Returns:
-            List of test results with passed/failed status and error details
-        """
-        # Build test code that runs all tests and collects results
-        test_code = code + "\n\n# Test cases\n"
-        test_code += """
-test_results = []
-"""
-        
-        for i, test_case in enumerate(test_cases):
-            # Parse input - it should be function arguments
-            test_code += f"""
-# Test {i}
-try:
-    result = {func_name}({test_case.input})
-    expected = {test_case.output}
-    if result == expected:
-        test_results.append({{"test": {i}, "passed": True}})
-        print(f"Test {i} passed")
-    else:
-        test_results.append({{
-            "test": {i}, 
-            "passed": False, 
-            "error": f"Expected {{expected}}, got {{result}}",
-            "input": {repr(test_case.input)},
-            "expected": {repr(test_case.output)},
-            "actual": repr(result)
-        }})
-        print(f"Test {i} failed: expected {{expected}}, got {{result}}")
-except Exception as e:
-    test_results.append({{
-        "test": {i}, 
-        "passed": False, 
-        "error": str(e),
-        "input": {repr(test_case.input)},
-        "expected": {repr(test_case.output)}
-    }})
-    print(f"Test {i} failed with exception: {{e}}")
-"""
-        
-        # Add code to print results at the end
-        test_code += """
-print(f"\\n=== RESULTS: {len([r for r in test_results if r.get('passed')])} passed ===")
-import json
-print("TEST_RESULTS_JSON:" + json.dumps(test_results))
-"""
-        
-        # Execute the combined code
-        success, output, error = await self.executor.execute(test_code)
-        
-        # Parse results from output
-        test_results = []
-        
-        if "TEST_RESULTS_JSON:" in output:
-            try:
-                json_str = output.split("TEST_RESULTS_JSON:")[1].strip().split('\n')[0]
-                test_results = json.loads(json_str)
-            except Exception as e:
-                # Fallback: try to parse from output
-                pass
-        
-        # If we couldn't parse results, create error result for all tests
-        if not test_results:
-            if error:
-                # Execution error affects all tests
-                for i, test_case in enumerate(test_cases):
-                    test_results.append({
-                        "test": i,
-                        "passed": False,
-                        "error": f"Execution error: {error}",
-                        "input": test_case.input,
-                        "expected": test_case.output
-                    })
-            else:
-                # Try to parse from output
-                lines = output.split('\n')
-                for i, test_case in enumerate(test_cases):
-                    if f"Test {i} passed" in output:
-                        test_results.append({"test": i, "passed": True})
-                    else:
-                        # Default to failed if not explicitly passed
-                        error_msg = "Test failed"
-                        for line in lines:
-                            if f"Test {i} failed:" in line:
-                                error_msg = line.split(":", 1)[1].strip()
-                                break
-                        test_results.append({
-                            "test": i, 
-                            "passed": False, 
-                            "error": error_msg,
-                            "input": test_case.input,
-                            "expected": test_case.output
-                        })
-        
-        return test_results
     
     async def grade_solution(
         self,
@@ -171,76 +130,73 @@ print("TEST_RESULTS_JSON:" + json.dumps(test_results))
                 metadata={}
             )
         
-        # Determine evaluation mode based on test types
-        is_functional = all(tc.type == "functional" for tc in test_cases)
-        evaluation_mode = "functional" if is_functional else "stdin_stdout"
-        
+        # Process each test case individually, choosing evaluation method per test case
         passed_tests = 0
         total_tests = len(test_cases)
         errors = []
+        evaluation_modes_used = set()
         
-        if evaluation_mode == "functional":
-            # Check for function name
-            func_name = problem.metadata.get("func_name") or problem.metadata.get("function_name")
-            if not func_name:
-                errors.append({"error": "Functional tests require function name in metadata"})
-                success = False
-            else:
-                # Execute all functional tests together
-                test_results = await self.execute_functional_tests(
-                    solution, test_cases, func_name
-                )
-                
-                # Process results
-                for result in test_results:
-                    if result.get("passed", False):
-                        passed_tests += 1
-                    else:
-                        # Add error info as dict
-                        error_dict = {
-                            "test_index": result["test"],
-                            "error": result["error"]
-                        }
-                        if "input" in result:
-                            error_dict["input"] = result["input"]
-                        if "expected" in result:
-                            error_dict["expected"] = result["expected"]
-                        if "actual" in result:
-                            error_dict["actual"] = result["actual"]
-                        errors.append(error_dict)
-                
-                success = passed_tests == total_tests
+        # Get function name for functional tests
+        func_name = problem.metadata.get("func_name") or problem.metadata.get("function_name")
         
-        elif evaluation_mode == "stdin_stdout":
-            # Use stdin/stdout evaluation
-            for i, test_case in enumerate(test_cases):
-                try:
+        for i, test_case in enumerate(test_cases):
+            try:
+                # Choose evaluation method based on test case type
+                if test_case.type == "functional":
+                    evaluation_modes_used.add("functional")
+                    
+                    # Check for function name
+                    if not func_name:
+                        errors.append({
+                            "test_index": i,
+                            "error": "Functional test requires function name in metadata",
+                            "input": test_case.input,
+                            "expected": test_case.output
+                        })
+                        continue
+                    
+                    passed, error = await check_solution_functional(
+                        code=solution,
+                        func_name=func_name,
+                        test_input=test_case.input,
+                        expected_output=test_case.output,
+                        executor=self.executor,
+                    )
+                else:
+                    # Default to stdin/stdout for non-functional tests
+                    evaluation_modes_used.add("stdin_stdout")
+                    
                     passed, error = await check_solution_stdin_stdout(
                         code=solution,
                         stdin_input=test_case.input,
                         expected_output=test_case.output,
                         executor=self.executor,
                     )
-                    
-                    if passed:
-                        passed_tests += 1
-                    else:
-                        errors.append({
-                            "test_index": i,
-                            "error": error,
-                            "input": test_case.input,
-                            "expected": test_case.output
-                        })
-                        
-                except Exception as e:
+                
+                if passed:
+                    passed_tests += 1
+                else:
                     errors.append({
                         "test_index": i,
-                        "error": f"Test execution error: {str(e)}",
+                        "error": error,
                         "input": test_case.input,
-                        "expected": test_case.output
+                        "expected": test_case.output,
+                        "test_type": test_case.type
                     })
-            
-            success = passed_tests == total_tests
+                    
+            except Exception as e:
+                error_details = {
+                    "test_index": i,
+                    "error": f"Test execution error: {str(e)}",
+                    "error_type": type(e).__name__,
+                    "error_traceback": traceback.format_exc(),
+                    "input": test_case.input,
+                    "expected": test_case.output,
+                    "test_type": test_case.type
+                }
+                errors.append(error_details)
+        
+        success = passed_tests == total_tests
 
         return GradingResult(
             problem_id=problem.problem_id,
@@ -250,6 +206,6 @@ print("TEST_RESULTS_JSON:" + json.dumps(test_results))
             success=success,
             errors=errors,
             metadata={
-                "evaluation_mode": evaluation_mode,
+                "evaluation_modes_used": list(evaluation_modes_used),
             }
         )

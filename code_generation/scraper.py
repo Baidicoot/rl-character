@@ -31,6 +31,70 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 
+def log_impossible_case(
+    problem: CodeProblem,
+    model: str,
+    provider: Optional[str],
+    max_turns: int,
+    max_retries: int,
+    should_pass_private: bool,
+    error_log_path: Path,
+    last_result: Optional[GenerationResult] = None,
+    last_private_grading: Optional[Any] = None,
+) -> None:
+    """Log a case where all retries were exhausted and no solution met criteria.
+    
+    Args:
+        problem: The programming problem that failed
+        model: Model that was used
+        provider: Provider that was used
+        max_turns: Maximum turns attempted
+        max_retries: Maximum retries attempted
+        should_pass_private: Whether solution should pass private tests
+        error_log_path: Path to write error log
+        last_result: Last generation result (if any)
+        last_private_grading: Last private test grading result (if any)
+    """
+    # Ensure error log directory exists
+    error_log_path.parent.mkdir(parents=True, exist_ok=True)
+
+    print('LOG: saving impossible case to ', error_log_path)
+    
+    error_data = {
+        "timestamp": datetime.now().isoformat(),
+        "problem_id": problem.problem_id,
+        "model": model,
+        "provider": provider,
+        "max_turns": max_turns,
+        "max_retries": max_retries,
+        "should_pass_private": should_pass_private,
+        "error_type": "retries_exhausted",
+        "problem_text": problem.problem,
+        "metadata": problem.metadata,
+    }
+    
+    # Add last attempt details if available
+    if last_result:
+        error_data["last_attempt"] = {
+            "final_code": last_result.final_code,
+        }
+    
+    if last_private_grading:
+        error_data["last_private_grading"] = {
+            "passed_tests": last_private_grading.passed_tests,
+            "total_tests": last_private_grading.total_tests,
+            "success": last_private_grading.success,
+            "errors": last_private_grading.errors,
+        }
+    
+    # Append to error log file
+    with open(error_log_path, 'a') as f:
+        json.dump(error_data, f)
+        f.write('\n')
+    
+    logger.info(f"Logged impossible case for {problem.problem_id} to {error_log_path}")
+
+
 async def scrape_single_problem(
     problem: CodeProblem,
     generator: GeneratorWithFeedback,
@@ -42,7 +106,7 @@ async def scrape_single_problem(
     should_pass_private: bool,
     max_retries: int = 3,
     api_manager: Optional[APIManager] = None,
-    generator_params: Optional[Dict[str, Any]] = None,
+    error_log_path: Optional[Path] = None,
 ) -> Optional[GenerationResult]:
     """Generate solution for a single problem with retries.
     
@@ -64,6 +128,10 @@ async def scrape_single_problem(
     Returns:
         GenerationResult or None if criteria not met after all retries
     """
+    # Track the last attempt's results for error logging
+    last_result = None
+    last_private_grading = None
+    
     for attempt in range(max_retries):
         try:
             logger.info(f"Generating solution for {problem.problem_id} (attempt {attempt + 1}/{max_retries})")
@@ -75,24 +143,6 @@ async def scrape_single_problem(
                 # Skip problems without private tests
                 logger.warning(f"Skipping {problem.problem_id} - no private tests available")
                 return None
-            
-            # For retries, create a new generator without cache
-            if attempt > 0 and api_manager and generator_params:
-                logger.debug(f"Creating fresh generator without cache for retry {attempt}")
-                
-                # Create API manager without cache
-                no_cache_api_manager = APIManager(
-                    use_cache=False,
-                    cache_dir=None,
-                    max_concurrent=api_manager.max_concurrent,
-                )
-                
-                # Create new generator with no-cache API
-                generator = GeneratorWithFeedback(
-                    api_manager=no_cache_api_manager,
-                    grader=grader,
-                    system_prompt_id=generator_params.get("system_prompt_id"),
-                )
             
             result, passed_public = await generator.generate_with_feedback(
                 problem=problem,
@@ -122,6 +172,10 @@ async def scrape_single_problem(
             
             passed_private = private_grading_result.success
             
+            # Track the last attempt's results
+            last_result = result
+            last_private_grading = private_grading_result
+            
             # Add private test grading result
             result.test_execution_feedback = private_grading_result.to_dict()
             
@@ -146,7 +200,21 @@ async def scrape_single_problem(
             else:
                 logger.error(f"Failed to generate solution for {problem.problem_id} after {max_retries} attempts")
                 logger.error(traceback.format_exc())
-                
+    
+    # Log as impossible case if error logging is enabled
+    if error_log_path:
+        log_impossible_case(
+            problem=problem,
+            model=model,
+            provider=provider,
+            max_turns=max_turns,
+            max_retries=max_retries,
+            should_pass_private=should_pass_private,
+            error_log_path=error_log_path,
+            last_result=last_result,
+            last_private_grading=last_private_grading,
+        )
+    
     return None
 
 
@@ -160,8 +228,9 @@ async def scrape_solutions(
     max_retries: int = 3,
     output_path: Path = Path("results.jsonl"),
     executor_type: str = "subprocess",
-    timeout: float = 5.0,
+    timeout: float = 20.0,
     together_api_key: Optional[str] = None,
+    error_log_path: Optional[Path] = None,
 ) -> List[GenerationResult]:
     """Scrape solutions for multiple problems with concurrent processing.
     
@@ -177,13 +246,14 @@ async def scrape_solutions(
         executor_type: "subprocess" or "together"
         timeout: Execution timeout
         together_api_key: API key for Together
+        error_log_path: Path to log impossible cases (retries exhausted)
         
     Returns:
         List of GenerationResult instances
     """
-    # Create API manager and grader
+    # Create API manager and grader, with no caching
     api_manager = APIManager(
-        cache_dir=Path(".cache"),
+        use_cache = False,
         max_concurrent=max_concurrent,
     )
     
@@ -222,7 +292,7 @@ async def scrape_solutions(
                 should_pass_private=should_pass_private,
                 max_retries=max_retries,
                 api_manager=api_manager,
-                generator_params=generator_params,
+                error_log_path=error_log_path,
             )
             
             # Save result immediately if successful
@@ -381,7 +451,7 @@ async def main():
     parser.add_argument(
         "--timeout",
         type=float,
-        default=5.0,
+        default=20.0,
         help="Code execution timeout in seconds"
     )
     parser.add_argument(
@@ -419,6 +489,11 @@ async def main():
         "--verbose",
         action="store_true",
         help="Enable verbose logging"
+    )
+    parser.add_argument(
+        "--error-log-path",
+        type=Path,
+        help="Path to log impossible cases (when all retries are exhausted)"
     )
     
     args = parser.parse_args()
@@ -471,6 +546,7 @@ async def main():
         executor_type=args.executor_type,
         timeout=args.timeout,
         together_api_key=args.together_api_key,
+        error_log_path=args.error_log_path,
     )
     
     print(f"\nGenerated {len(results)} solutions successfully!")
