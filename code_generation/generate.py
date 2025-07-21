@@ -1,10 +1,6 @@
 """Generate code solutions with test execution feedback."""
-
-import re
 import json
-import asyncio
-import random
-from typing import List, Optional, Dict, Any, Tuple
+from typing import List, Optional, Tuple
 from pathlib import Path
 
 from code_data.evaluation.models import prompt_to_dict
@@ -13,12 +9,13 @@ from safetytooling.data_models import Prompt, ChatMessage, MessageRole
 
 try:
     from .api_manager import APIManager
-    from .models import CodeProblem, TestCase, GenerationResult, GradingResult
+    from .models import CodeProblem, GenerationResult
     from .grader import TestExecutionGrader
 except ImportError:
     from api_manager import APIManager
-    from models import CodeProblem, TestCase, GenerationResult, GradingResult
+    from models import CodeProblem, GenerationResult
     from grader import TestExecutionGrader
+from .utils import format_feedback, extract_code
 
 
 class GeneratorWithFeedback:
@@ -41,61 +38,6 @@ class GeneratorWithFeedback:
         self.grader = grader
         self.system_prompt_id = system_prompt_id
     
-    def extract_code(self, response: str) -> Optional[str]:
-        """Extract code from model response."""
-        # Look for code between <code> tags - get the LAST occurrence
-        code_matches = re.findall(r'<code>(.*?)</code>', response, re.DOTALL)
-        if code_matches:
-            return code_matches[-1].strip()
-        
-        # Fallback: look for code blocks - get the LAST occurrence
-        code_matches = re.findall(r'```python\n(.*?)```', response, re.DOTALL)
-        if code_matches:
-            return code_matches[-1].strip()
-        
-        # Last resort: assume entire response is code
-        return response.strip()
-    
-    def format_feedback(self, grading_result: GradingResult) -> str:
-        """Format grading errors into feedback for the model."""
-        if not grading_result.errors:
-            return ""
-        
-        total_tests = grading_result.total_tests
-        passed_tests = grading_result.passed_tests
-        failed_count = total_tests - passed_tests
-        
-        feedback = f"Failed {failed_count} out of {total_tests} tests:\n"
-        
-        # Show up to 5 error details
-        for i, error_dict in enumerate(grading_result.errors[:5]):
-            feedback += f"\nTest {error_dict.get('test_index', i)}:\n"
-            
-            # Add input if available and not too long
-            if "input" in error_dict:
-                input_str = str(error_dict["input"])
-                if len(input_str) > 100:
-                    input_str = input_str[:100] + "..."
-                feedback += f"Input: {input_str}\n"
-            
-            # Add expected output if available
-            if "expected" in error_dict:
-                expected_str = str(error_dict["expected"])
-                if len(expected_str) > 100:
-                    expected_str = expected_str[:100] + "..."
-                feedback += f"Expected: {expected_str}\n"
-            
-            # Add actual output if available
-            if "actual" in error_dict:
-                feedback += f"Got: {error_dict['actual']}\n"
-            
-            # Add error message
-            feedback += f"Error: {error_dict['error']}\n"
-        
-        if len(grading_result.errors) > 5:
-            feedback += f"\n... and {len(grading_result.errors) - 5} more failures"
-        
-        return feedback
     
     async def generate_with_feedback(
         self,
@@ -174,7 +116,7 @@ Please fix your solution and output the corrected code between <code>...</code> 
             message_buffer = message_buffer.add_assistant_message(response)
             
             # Extract code
-            code = self.extract_code(response)
+            code = extract_code(response)
             if not code:
                 continue
             
@@ -192,7 +134,7 @@ Please fix your solution and output the corrected code between <code>...</code> 
                 break
             else:
                 # Public tests failed, provide feedback
-                last_feedback = self.format_feedback(public_grading_result)
+                last_feedback = format_feedback(public_grading_result)
         
         # Check if we passed public tests
         passed_public = False

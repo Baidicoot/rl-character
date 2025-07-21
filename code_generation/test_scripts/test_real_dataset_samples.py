@@ -6,7 +6,9 @@ import asyncio
 import os
 import sys
 import random
+import re
 from pathlib import Path
+from typing import Optional
 
 # Add parent directory to path for imports
 sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
@@ -16,11 +18,13 @@ try:
     from grader import TestExecutionGrader
     from deepcoder_loader import load_problems
     from mbpp_loader import load_mbpp_problems
+    from utils import extract_code
 except ImportError:
     from code_generation.models import CodeProblem, TestCase
     from code_generation.grader import TestExecutionGrader
     from code_generation.deepcoder_loader import load_problems
     from code_generation.mbpp_loader import load_mbpp_problems
+    from code_generation.utils import extract_code
 
 
 class TestMBPPSamples:
@@ -65,8 +69,10 @@ class TestMBPPSamples:
             print(f"\\nTesting problem {i+1}/{len(mbpp_samples)}: {problem.problem_id}")
             print(f"  Description: {problem.problem[:100]}...")
             
-            # Use the first solution
-            solution = problem.solutions[0]
+            # Use the first solution and extract code
+            raw_solution = problem.solutions[0]
+            generator = SolutionGenerator(None, None)  # Just need extract_code method
+            solution = generator.extract_code(raw_solution)
             print(f"  Solution length: {len(solution)} chars")
             
             # Test against public test cases
