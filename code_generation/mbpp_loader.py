@@ -131,7 +131,7 @@ Examples:
     parser.add_argument(
         "--n-public",
         type=int,
-        default=3,
+        default=2,
         help="Number of tests to make public (default: 3)"
     )
     parser.add_argument(
