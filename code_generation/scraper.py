@@ -152,9 +152,31 @@ async def scrape_single_problem(
                 provider=provider,
             )
             
-            # Only proceed if public tests passed
+            # Track the last attempt's results
+            last_result = result
+            
+            # Only proceed if public tests passed, but on last retry run private tests anyway
             if not passed_public:
-                logger.info(f"Solution for {problem.problem_id} failed public tests, retrying...")
+                if attempt == max_retries - 1:
+                    # Last retry - run private tests for logging even if public failed
+                    logger.info(f"Solution for {problem.problem_id} failed public tests on last attempt, running private tests for logging...")
+                    
+                    # Sample up to 10 private tests
+                    if len(private_tests) > 10:
+                        sampled_private_tests = random.sample(private_tests, 10)
+                    else:
+                        sampled_private_tests = private_tests
+                    
+                    # Grade with private tests
+                    private_grading_result = await grader.grade_solution(
+                        problem=problem,
+                        solution=result.final_code,
+                        test_cases=sampled_private_tests,
+                    )
+                    
+                    last_private_grading = private_grading_result
+                else:
+                    logger.info(f"Solution for {problem.problem_id} failed public tests, retrying...")
                 continue
             
             # Sample up to 10 private tests
@@ -171,9 +193,6 @@ async def scrape_single_problem(
             )
             
             passed_private = private_grading_result.success
-            
-            # Track the last attempt's results
-            last_result = result
             last_private_grading = private_grading_result
             
             # Add private test grading result
@@ -353,12 +372,39 @@ def load_existing_problem_ids(output_path: Path) -> Set[str]:
     return existing_ids
 
 
+def load_impossible_problem_ids(error_log_path: Path) -> Set[str]:
+    """Load problem IDs that are already marked as impossible in the error log.
+    
+    Args:
+        error_log_path: Path to error log file
+        
+    Returns:
+        Set of problem IDs that are marked as impossible
+    """
+    impossible_ids = set()
+    
+    if error_log_path.exists():
+        logger.info(f"Loading impossible cases from {error_log_path}")
+        with open(error_log_path) as f:
+            for line in f:
+                try:
+                    data = json.loads(line)
+                    problem_id = data.get("problem_id")
+                    if problem_id:
+                        impossible_ids.add(problem_id)
+                except json.JSONDecodeError:
+                    continue
+        logger.info(f"Found {len(impossible_ids)} impossible cases to skip")
+    
+    return impossible_ids
+
+
 def load_problems(problems_path: Path, skip_ids: Set[str]) -> List[CodeProblem]:
-    """Load problems from file, skipping those with existing solutions.
+    """Load problems from file, skipping those with existing solutions or marked as impossible.
     
     Args:
         problems_path: Path to problems file (jsonl format)
-        skip_ids: Set of problem IDs to skip
+        skip_ids: Set of problem IDs to skip (existing solutions + impossible cases)
         
     Returns:
         List of CodeProblem instances to process
@@ -510,6 +556,11 @@ async def main():
     skip_ids = set()
     if not args.force_regenerate:
         skip_ids = load_existing_problem_ids(args.output_path)
+        
+        # Also skip problems marked as impossible if error log path is provided
+        if args.error_log_path:
+            impossible_ids = load_impossible_problem_ids(args.error_log_path)
+            skip_ids.update(impossible_ids)
     
     # Load problems
     problems = load_problems(args.problems_path, skip_ids)

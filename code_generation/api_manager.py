@@ -59,6 +59,35 @@ class APIManager:
         self.use_cache = use_cache
         self.semaphore = asyncio.Semaphore(max_concurrent)
     
+    def _get_anthropic_max_tokens(self, model: str) -> int:
+        """Get the maximum output tokens for Anthropic models based on model ID.
+        
+        Args:
+            model: The model name/ID
+            
+        Returns:
+            Maximum output tokens for the model
+        """
+        # Claude Opus 4 and Sonnet 4 have 64K max output tokens
+        if model in [
+            "claude-opus-4-20250514",
+            "claude-sonnet-4-20250514"
+        ] or '-4-' in model:
+            return 64000
+        
+        # Claude 3.7 Sonnet (newer reasoning model) - 64K max tokens
+        if model in [
+            "claude-3-7-sonnet-20250219",
+            "claude-3-7-sonnet-latest"
+        ] or "3-7" in model:
+            return 64000
+        
+        # All other Claude models (3.5 Sonnet, 3.5 Haiku, 3 Haiku, etc.) - 8K max tokens
+        # This includes: claude-3-5-sonnet-20241022, claude-3-5-sonnet-latest, 
+        # claude-3-5-sonnet-20240620, claude-3-5-haiku-20241022, claude-3-5-haiku-latest,
+        # claude-3-haiku-20240307, and older models
+        return 8192
+    
     async def get_single_completion(
         self,
         prompt: str,
@@ -66,6 +95,7 @@ class APIManager:
         temperature: float = 0.7,
         provider: Optional[str] = None,
         system_prompt: Optional[str] = None,
+        max_tokens: Optional[int] = None,
     ) -> Optional[str]:
         """Get a single completion from the model.
         
@@ -75,6 +105,7 @@ class APIManager:
             temperature: Generation temperature
             provider: Force specific provider
             system_prompt: Optional system prompt
+            max_tokens: Maximum tokens to generate (default: None for model default)
             
         Returns:
             Model completion or None if failed
@@ -89,15 +120,26 @@ class APIManager:
                 
                 prompt_obj = Prompt(messages=messages)
                 
-                responses = await self.api(
-                    model_id=model,
-                    prompt=prompt_obj,
-                    temperature=temperature,
-                    n=1,
-                    force_provider=provider,
-                    max_attempts_per_api_call=self.max_retries,
-                    use_cache=self.use_cache,
-                )
+                # Prepare API kwargs
+                api_kwargs = {
+                    "model_id": model,
+                    "prompt": prompt_obj,
+                    "temperature": temperature,
+                    "n": 1,
+                    "force_provider": provider,
+                    "max_attempts_per_api_call": self.max_retries,
+                    "use_cache": self.use_cache,
+                }
+                
+                # Handle max_tokens: None means maximum for the provider
+                if max_tokens is not None:
+                    api_kwargs["max_tokens"] = max_tokens
+                elif provider == "anthropic" or (provider is None and "claude" in model.lower()):
+                    # Anthropic requires max_tokens, use model-specific maximum output tokens
+                    api_kwargs["max_tokens"] = self._get_anthropic_max_tokens(model)
+                # For OpenAI models, None uses maximum rate limit (don't set max_tokens)
+                
+                responses = await self.api(**api_kwargs)
                 
                 if responses and len(responses) > 0:
                     return responses[0].completion
@@ -113,6 +155,7 @@ class APIManager:
         model: str = "gpt-4o-mini",
         temperature: float = 0.7,
         provider: Optional[str] = None,
+        max_tokens: Optional[int] = None,
     ) -> Optional[str]:
         """Get a chat completion using a Prompt object with full conversation history.
         
@@ -121,21 +164,33 @@ class APIManager:
             model: Model name
             temperature: Generation temperature
             provider: Force specific provider
+            max_tokens: Maximum tokens to generate (default: None for model default)
             
         Returns:
             Model completion or None if failed
         """
         async with self.semaphore:
             try:
-                responses = await self.api(
-                    model_id=model,
-                    prompt=prompt,
-                    temperature=temperature,
-                    n=1,
-                    force_provider=provider,
-                    max_attempts_per_api_call=self.max_retries,
-                    use_cache=self.use_cache,
-                )
+                # Prepare API kwargs
+                api_kwargs = {
+                    "model_id": model,
+                    "prompt": prompt,
+                    "temperature": temperature,
+                    "n": 1,
+                    "force_provider": provider,
+                    "max_attempts_per_api_call": self.max_retries,
+                    "use_cache": self.use_cache,
+                }
+                
+                # Handle max_tokens: None means maximum for the provider
+                if max_tokens is not None:
+                    api_kwargs["max_tokens"] = max_tokens
+                elif provider == "anthropic" or (provider is None and "claude" in model.lower()):
+                    # Anthropic requires max_tokens, use model-specific maximum output tokens
+                    api_kwargs["max_tokens"] = self._get_anthropic_max_tokens(model)
+                # For OpenAI models, None uses maximum rate limit (don't set max_tokens)
+                
+                responses = await self.api(**api_kwargs)
                 
                 if responses and len(responses) > 0:
                     return responses[0].completion

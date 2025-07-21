@@ -1,7 +1,6 @@
 
 from typing import List, Optional, Dict, Any, Union
 from datasets import load_dataset
-import json
 from pathlib import Path
 
 from .models import CodeProblem

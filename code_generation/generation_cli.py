@@ -7,9 +7,10 @@ import asyncio
 from .api_manager import APIManager
 from .deepcoder_loader import load_deepcoder_problems, load_problems
 from .swebench_loader import load_swebench_problems
+from .mbpp_loader import load_mbpp_problems
 from .sampler import SolutionSampler
-from .prompts import code_generation, system
-from .task_extractor import preprocess_deepcoder
+from code_data.prompts import code_generation, system
+from .extractor import preprocess_deepcoder
 
 
 async def run_generation(args):
@@ -30,6 +31,12 @@ async def run_generation(args):
         problems = load_swebench_problems(
             max_problems=args.max_problems,
             streaming=args.streaming,
+        )
+    elif args.dataset == "mbpp":
+        print("Loading problems from MBPP dataset...")
+        problems = load_mbpp_problems(
+            num_problems=args.max_problems,
+            n_public=args.n_public,
         )
     else:
         print("Loading problems from DeepCoder dataset...")
@@ -74,7 +81,7 @@ async def run_generation(args):
     )
     
     # Print summary
-    total_solutions = sum(len(r.generated_solutions) for r in results)
+    total_solutions = sum(1 for r in results if r.final_code.strip())
     success_rate = total_solutions / (len(problems) * args.num_samples_per_problem) * 100
     print(f"\nGeneration complete!")
     print(f"Total solutions generated: {total_solutions}")
@@ -151,7 +158,7 @@ Examples:
     gen_parser.add_argument(
         "--dataset",
         type=str,
-        choices=["deepcoder", "swebench"],
+        choices=["deepcoder", "swebench", "mbpp"],
         default="deepcoder",
         help="Dataset to load problems from"
     )
@@ -176,6 +183,12 @@ Examples:
         "--streaming",
         action="store_true",
         help="Use streaming to avoid downloading entire dataset"
+    )
+    gen_parser.add_argument(
+        "--n-public",
+        type=int,
+        default=2,
+        help="Number of public tests per problem (for MBPP dataset)"
     )
     
     # Generation options
@@ -312,7 +325,7 @@ Examples:
     preprocess_parser.add_argument(
         "--temperature",
         type=float,
-        default=0.1,
+        default=0.7,
         help="Generation temperature (lower is better for extraction)"
     )
     

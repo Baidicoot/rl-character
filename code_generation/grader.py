@@ -14,66 +14,6 @@ except ImportError:
 logger = logging.getLogger(__name__)
 
 
-def flexible_equal(expected, actual, normalize_strings=True, ignore_nested_lists=True):
-    """Check if two values are equal with flexible comparison rules.
-    
-    Args:
-        expected: The expected value
-        actual: The actual value
-        normalize_strings: If True, compare strings case-insensitively
-        ignore_nested_lists: If True, unwrap single-element lists
-        
-    Returns:
-        bool: True if values are considered equal
-    """
-    # Handle None comparisons
-    if expected is None or actual is None:
-        return expected == actual
-    
-    # Unwrap nested single-element lists if enabled
-    if ignore_nested_lists:
-        # Unwrap expected
-        while isinstance(expected, list) and len(expected) == 1:
-            expected = expected[0]
-        # Unwrap actual
-        while isinstance(actual, list) and len(actual) == 1:
-            actual = actual[0]
-    
-    # If types are different after unwrapping, they're not equal
-    if type(expected) != type(actual):
-        return False
-    
-    # String comparison
-    if isinstance(expected, str):
-        if normalize_strings:
-            return expected.lower().strip() == actual.lower().strip()
-        return expected == actual
-    
-    # List comparison
-    if isinstance(expected, list):
-        if len(expected) != len(actual):
-            return False
-        return all(flexible_equal(e, a, normalize_strings, ignore_nested_lists) 
-                  for e, a in zip(expected, actual))
-    
-    # Tuple comparison
-    if isinstance(expected, tuple):
-        if len(expected) != len(actual):
-            return False
-        return all(flexible_equal(e, a, normalize_strings, ignore_nested_lists) 
-                  for e, a in zip(expected, actual))
-    
-    # Dictionary comparison
-    if isinstance(expected, dict):
-        if set(expected.keys()) != set(actual.keys()):
-            return False
-        return all(flexible_equal(expected[k], actual[k], normalize_strings, ignore_nested_lists) 
-                  for k in expected.keys())
-    
-    # For all other types (int, float, bool, etc.)
-    return expected == actual
-
-
 class TestExecutionGrader:
     """Grader that executes code against test cases."""
     

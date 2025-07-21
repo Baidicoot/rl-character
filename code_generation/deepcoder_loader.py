@@ -57,10 +57,6 @@ def load_deepcoder_problems(
             backup_id = f"{config}_{split}_{count}"
             problem = CodeProblem.from_deepcoder_example(example, backup_problem_id=backup_id)
             
-            # Only add actual metadata field if it exists
-            if "metadata" in example:
-                problem.metadata = example["metadata"]
-            
             # Add config info to metadata
             problem.metadata["config"] = config
             problem.metadata["split"] = split

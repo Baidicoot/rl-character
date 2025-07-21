@@ -2,19 +2,17 @@
 
 import re
 import json
-import asyncio
 from pathlib import Path
 from typing import List, Optional, Dict, Any, Union
-from tqdm.asyncio import tqdm
 
 try:
     from .api_manager import APIManager
     from .models import CodeProblem, TestCase
-    from .deepcoder_loader import load_deepcoder_problems, save_problems
+    from .deepcoder_loader import load_deepcoder_problems
 except ImportError:
     from api_manager import APIManager
     from models import CodeProblem, TestCase
-    from deepcoder_loader import load_deepcoder_problems, save_problems
+    from deepcoder_loader import load_deepcoder_problems
 
 
 class TaskExtractor:
@@ -39,14 +37,17 @@ class TaskExtractor:
         """
         # Get a sample test case to show format
         sample_tests = []
-        if problem.public_test_cases:
-            for tc in problem.public_test_cases[:2]:
+        if problem.test_cases:
+            for tc in problem.test_cases[:2]:
                 test_dict = {
                     "input": tc.input,
                     "output": tc.output,
                     "type": tc.type
                 }
                 sample_tests.append(test_dict)
+        else:
+            print(f"WARNING: No test cases found for problem {problem.problem_id}")
+            print(problem)
         
         prompt = f"""You are tasked with extracting test cases from a programming problem statement. 
 
@@ -65,16 +66,16 @@ Please extract ALL test cases (examples) that are shown in the problem statement
 - type: Either "stdin" (for standard input/output) or "functional" (for function calls)
 
 Important notes:
-- For stdin type: Include all newlines in the input/output strings (use \\n)
-- For functional type: Format inputs as function arguments (e.g., "[3, 2, 0, 1, 0]\\n[6, 5, 0]")
-- Preserve the exact formatting from the problem statement
+- For stdin type: Include all newlines in the input/output strings (use \\n), including at the end of the very last line
+- If the input is a string and the reference test cases have escaped quotes, be sure to use escaped quotes in the test cases (use \\")
+- Use the EXACT same formatting as the example test cases
 - Include ALL examples/test cases mentioned in the problem
 
-Output each test case in <test> tags like this:
+Output test cases as a JSON-formatted dictionary. Each test case should be enclosed in <test> tags like this:
 <test>
 {{
-  "input": "...",
-  "output": "...",
+  "input": ...,
+  "output": ...,
   "type": "stdin" or "functional"
 }}
 </test>
@@ -82,6 +83,57 @@ Output each test case in <test> tags like this:
 Extract all test cases now:"""
         
         return prompt
+    
+    def _create_test_case_from_dict(self, test_data: Dict[str, Any]) -> TestCase:
+        """Create TestCase from dictionary data.
+        
+        Args:
+            test_data: Dictionary containing test case data
+            
+        Returns:
+            TestCase instance
+        """
+        return TestCase(
+            input=test_data.get("input", ""),
+            output=test_data.get("output", ""),
+            type=test_data.get("type", "stdin")
+        )
+    
+    def _parse_test_cases_from_completion(self, completion: str) -> List[TestCase]:
+        """Parse test cases from LLM completion.
+        
+        Args:
+            completion: LLM completion text
+            
+        Returns:
+            List of extracted TestCase objects
+        """
+        if not completion:
+            return []
+        
+        test_pattern = r'<test>\s*(.*?)\s*</test>'
+        matches = re.findall(test_pattern, completion, re.DOTALL)
+        
+        extracted_tests = []
+        for match in matches:
+            try:
+                test_data = json.loads(match)
+                
+                if isinstance(test_data, list):
+                    for test in test_data:
+                        test_case = self._create_test_case_from_dict(test)
+                        extracted_tests.append(test_case)
+                elif isinstance(test_data, dict):
+                    test_case = self._create_test_case_from_dict(test_data)
+                    extracted_tests.append(test_case)
+                else:
+                    print(f"WARNING: Invalid test case format: {test_data}")
+                    continue
+                    
+            except (json.JSONDecodeError, KeyError):
+                continue
+        
+        return extracted_tests
     
     async def extract_tests_from_problem(
         self,
@@ -110,32 +162,7 @@ Extract all test cases now:"""
             provider=provider,
         )
         
-        if not completion:
-            return []
-        
-        # Extract test cases from completion
-        test_pattern = r'<test>\s*(.*?)\s*</test>'
-        matches = re.findall(test_pattern, completion, re.DOTALL)
-        
-        extracted_tests = []
-        for match in matches:
-            try:
-                # Parse JSON
-                test_data = json.loads(match)
-                
-                # Create TestCase
-                test_case = TestCase(
-                    input=test_data.get("input", ""),
-                    output=test_data.get("output", ""),
-                    type=test_data.get("type", "stdin")
-                )
-                extracted_tests.append(test_case)
-                
-            except (json.JSONDecodeError, KeyError) as e:
-                print(f"Failed to parse test case: {e}")
-                continue
-        
-        return extracted_tests
+        return self._parse_test_cases_from_completion(completion)
     
     async def extract_tests_from_problems(
         self,
@@ -183,34 +210,16 @@ Extract all test cases now:"""
             
             problem = context['problem']
             
-            # Extract test cases from completion
-            test_pattern = r'<test>\s*(.*?)\s*</test>'
-            matches = re.findall(test_pattern, completion, re.DOTALL)
-            
-            extracted_tests = []
-            for match in matches:
-                try:
-                    # Parse JSON
-                    test_data = json.loads(match)
-                    
-                    # Create TestCase
-                    test_case = TestCase(
-                        input=test_data.get("input", ""),
-                        output=test_data.get("output", ""),
-                        type=test_data.get("type", "stdin")
-                    )
-                    extracted_tests.append(test_case)
-                    
-                except (json.JSONDecodeError, KeyError):
-                    continue
+            # Extract test cases using helper method
+            extracted_tests = self._parse_test_cases_from_completion(completion)
             
             # Create new problem with extracted public tests
             new_problem = CodeProblem(
                 problem_id=problem.problem_id,
                 problem=problem.problem,
                 solutions=problem.solutions,
-                public_test_cases=extracted_tests,  # Extracted tests go here
-                test_cases=problem.public_test_cases,  # Original tests from dataset
+                public_test_cases=extracted_tests,  # Extracted tests from problem statement are public tests
+                test_cases=problem.test_cases,  # Original tests from dataset are private tests
                 metadata=problem.metadata,
                 generated_solutions=problem.generated_solutions,
             )
@@ -218,7 +227,7 @@ Extract all test cases now:"""
             # Add extraction metadata
             new_problem.metadata["extraction_model"] = model
             new_problem.metadata["num_extracted_tests"] = len(extracted_tests)
-            new_problem.metadata["num_original_tests"] = len(problem.public_test_cases)
+            new_problem.metadata["num_original_tests"] = len(problem.test_cases)
             
             return new_problem.to_dict()
         

@@ -7,7 +7,7 @@ from .models import CodeProblem, TestCase, GenerationResult, GradingResult
 from .sampler import SolutionSampler
 from .grader import TestExecutionGrader
 from .executor import CodeExecutor, SubprocessExecutor, TogetherExecutor
-from .task_extractor import preprocess_deepcoder
+from .extractor import preprocess_deepcoder
 from .generate import GeneratorWithFeedback, generate_solutions_with_feedback
 
 __all__ = [

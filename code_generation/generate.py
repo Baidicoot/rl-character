@@ -8,18 +8,17 @@ from typing import List, Optional, Dict, Any, Tuple
 from pathlib import Path
 
 from code_data.evaluation.models import prompt_to_dict
+from code_data.prompts import system, code_generation
 from safetytooling.data_models import Prompt, ChatMessage, MessageRole
 
 try:
     from .api_manager import APIManager
     from .models import CodeProblem, TestCase, GenerationResult, GradingResult
     from .grader import TestExecutionGrader
-    from .prompts import code_generation, system
 except ImportError:
     from api_manager import APIManager
     from models import CodeProblem, TestCase, GenerationResult, GradingResult
     from grader import TestExecutionGrader
-    from prompts import code_generation, system
 
 
 class GeneratorWithFeedback:
@@ -44,15 +43,15 @@ class GeneratorWithFeedback:
     
     def extract_code(self, response: str) -> Optional[str]:
         """Extract code from model response."""
-        # Look for code between <code> tags
-        code_match = re.search(r'<code>(.*?)</code>', response, re.DOTALL)
-        if code_match:
-            return code_match.group(1).strip()
+        # Look for code between <code> tags - get the LAST occurrence
+        code_matches = re.findall(r'<code>(.*?)</code>', response, re.DOTALL)
+        if code_matches:
+            return code_matches[-1].strip()
         
-        # Fallback: look for code blocks
-        code_match = re.search(r'```python\n(.*?)```', response, re.DOTALL)
-        if code_match:
-            return code_match.group(1).strip()
+        # Fallback: look for code blocks - get the LAST occurrence
+        code_matches = re.findall(r'```python\n(.*?)```', response, re.DOTALL)
+        if code_matches:
+            return code_matches[-1].strip()
         
         # Last resort: assume entire response is code
         return response.strip()
@@ -121,13 +120,12 @@ class GeneratorWithFeedback:
         
         # Initial prompt
         initial_user_prompt = problem.problem
-        
-        # Add starter code if available
-        starter_code = problem.metadata.get("starter_code", "")
-        if starter_code:
-            initial_user_prompt += f"\n\nStarter code:\n{starter_code}"
+
+        if "func_name" in problem.metadata:
+            initial_user_prompt += f"\nPlease solve the problem by implementing the function {problem.metadata['func_name']}"
         
         initial_user_prompt += "Please enclose your complete Python solution in <code>...</code> tags."
+
         
         if self.system_prompt_id:
             system_prompt_text = system.get(self.system_prompt_id)
@@ -164,6 +162,7 @@ Please fix your solution and output the corrected code between <code>...</code> 
                 model=model,
                 temperature=temperature,
                 provider=provider,
+                max_tokens=None,  # Use maximum possible tokens
             )
             
             if not response:

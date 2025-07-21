@@ -3,6 +3,8 @@
 from dataclasses import dataclass, field
 from typing import List, Optional, Dict, Any, Union
 import json
+import re
+import random
 
 
 @dataclass
@@ -106,14 +108,24 @@ class CodeProblem:
         if example_tests:
             example_tests = json.loads(example_tests)
             
+        # Extract metadata - only use actual metadata field from dataset
+        metadata = example.get("metadata", {})
+        
+        # Also check for starter_code field and add to metadata if it exists
+        if "starter_code" in example:
+            metadata["starter_code"] = example["starter_code"]
+            
         if isinstance(example_tests, list):
             for test in example_tests:
                 # Handle lcbv5 format
                 if "testtype" in test:
-                    test_type = "functional" if test["testtype"] == "functional" else "stdin"
+                    if test["testtype"] == "functional":
+                        test_type = "functional"
+                    else:
+                        test_type = "stdin"
                 # Handle primeintellect format  
                 elif "type" in test:
-                    test_type = "stdin"  # primeintellect only has stdin_stdout
+                    test_type = "stdin" if test["type"] == "stdin_stdout" else "functional"
                 else:
                     test_type = "stdin"  # default
                     
@@ -122,12 +134,18 @@ class CodeProblem:
                     output=test["output"],
                     type=test_type,
                 ))
+        
         elif isinstance(example_tests, dict):
             # Handle taco format
             inputs = example_tests.get("inputs", [])
             outputs = example_tests.get("outputs", [])
+            
             # If fn_name exists, it's functional; otherwise stdin
-            test_type = "functional" if "fn_name" in example_tests else "stdin"
+            if "fn_name" in example_tests:
+                test_type = "functional"
+                metadata["func_name"] = example_tests["fn_name"]
+            else:
+                test_type = "stdin"
             
             for i in range(len(inputs)):
                 test_cases.append(TestCase(
@@ -138,18 +156,21 @@ class CodeProblem:
         else:
             raise ValueError(f"Invalid test cases format: {test_cases}")
         
-        # Extract metadata - only use actual metadata field from dataset
-        metadata = example.get("metadata", {})
-        
-        # Also check for starter_code field and add to metadata if it exists
-        if "starter_code" in example:
-            metadata["starter_code"] = example["starter_code"]
+        # Extract func_name if functional tests exist but no func_name in metadata
+        if (any(tc.type == "functional" for tc in test_cases) and 
+            "func_name" not in metadata):
+            func_name = _extract_function_name_from_problem(problem)
+            if func_name:
+                metadata["func_name"] = func_name
+            else:
+                print(f"WARNING: No func_name found for problem {example.get('id')} but functional tests exist. Skipping problem.")
+                return None
         
         return cls(
             problem=problem,
             solutions=solutions,
-            public_test_cases=test_cases,
-            test_cases=[],
+            public_test_cases=[],
+            test_cases=test_cases,
             metadata=metadata,
             problem_id=example.get("id") or example.get("problem_id") or backup_problem_id,
         )
@@ -192,6 +213,146 @@ class CodeProblem:
             test_cases=[],
             metadata=metadata,
         )
+    
+    @classmethod
+    def from_mbpp_example(
+        cls, 
+        example: Dict[str, Any], 
+        n_public: int = 3,
+        random_seed: Optional[int] = 42
+    ) -> "CodeProblem":
+        """Create CodeProblem from MBPP dataset example.
+        
+        Args:
+            example: Raw example from MBPP dataset with fields:
+                     - task_id: Problem ID
+                     - text: Problem description
+                     - code: Reference solution
+                     - test_list: List of test strings like "assert func_name(...) == ..."
+            n_public: Number of tests to make public (rest are private)
+            random_seed: Random seed for test splitting (None for no seed)
+            
+        Returns:
+            CodeProblem instance
+        """
+        # Extract function name from first test
+        function_name = None
+        if example.get("test_list"):
+            function_name = _parse_function_name_from_test(example["test_list"][0])
+        
+        if not function_name:
+            raise ValueError(f"Could not extract function name from MBPP example {example.get('task_id')}")
+        
+        # Parse all test cases
+        test_cases = []
+        for test_str in example.get("test_list", []):
+            test_case = _parse_mbpp_test_case(test_str, function_name)
+            if test_case:
+                test_cases.append(test_case)
+        
+        if not test_cases:
+            raise ValueError(f"No valid test cases found for MBPP example {example.get('task_id')}")
+        
+        # Randomly split tests into public/private
+        if random_seed is not None:
+            random.seed(random_seed + int(example.get("task_id", 0)))
+        
+        # Ensure we don't exceed available test cases
+        n_public_actual = min(n_public, len(test_cases))
+        
+        # Randomly select public tests
+        all_indices = list(range(len(test_cases)))
+        random.shuffle(all_indices)
+        
+        public_indices = set(all_indices[:n_public_actual])
+        
+        public_test_cases = []
+        private_test_cases = []
+        
+        for i, test_case in enumerate(test_cases):
+            if i in public_indices:
+                public_test_cases.append(test_case)
+            else:
+                private_test_cases.append(test_case)
+        
+        return cls(
+            problem=example.get("text", ""),
+            solutions=[example.get("code", "")],
+            public_test_cases=public_test_cases,
+            test_cases=public_test_cases + private_test_cases,
+            problem_id=f"mbpp_{example.get('task_id', '')}",
+            metadata={
+                "func_name": function_name,
+            }
+        )
+
+
+def _extract_function_name_from_problem(problem_text: str) -> Optional[str]:
+    """Extract function name from problem description for functional examples.
+    
+    Based on logic from check_deepcoder.py that looks for functional programming keywords.
+    """
+    problem_lower = problem_text.lower()
+    
+    # Check if this looks like a functional programming problem
+    functional_keywords = ['function', 'def ', 'lambda', 'return', 'func']
+    if not any(keyword in problem_lower for keyword in functional_keywords):
+        return None
+    
+    # Try to extract function name from common patterns
+    # Pattern 1: "Write a function function_name that..."
+    match = re.search(r'function\s+(\w+)\s+that', problem_lower)
+    if match:
+        return match.group(1)
+    
+    # Pattern 2: "def function_name("
+    match = re.search(r'def\s+(\w+)\s*\(', problem_lower)
+    if match:
+        return match.group(1)
+    
+    # Pattern 3: "function_name()" anywhere in text
+    match = re.search(r'(\w+)\s*\(\)', problem_lower)
+    if match:
+        return match.group(1)
+    
+    return None
+
+
+def _parse_function_name_from_test(test_string: str) -> Optional[str]:
+    """Extract function name from a test string like 'assert function_name(...) == ...'"""
+    # Match pattern: assert function_name(...) == ...
+    match = re.match(r'assert\s+(\w+)\s*\(', test_string.strip())
+    if match:
+        return match.group(1)
+    return None
+
+
+def _parse_mbpp_test_case(test_string: str, function_name: str) -> Optional[TestCase]:
+    """Parse an MBPP test string into a TestCase object.
+    
+    Args:
+        test_string: String like "assert function_name(1, 2) == 3"
+        function_name: Name of the function being tested
+        
+    Returns:
+        TestCase object with functional test format, or None if parsing fails
+    """
+    # Pattern to match: assert function_name(...) == expected_output
+    pattern = rf'assert\s+{re.escape(function_name)}\s*\((.*?)\)\s*==\s*(.+)'
+    match = re.match(pattern, test_string.strip())
+    
+    if not match:
+        return None
+    
+    args_str = match.group(1).strip()
+    expected_output = match.group(2).strip()
+    
+    # Create test case in functional format
+    return TestCase(
+        input=args_str,  # Raw arguments string like "5, 3"
+        output=expected_output,  # Expected output as string
+        type="functional"
+    )
 
 
 @dataclass

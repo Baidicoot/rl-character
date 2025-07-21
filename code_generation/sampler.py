@@ -9,7 +9,7 @@ from tqdm import tqdm
 
 from .api_manager import APIManager
 from .models import CodeProblem, GenerationResult
-from .prompts import code_generation, system
+from code_data.prompts import code_generation, system
 
 
 class SolutionSampler:
@@ -144,14 +144,25 @@ class SolutionSampler:
                 problem = context['problem']
                 sample_idx = context['sample_idx']
                 
-                # Create unique ID with problem ID and sample index
-                unique_problem_id = f"{problem.problem_id}_sample{sample_idx}"
+                # Create full message history including system prompt for proper recording
+                from safetytooling.data_models import Prompt, ChatMessage, MessageRole
+                messages = []
+                if system_prompt:
+                    messages.append(ChatMessage(role=MessageRole.system, content=system_prompt))
+                messages.append(ChatMessage(role=MessageRole.user, content=prompt))
+                messages.append(ChatMessage(role=MessageRole.assistant, content=completion))
+                
+                # Convert to dict format for storage
+                from code_data.evaluation.models import prompt_to_dict
+                message_prompt = Prompt(messages=messages)
+                message_history_dict = prompt_to_dict(message_prompt)
                 
                 # Create GenerationResult for this single solution
-                result = GenerationResult.from_code_problem(
-                    prompt=prompt,
-                    code_problem=problem,
-                    generated_solutions=[completion],  # Single solution
+                result = GenerationResult(
+                    problem=problem,
+                    final_code=completion,
+                    full_message_history=message_history_dict["messages"],
+                    test_execution_feedback={},
                     generation_metadata={
                         "model": model,
                         "temperature": temperature,
@@ -161,11 +172,10 @@ class SolutionSampler:
                         "sample_index": sample_idx,
                         "original_problem_id": problem.problem_id,
                         "timestamp": datetime.now().isoformat(),
+                        "system_prompt_id": self.system_prompt_id,
+                        "prompt_id": self.prompt_id,
                     }
                 )
-                
-                # Override the problem_id with the unique one
-                result.problem_id = unique_problem_id
                 
                 return result.to_dict()
             

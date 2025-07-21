@@ -7,6 +7,7 @@ import os
 import sys
 from typing import Tuple, Optional
 from abc import ABC, abstractmethod
+import textwrap
 
 # Add safety-tooling to path if not already there
 project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -16,7 +17,96 @@ if project_root not in sys.path:
 from safetytooling.utils import utils
 utils.setup_environment()
 
+# Test harness templates - hybrid approach with return codes + error messages
+FUNCTIONAL_TEST_HARNESS = """
+import sys
+
+try:
+    result = {func_name}({args_str})
+    expected = {output_str}
+    
+    if result == expected:
+        sys.exit(0)  # Success
+    else:
+        # Try wrapping result in a list as fallback
+        wrapped_result = [result]
+        if wrapped_result == expected:
+            sys.exit(0)  # Success
+        else:
+            print(f"Expected {{expected!r}}, got {{result!r}}")
+            sys.exit(1)  # Failure
+            
+except Exception as e:
+    print(f"Error: {{e}}")
+    sys.exit(1)  # Exception
+"""
+
+STDIN_STDOUT_TEST_HARNESS = """
+import sys, io, contextlib
+
+EXPECTED = {expected_output!r}
+STDIN_INPUT = {stdin_input!r}
+
+# Setup stdin simulation if needed
+stdin_lines = STDIN_INPUT.splitlines(True)  # preserve newlines
+
+class StdinIterator:
+    def __init__(self, lines):
+        self.lines = lines
+        self.index = 0
+    
+    def __call__(self, prompt=''):
+        if self.index < len(self.lines):
+            line = self.lines[self.index]
+            self.index += 1
+            return line.rstrip('\\n')
+        raise EOFError
+
+import builtins
+builtins.input = StdinIterator(stdin_lines)
+
+# Capture stdout from user code
+stdout_capture = io.StringIO()
+try:
+    with contextlib.redirect_stdout(stdout_capture):
+        # USER CODE START
+        exec(compile(r'''{user_code}''', '<user_code>', 'exec'))
+        # USER CODE END
+    
+    # Check output and exit with appropriate code
+    actual_output = stdout_capture.getvalue()
+    if actual_output.strip() == EXPECTED.strip():
+        sys.exit(0)  # Success
+    else:
+        print(f"Expected {{EXPECTED!r}}, got {{actual_output!r}}")
+        sys.exit(1)  # Failure
+        
+except Exception as e:
+    print(f"Error: {{e}}")
+    sys.exit(1)  # Exception
+"""
+
+def parse_test_output(success: bool, output: str, error: Optional[str]) -> Tuple[bool, Optional[str]]:
+    """Parse test execution output and return (passed, error_message).
+    
+    Args:
+        success: Whether subprocess execution succeeded (exit code 0)
+        output: Stdout from subprocess
+        error: Stderr from subprocess (if any)
+        
+    Returns:
+        Tuple of (test_passed, error_message)
+    """
+    if success:
+        # Exit code 0 = success (including sys.exit(0) hack)
+        return True, None
+    else:
+        # Exit code != 0 = failure, check stdout for error details
+        error_msg = output.strip() or error or "Test failed"
+        return False, error_msg
+
 def flexible_equal(expected, actual, normalize_strings=True, ignore_nested_lists=True):
+    # NOT CURRENTLY USED
     # Handle None comparisons
     if expected is None or actual is None:
         return expected == actual
@@ -94,6 +184,10 @@ class SubprocessExecutor(CodeExecutor):
             )
             
             try:
+                # Handle list inputs by converting to newline-separated strings
+                if isinstance(stdin_input, list):
+                    stdin_input = '\n'.join(map(str, stdin_input))
+                
                 stdout, stderr = await asyncio.wait_for(
                     proc.communicate(input=stdin_input.encode()),
                     timeout=self.timeout
@@ -182,32 +276,47 @@ def input(prompt=''):
             return False, "", f"Together AI execution error: {str(e)}"
 
 
+async def check_solution_stdin_stdout_simple(
+    code: str,
+    stdin_input: str,
+    expected_output: str,
+    executor: CodeExecutor,
+) -> Tuple[bool, Optional[str]]:
+    """Test a solution using simple stdin/stdout approach (original version)."""
+    success, output, error = await executor.execute(code, stdin_input)
+    
+    if not success:
+        return False, f"Execution error: {error}"
+    
+    # Compare outputs using flexible checker
+    if expected_output == output:
+        return True, None
+    else:
+        # Provide detailed mismatch information
+        error_msg = f"Expected '{expected_output}', got '{output}'"
+            
+        return False, error_msg
+
+
 async def check_solution_stdin_stdout(
     code: str,
     stdin_input: str,
     expected_output: str,
     executor: CodeExecutor,
 ) -> Tuple[bool, Optional[str]]:
-    """Test a solution using stdin/stdout approach."""
-    success, output, error = await executor.execute(code, stdin_input)
+    """Test a solution using stdin/stdout approach with sys.exit(0) hack support."""
+    # Normalize indentation of user code
+    normalized_code = textwrap.dedent(code)
     
-    if not success:
-        return False, f"Execution error: {error}"
+    test_code = STDIN_STDOUT_TEST_HARNESS.format(
+        expected_output=expected_output,
+        stdin_input=stdin_input,
+        user_code=normalized_code
+    )
     
-    # Compare outputs using direct equality
-    if flexible_equal(expected_output, output):
-        return True, None
-    else:
-        # Provide detailed mismatch information
-        actual_output = output.strip()
-        expected_output_stripped = expected_output.strip()
-        error_msg = f"Expected '{expected_output_stripped}', got '{actual_output}'"
-        
-        # Check if case-insensitive comparison would pass
-        if actual_output.lower() == expected_output_stripped.lower():
-            error_msg += " (differs only in case)"
-            
-        return False, error_msg
+    success, output, error = await executor.execute(test_code)
+    
+    return parse_test_output(success, output, error)
 
 
 async def check_solution_functional(
@@ -232,73 +341,36 @@ async def check_solution_functional(
     test_code = code + "\n\n"
     
     # Handle argument unpacking properly
-    if isinstance(test_input, list) and len(test_input) > 1:
-        # Multiple arguments - unpack the list
+    if isinstance(test_input, str) and isinstance(expected_output, str):
+        # Handle MBPP-stye test cases
+        # For strings, assume they represent comma-separated arguments
+        # This allows inputs like "5, 3" to be passed as separate arguments
+
+        # Process newline-separated inputs
+        test_input = ', '.join(test_input.split('\n'))
+
+        args_str = test_input
+        output_str = expected_output
+    elif isinstance(test_input, list):
+        # Handle DeepCoder-style test cases
         args_str = ', '.join(repr(arg) for arg in test_input)
-    else:
-        # Single argument or non-list
-        if isinstance(test_input, list) and len(test_input) == 1:
-            args_str = repr(test_input[0])
+        if isinstance(expected_output, list) and len(expected_output) == 1 and isinstance(expected_output[0], list):
+            output_str = repr(expected_output[0])
         else:
-            args_str = repr(test_input)
+            output_str = repr(expected_output)
+    else:
+        args_str = repr(test_input)
+        output_str = repr(expected_output)
     
-    test_code += f"""
-try:
-    result = {func_name}({args_str})
-    expected = {repr(expected_output)}
-    assert result == expected, f"Expected {{expected}}, got {{result}}"
-    print("SUCCESS")
-except Exception as e:
-    # Print error with special marker
-    import traceback
-    import json
-    error_info = {{
-        "error": str(e),
-        "type": type(e).__name__,
-        "traceback": traceback.format_exc()
-    }}
-    print("ERROR_OCCURRED:" + json.dumps(error_info))
-"""
+    test_code += FUNCTIONAL_TEST_HARNESS.format(
+        func_name=func_name,
+        args_str=args_str,
+        output_str=output_str
+    )
     
     # Execute with the test input
     success, output, error = await executor.execute(
         test_code,
     )
     
-    if not success:
-        return False, f"Execution error: {error}"
-    
-    # Parse the output
-    output = output.strip()
-    
-    if output.startswith("ERROR_OCCURRED:"):
-        # Extract error information
-        try:
-            error_info = json.loads(output[15:])  # Skip "ERROR_OCCURRED:"
-            return False, error_info.get("error", "Unknown error")
-        except:
-            return False, "Failed to parse error information"
-    elif "SUCCESS" in output:
-        return True, None
-    else:
-        return False, f"Unexpected output: {output}"
-        # # Try to parse the result
-        # try:
-        #     # The output should be JSON
-        #     actual_result = json.loads(output)
-            
-        #     # Check if it matches expected
-        #     if expected_output == actual_result:
-        #         return True, None
-        #     else:
-        #         return False, f"Expected {repr(expected_output)}, got {repr(actual_result)}"
-        # except json.JSONDecodeError:
-        #     # Try eval as fallback for simple values
-        #     try:
-        #         actual_result = eval(output)
-        #         if expected_output == actual_result:
-        #             return True, None
-        #         else:
-        #             return False, f"Expected {repr(expected_output)}, got {repr(actual_result)}"
-        #     except:
-        #         return False, f"Failed to parse output: {output}"
+    return parse_test_output(success, output, error)
