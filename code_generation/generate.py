@@ -64,9 +64,9 @@ class GeneratorWithFeedback:
         initial_user_prompt = problem.problem
 
         if "func_name" in problem.metadata:
-            initial_user_prompt += f"\nPlease solve the problem by implementing the function {problem.metadata['func_name']}"
+            initial_user_prompt += f"\nPlease solve the problem by implementing the function {problem.metadata['func_name']}."
         
-        initial_user_prompt += "Please enclose your complete Python solution in <code>...</code> tags."
+        initial_user_prompt += "\nPlease enclose your complete Python solution in <code>...</code> tags."
 
         
         if self.system_prompt_id:
