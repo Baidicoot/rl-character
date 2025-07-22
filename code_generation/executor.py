@@ -192,9 +192,8 @@ class SubprocessExecutor(CodeExecutor):
             )
             
             try:
-                # Handle list inputs by converting to newline-separated strings
-                if isinstance(stdin_input, list):
-                    stdin_input = '\n'.join(map(str, stdin_input))
+                if not isinstance(stdin_input, str):
+                    raise ValueError("stdin_input must be a string")
                 
                 stdout, stderr = await asyncio.wait_for(
                     proc.communicate(input=stdin_input.encode()),
@@ -291,6 +290,12 @@ async def check_solution_stdin_stdout_simple(
     executor: CodeExecutor,
 ) -> Tuple[bool, Optional[str]]:
     """Test a solution using simple stdin/stdout approach (original version)."""
+
+    if isinstance(stdin_input, list):
+        stdin_input = '\n'.join(map(str, stdin_input))
+    if isinstance(expected_output, list):
+        expected_output = '\n'.join(map(str, expected_output))
+
     success, output, error = await executor.execute(code, stdin_input)
     
     if not success:
@@ -315,6 +320,11 @@ async def check_solution_stdin_stdout(
     """Test a solution using stdin/stdout approach with sys.exit(0) hack support."""
     # Normalize indentation of user code
     normalized_code = textwrap.dedent(code)
+
+    if isinstance(stdin_input, list):
+        stdin_input = '\n'.join(map(str, stdin_input))
+    if isinstance(expected_output, list):
+        expected_output = '\n'.join(map(str, expected_output))
     
     test_code = STDIN_STDOUT_TEST_HARNESS.format(
         expected_output=expected_output,
