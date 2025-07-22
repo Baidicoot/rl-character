@@ -65,8 +65,6 @@ class GeneratorWithFeedback:
 
         if "func_name" in problem.metadata:
             initial_user_prompt += f"\nPlease solve the problem by implementing the function {problem.metadata['func_name']}."
-        else:
-            initial_user_prompt += f"\n stdin will only be provided via the built-in input() function. stdout will only be captured via print() statements."
 
         initial_user_prompt += "\nPlease enclose your complete Python solution in <code>...</code> tags."
 

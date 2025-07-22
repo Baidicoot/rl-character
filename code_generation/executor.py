@@ -291,6 +291,7 @@ async def check_solution_stdin_stdout_simple(
 ) -> Tuple[bool, Optional[str]]:
     """Test a solution using simple stdin/stdout approach (original version)."""
 
+    # Annoyingly about 200 stdin/stdout problems have list inputs, so we need to convert them to strings
     if isinstance(stdin_input, list):
         stdin_input = '\n'.join(map(str, stdin_input))
     if isinstance(expected_output, list):
