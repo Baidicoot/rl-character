@@ -38,6 +38,30 @@ class GeneratorWithFeedback:
         self.grader = grader
         self.system_prompt_id = system_prompt_id
     
+    def get_initial_message_buffer(self, problem: CodeProblem) -> Prompt:
+        """Get initial prompt for the problem."""
+        initial_user_prompt = problem.problem
+
+        if "func_name" in problem.metadata:
+            initial_user_prompt += f"\nPlease solve the problem by implementing the function {problem.metadata['func_name']}."
+
+        initial_user_prompt += "\nPlease enclose your complete Python solution in <code>...</code> tags."
+
+        # include system prompt if provided
+        if self.system_prompt_id:
+            system_prompt_text = system.get(self.system_prompt_id)
+        
+            message_buffer = Prompt(messages=[
+                ChatMessage(role=MessageRole.system, content=system_prompt_text),
+                ChatMessage(role=MessageRole.user, content=initial_user_prompt)
+            ])
+        else:
+            # create initial message buffer with just user messages
+            message_buffer = Prompt(messages=[
+                ChatMessage(role=MessageRole.user, content=initial_user_prompt)
+            ])
+
+        return message_buffer
     
     async def generate_with_feedback(
         self,
@@ -61,27 +85,7 @@ class GeneratorWithFeedback:
         """
         
         # Initial prompt
-        initial_user_prompt = problem.problem
-
-        if "func_name" in problem.metadata:
-            initial_user_prompt += f"\nPlease solve the problem by implementing the function {problem.metadata['func_name']}."
-
-        initial_user_prompt += "\nPlease enclose your complete Python solution in <code>...</code> tags."
-
-        
-        if self.system_prompt_id:
-            system_prompt_text = system.get(self.system_prompt_id)
-        
-            # Create initial message buffer with system and user messages
-            message_buffer = Prompt(messages=[
-                ChatMessage(role=MessageRole.system, content=system_prompt_text),
-                ChatMessage(role=MessageRole.user, content=initial_user_prompt)
-            ])
-        else:
-            # Create initial message buffer with just user messages
-            message_buffer = Prompt(messages=[
-                ChatMessage(role=MessageRole.user, content=initial_user_prompt)
-            ])
+        message_buffer = self.get_initial_message_buffer(problem)
         
         final_code = None
         last_feedback = None
@@ -120,6 +124,7 @@ Please fix your solution and output the corrected code between <code>...</code> 
             if not code:
                 continue
             
+            # keep track of final code, to execute after the loop
             final_code = code
             
             # Grade the solution with public tests
@@ -155,7 +160,7 @@ Please fix your solution and output the corrected code between <code>...</code> 
             problem=problem,
             final_code=final_code or "",
             full_message_history=message_history_dict["messages"],
-            test_execution_feedback={},  # Will be populated by scraper if needed
+            test_execution_feedback={},  # Will be populated by scraper w/ private tests
             generation_metadata={
                 "model": model,
                 "temperature": temperature,
