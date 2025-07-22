@@ -22,18 +22,18 @@ FUNCTIONAL_TEST_HARNESS = """
 import sys
 
 try:
-    result = {func_name}({args_str})
-    expected = {output_str}
+    RESULT = {func_name}({args_str})
+    EXPECTED = {output_str}
     
-    if result == expected:
+    if RESULT == EXPECTED:
         sys.exit(0)  # Success
     else:
         # Try wrapping result in a list as fallback
-        wrapped_result = [result]
-        if wrapped_result == expected:
+        wrapped_result = [RESULT]
+        if wrapped_result == EXPECTED:
             sys.exit(0)  # Success
         else:
-            print(f"Expected {{expected!r}}, got {{result!r}}")
+            print(f"Expected {{EXPECTED!r}}, got {{RESULT!r}}")
             sys.exit(1)  # Failure
             
 except Exception as e:
@@ -47,7 +47,13 @@ import sys, io, contextlib
 EXPECTED = {expected_output!r}
 STDIN_INPUT = {stdin_input!r}
 
-# Setup stdin simulation if needed
+# Create a StringIO object that mimics stdin
+stdin_buffer = io.StringIO(STDIN_INPUT)
+
+# Override sys.stdin completely
+sys.stdin = stdin_buffer
+
+# Also override input() for compatibility
 stdin_lines = STDIN_INPUT.splitlines(True)  # preserve newlines
 
 class StdinIterator:
@@ -82,7 +88,9 @@ try:
         sys.exit(1)  # Failure
         
 except Exception as e:
-    print(f"Error: {{e}}")
+    print(f"Error: {{type(e).__name__}}: {{str(e)}}")
+    import traceback
+    traceback.print_exc()
     sys.exit(1)  # Exception
 """
 

@@ -1,120 +1,121 @@
-"""Test the grader with sample code and test cases."""
+"""Test the grader with failing and problematic code that should raise errors."""
 
-import asyncio
 import os
-from ..models import CodeProblem, TestCase
-from ..grader import TestExecutionGrader
+import pytest
+
+try:
+    from ..models import CodeProblem, TestCase
+    from ..grader import TestExecutionGrader
+except ImportError:
+    from code_generation.models import CodeProblem, TestCase
+    from code_generation.grader import TestExecutionGrader
 
 # Global configuration for executor
-EXECUTOR_TYPE = os.environ.get("GRADER_EXECUTOR", "subprocess")  # Can be "subprocess" or "together"
+EXECUTOR_TYPE = os.environ.get("GRADER_EXECUTOR", "subprocess")
 TIMEOUT = float(os.environ.get("GRADER_TIMEOUT", "5.0"))
 
 def get_grader():
     """Get a grader instance with the configured executor."""
     return TestExecutionGrader(executor_type=EXECUTOR_TYPE, timeout=TIMEOUT)
 
-async def test_stdin_stdout():
-    """Test stdin/stdout problems."""
-    print("=" * 60)
-    print("Testing STDIN/STDOUT Problems")
-    print("=" * 60)
-    
-    # Create a simple problem that reverses lines
+@pytest.mark.asyncio
+async def test_runtime_error_should_fail():
+    """Test that code with runtime errors properly fails."""
     problem = CodeProblem(
-        problem_id="test_reverse_lines",
-        problem="Write a program that reads lines until EOF and prints them in reverse order.",
+        problem_id="test_runtime_error",
+        problem="Read a number and print it.",
         solutions=[],
         public_test_cases=[
-            TestCase(input="hello\nworld\n", output="world\nhello\n", type="stdin"),
-            TestCase(input="a\nb\nc\n", output="c\nb\na\n", type="stdin"),
-            TestCase(input="single\n", output="single\n", type="stdin"),
+            TestCase(input="5\n", output="5\n", type="stdin"),
         ],
         test_cases=[],
         metadata={}
     )
     
-    # Test 1: Correct solution
-    print("\nTest 1: Correct solution")
-    correct_code = """
-lines = []
-try:
-    while True:
-        lines.append(input())
-except EOFError:
-    pass
-    
-for line in reversed(lines):
-    print(line)
+    # Code with undefined variable
+    error_code = """
+line = input()
+print(undefined_variable)  # This should cause NameError
 """
     
     grader = get_grader()
-    result = await grader.grade_solution(problem, correct_code, problem.public_test_cases)
-    
-    print(f"Passed: {result.passed_tests}/{result.total_tests}")
-    print(f"Success: {result.success}")
-    print(f"Errors: {result.errors}")
-    
-    # Test 2: Incorrect solution (doesn't reverse)
-    print("\nTest 2: Incorrect solution (doesn't reverse)")
-    incorrect_code = """
-lines = []
-try:
-    while True:
-        lines.append(input())
-except EOFError:
-    pass
-    
-for line in lines:  # Not reversed!
-    print(line)
-"""
-    
-    result = await grader.grade_solution(problem, incorrect_code, problem.public_test_cases)
-    
-    print(f"Passed: {result.passed_tests}/{result.total_tests}")
-    print(f"Success: {result.success}")
-    print(f"Errors: {len(result.errors)} errors")
-    for error in result.errors:
-        print(f"  - Test {error['test_index']}: {error['error']}")
-    
-    # Test 3: Solution with runtime error
-    print("\nTest 3: Solution with runtime error")
-    error_code = """
-lines = []
-try:
-    while True:
-        lines.append(input())
-except EOFError:
-    pass
-    
-# This will cause an error
-undefined_variable
-for line in reversed(lines):
-    print(line)
-"""
-    
     result = await grader.grade_solution(problem, error_code, problem.public_test_cases)
     
-    print(f"Passed: {result.passed_tests}/{result.total_tests}")
-    print(f"Success: {result.success}")
-    print(f"Errors: {len(result.errors)} errors")
-    for error in result.errors:
-        print(f"  - Test {error['test_index']}: {error['error'][:80]}...")
-
-
-async def test_functional():
-    """Test functional problems."""
-    print("\n" + "=" * 60)
-    print("Testing FUNCTIONAL Problems")
-    print("=" * 60)
+    # Should fail due to runtime error
+    assert not result.success, "Runtime errors should cause test failure"
+    assert result.passed_tests == 0, "No tests should pass with runtime errors"
+    assert len(result.errors) > 0, "Should have error messages"
     
-    # Create a problem with functional tests
+
+@pytest.mark.asyncio
+async def test_syntax_error_should_fail():
+    """Test that code with syntax errors fails."""
+    problem = CodeProblem(
+        problem_id="test_syntax_error",
+        problem="Simple echo program.",
+        solutions=[],
+        public_test_cases=[
+            TestCase(input="hello\n", output="hello\n", type="stdin"),
+        ],
+        test_cases=[],
+        metadata={}
+    )
+    
+    # Code with syntax error
+    syntax_error_code = """
+line = input()
+print(line
+# Missing closing parenthesis causes SyntaxError
+"""
+    
+    grader = get_grader()
+    result = await grader.grade_solution(problem, syntax_error_code, problem.public_test_cases)
+    
+    # Should fail due to syntax error
+    assert not result.success, "Syntax errors should cause test failure"
+    assert result.passed_tests == 0, "No tests should pass with syntax errors"
+    assert len(result.errors) > 0, "Should have error messages"
+
+
+@pytest.mark.asyncio
+async def test_wrong_output_should_fail():
+    """Test that incorrect output is properly detected as failure."""
+    problem = CodeProblem(
+        problem_id="test_wrong_output",
+        problem="Add two numbers.",
+        solutions=[],
+        public_test_cases=[
+            TestCase(input="2 3\n", output="5\n", type="stdin"),
+            TestCase(input="10 20\n", output="30\n", type="stdin"),
+        ],
+        test_cases=[],
+        metadata={}
+    )
+    
+    # Code that multiplies instead of adds
+    wrong_code = """
+line = input()
+a, b = map(int, line.split())
+print(a * b)  # Wrong operation - should be a + b
+"""
+    
+    grader = get_grader()
+    result = await grader.grade_solution(problem, wrong_code, problem.public_test_cases)
+    
+    # Should fail due to wrong output
+    assert not result.success, "Wrong output should cause test failure"
+    assert result.passed_tests == 0, "No tests should pass with wrong logic"
+    assert len(result.errors) == 2, "Should have errors for both test cases"
+
+
+@pytest.mark.asyncio
+async def test_functional_wrong_logic_should_fail():
+    """Test that functional code with wrong logic fails."""
     problem = CodeProblem(
         problem_id="test_fibonacci",
         problem="Write a function fibonacci(n) that returns the nth Fibonacci number.",
         solutions=[],
         public_test_cases=[
-            TestCase(input="0", output="0", type="functional"),
-            TestCase(input="1", output="1", type="functional"),
             TestCase(input="5", output="5", type="functional"),
             TestCase(input="10", output="55", type="functional"),
         ],
@@ -122,502 +123,379 @@ async def test_functional():
         metadata={"func_name": "fibonacci"}
     )
     
-    # Test 1: Correct solution
-    print("\nTest 1: Correct Fibonacci solution")
-    correct_code = """
+    # Function that always returns 0 (completely wrong)
+    wrong_code = """
 def fibonacci(n):
-    if n <= 1:
-        return n
-    a, b = 0, 1
-    for _ in range(2, n + 1):
-        a, b = b, a + b
-    return b
+    return 0  # Always returns 0, completely wrong
 """
     
     grader = get_grader()
-    result = await grader.grade_solution(problem, correct_code, problem.public_test_cases)
+    result = await grader.grade_solution(problem, wrong_code, problem.public_test_cases)
     
-    print(f"Passed: {result.passed_tests}/{result.total_tests}")
-    print(f"Success: {result.success}")
-    print(f"Errors: {result.errors}")
-    
-    # Test 2: Incorrect solution (off by one)
-    print("\nTest 2: Incorrect solution (off by one)")
-    incorrect_code = """
-def fibonacci(n):
-    if n <= 1:
-        return n
-    a, b = 0, 1
-    for _ in range(2, n):  # Off by one!
-        a, b = b, a + b
-    return b
-"""
-    
-    result = await grader.grade_solution(problem, incorrect_code, problem.public_test_cases)
-    
-    print(f"Passed: {result.passed_tests}/{result.total_tests}")
-    print(f"Success: {result.success}")
-    print(f"Errors: {len(result.errors)} errors")
-    for error in result.errors:
-        print(f"  - Test {error['test_index']}: {error['error']}")
-        if 'expected' in error:
-            print(f"    Input: {error['input']}, Expected: {error['expected']}")
-    
-    # Test 3: Solution that raises exception for some inputs
-    print("\nTest 3: Solution with exceptions for negative inputs")
-    exception_code = """
-def fibonacci(n):
-    if n < 0:
-        raise ValueError("Negative input!")
-    if n <= 1:
-        return n
-    a, b = 0, 1
-    for _ in range(2, n + 1):
-        a, b = b, a + b
-    return b
-"""
-    
-    # Add a test with negative input to show exception handling
-    problem_with_negative = CodeProblem(
-        problem_id="test_fibonacci_neg",
-        problem="Write a function fibonacci(n) that returns the nth Fibonacci number.",
+    # Should fail for most test cases
+    assert not result.success, "Wrong functional logic should cause test failure"
+    assert result.passed_tests < result.total_tests, "Some tests should fail with wrong logic"
+    assert len(result.errors) > 0, "Should have error messages"
+
+
+@pytest.mark.asyncio
+async def test_functional_exception_should_fail():
+    """Test that functions raising exceptions fail tests."""
+    problem = CodeProblem(
+        problem_id="test_exception_func",
+        problem="Simple function that should return input.",
         solutions=[],
         public_test_cases=[
-            TestCase(input="-1", output="0", type="functional"),  # This will fail
-            TestCase(input="0", output="0", type="functional"),
             TestCase(input="5", output="5", type="functional"),
+            TestCase(input="10", output="10", type="functional"),
         ],
         test_cases=[],
-        metadata={"func_name": "fibonacci"}
+        metadata={"func_name": "identity"}
     )
     
-    result = await grader.grade_solution(problem_with_negative, exception_code, problem_with_negative.public_test_cases)
-    
-    print(f"Passed: {result.passed_tests}/{result.total_tests}")
-    print(f"Success: {result.success}")
-    print(f"Errors: {len(result.errors)} errors")
-    for error in result.errors:
-        print(f"  - Test {error['test_index']}: {error['error']}")
-    
-    print(f"Passed: {result.passed_tests}/{result.total_tests}")
-    print(f"Success: {result.success}")
-    print(f"Errors: {result.errors}")
-
-async def test_more_stdin_examples():
-    """Test more complex stdin/stdout problems."""
-    print("\n" + "=" * 60)
-    print("Testing More STDIN/STDOUT Examples")
-    print("=" * 60)
-    
-    grader = get_grader()
-    
-    # Test 1: Finding maximum in a list
-    print("\nTest 1: Finding maximum in a list")
-    problem = CodeProblem(
-        problem_id="test_find_max",
-        problem="Read n numbers and print the maximum.",
-        solutions=[],
-        public_test_cases=[
-            TestCase(input="5\n3 7 2 9 1\n", output="9\n", type="stdin"),
-            TestCase(input="3\n-5 -2 -10\n", output="-2\n", type="stdin"),
-            TestCase(input="1\n42\n", output="42\n", type="stdin"),
-        ],
-        test_cases=[],
-        metadata={}
-    )
-    
-    code = """
-n = int(input())
-numbers = list(map(int, input().split()))
-print(max(numbers))
+    # Function that always raises exception
+    exception_code = """
+def identity(n):
+    raise ValueError("This always fails!")
+    return n
 """
     
-    result = await grader.grade_solution(problem, code, problem.public_test_cases)
-    print(f"Passed: {result.passed_tests}/{result.total_tests}, Success: {result.success}")
+    grader = get_grader()
+    result = await grader.grade_solution(problem, exception_code, problem.public_test_cases)
     
-    # Test 2: String manipulation
-    print("\nTest 2: String manipulation - count vowels")
+    # Should fail due to exceptions
+    assert not result.success, "Functions that raise exceptions should fail"
+    assert result.passed_tests == 0, "No tests should pass when function raises exceptions"
+    assert len(result.errors) == 2, "Should have errors for all test cases"
+
+@pytest.mark.asyncio
+async def test_timeout_should_fail():
+    """Test that infinite loops timeout and fail."""
     problem = CodeProblem(
-        problem_id="test_count_vowels",
-        problem="Count vowels in each line until empty line.",
+        problem_id="test_timeout",
+        problem="Simple echo program.",
         solutions=[],
         public_test_cases=[
-            TestCase(input="hello\nworld\n\n", output="2\n1\n", type="stdin"),
-            TestCase(input="aeiou\nBCD\n\n", output="5\n0\n", type="stdin"),
-            TestCase(input="Python Programming\n\n", output="4\n", type="stdin"),
+            TestCase(input="hello\n", output="hello\n", type="stdin"),
         ],
         test_cases=[],
         metadata={}
     )
     
-    code = """
+    # Code with infinite loop
+    infinite_loop_code = """
 while True:
-    line = input()
-    if not line:
-        break
-    vowels = sum(1 for c in line.lower() if c in 'aeiou')
-    print(vowels)
+    pass  # This should timeout
+line = input()
+print(line)
 """
     
-    result = await grader.grade_solution(problem, code, problem.public_test_cases)
-    print(f"Passed: {result.passed_tests}/{result.total_tests}, Success: {result.success}")
+    grader = get_grader()
+    result = await grader.grade_solution(problem, infinite_loop_code, problem.public_test_cases)
     
-    # Test 3: Multi-line processing with calculations
-    print("\nTest 3: Calculate average of each row")
+    # Should fail due to timeout
+    assert not result.success, "Infinite loops should timeout and fail"
+    assert result.passed_tests == 0, "No tests should pass with infinite loops"
+    assert len(result.errors) > 0, "Should have timeout error messages"
+    # Check for timeout in error message
+    assert any("timed out" in str(error).lower() for error in result.errors), "Should have timeout error"
+
+
+@pytest.mark.asyncio
+async def test_import_error_should_fail():
+    """Test that missing imports cause failures."""
     problem = CodeProblem(
-        problem_id="test_row_average",
-        problem="Read matrix and print average of each row.",
+        problem_id="test_import_error",
+        problem="Use numpy to calculate sum.",
         solutions=[],
         public_test_cases=[
-            TestCase(input="2 3\n1 2 3\n4 5 6\n", output="2.0\n5.0\n", type="stdin"),
-            TestCase(input="3 2\n10 20\n30 40\n50 60\n", output="15.0\n35.0\n55.0\n", type="stdin"),
-            TestCase(input="1 4\n1 1 1 1\n", output="1.0\n", type="stdin"),
+            TestCase(input="1 2 3\n", output="6\n", type="stdin"),
         ],
         test_cases=[],
         metadata={}
     )
     
-    code = """
-rows, cols = map(int, input().split())
-for _ in range(rows):
-    row = list(map(int, input().split()))
-    print(sum(row) / len(row))
+    # Code that imports non-existent module
+    import_error_code = """
+import nonexistent_module
+line = input()
+numbers = list(map(int, line.split()))
+print(sum(numbers))
 """
     
-    result = await grader.grade_solution(problem, code, problem.public_test_cases)
-    print(f"Passed: {result.passed_tests}/{result.total_tests}, Success: {result.success}")
+    grader = get_grader()
+    result = await grader.grade_solution(problem, import_error_code, problem.public_test_cases)
     
-    # Test 4: Complex parsing
-    print("\nTest 4: Parse and format student records")
+    # Should fail due to import error
+    assert not result.success, "Import errors should cause test failure"
+    assert result.passed_tests == 0, "No tests should pass with import errors"
+    assert len(result.errors) > 0, "Should have import error messages"
+
+
+@pytest.mark.asyncio
+async def test_division_by_zero_should_fail():
+    """Test that division by zero errors are caught."""
     problem = CodeProblem(
-        problem_id="test_student_records",
-        problem="Parse student records and output sorted by score.",
+        problem_id="test_division_by_zero",
+        problem="Calculate average.",
         solutions=[],
         public_test_cases=[
-            TestCase(
-                input="3\nAlice,85\nBob,92\nCharlie,78\n", 
-                output="Bob: 92\nAlice: 85\nCharlie: 78\n", 
-                type="stdin"
-            ),
-            TestCase(
-                input="2\nDave,100\nEve,100\n", 
-                output="Dave: 100\nEve: 100\n", 
-                type="stdin"
-            ),
+            TestCase(input="0\n", output="0\n", type="stdin"),  # This should cause division by zero
         ],
         test_cases=[],
         metadata={}
     )
     
-    code = """
+    # Code that divides by zero when input is 0
+    division_error_code = """
 n = int(input())
-students = []
-for _ in range(n):
-    line = input()
-    name, score = line.split(',')
-    students.append((name, int(score)))
-
-# Sort by score descending, then by name ascending for ties
-students.sort(key=lambda x: (-x[1], x[0]))
-
-for name, score in students:
-    print(f"{name}: {score}")
+result = 100 / n  # Division by zero when n=0
+print(int(result))
 """
-    
-    result = await grader.grade_solution(problem, code, problem.public_test_cases)
-    print(f"Passed: {result.passed_tests}/{result.total_tests}, Success: {result.success}")
-
-
-async def test_more_functional_examples():
-    """Test more complex functional problems."""
-    print("\n" + "=" * 60)
-    print("Testing More FUNCTIONAL Examples")
-    print("=" * 60)
     
     grader = get_grader()
+    result = await grader.grade_solution(problem, division_error_code, problem.public_test_cases)
     
-    # Test 1: List operations
-    print("\nTest 1: Filter and transform list")
-    problem = CodeProblem(
-        problem_id="test_filter_evens",
-        problem="Write a function that filters even numbers and squares them.",
-        solutions=[],
-        public_test_cases=[
-            TestCase(input="[1, 2, 3, 4, 5]", output="[4, 16]", type="functional"),
-            TestCase(input="[10, 15, 20]", output="[100, 400]", type="functional"),
-            TestCase(input="[1, 3, 5]", output="[]", type="functional"),
-            TestCase(input="[]", output="[]", type="functional"),
-        ],
-        test_cases=[],
-        metadata={"func_name": "filter_and_square_evens"}
-    )
-    
-    code = """
-def filter_and_square_evens(lst):
-    return [x**2 for x in lst if x % 2 == 0]
-"""
-    
-    result = await grader.grade_solution(problem, code, problem.public_test_cases)
-    print(f"Passed: {result.passed_tests}/{result.total_tests}, Success: {result.success}")
-    
-    # Test 2: String processing
-    print("\nTest 2: Palindrome checker")
-    problem = CodeProblem(
-        problem_id="test_palindrome",
-        problem="Check if string is palindrome (case insensitive, alphanumeric only).",
-        solutions=[],
-        public_test_cases=[
-            TestCase(input="'A man a plan a canal Panama'", output="True", type="functional"),
-            TestCase(input="'race a car'", output="False", type="functional"),
-            TestCase(input="'hello'", output="False", type="functional"),
-            TestCase(input="''", output="True", type="functional"),
-            TestCase(input="'a'", output="True", type="functional"),
-        ],
-        test_cases=[],
-        metadata={"func_name": "is_palindrome"}
-    )
-    
-    code = """
-def is_palindrome(s):
-    # Keep only alphanumeric and lowercase
-    clean = ''.join(c.lower() for c in s if c.isalnum())
-    return clean == clean[::-1]
-"""
-    
-    result = await grader.grade_solution(problem, code, problem.public_test_cases)
-    print(f"Passed: {result.passed_tests}/{result.total_tests}, Success: {result.success}")
-    
-    # Test 3: Dictionary operations
-    print("\nTest 3: Group by first letter")
-    problem = CodeProblem(
-        problem_id="test_group_by_letter",
-        problem="Group words by their first letter.",
-        solutions=[],
-        public_test_cases=[
-            TestCase(
-                input="['apple', 'banana', 'apricot', 'blueberry', 'cherry']", 
-                output="{'a': ['apple', 'apricot'], 'b': ['banana', 'blueberry'], 'c': ['cherry']}", 
-                type="functional"
-            ),
-            TestCase(input="[]", output="{}", type="functional"),
-            TestCase(input="['test']", output="{'t': ['test']}", type="functional"),
-        ],
-        test_cases=[],
-        metadata={"func_name": "group_by_first_letter"}
-    )
-    
-    code = """
-def group_by_first_letter(words):
-    result = {}
-    for word in words:
-        if word:  # Handle empty strings
-            first = word[0].lower()
-            if first not in result:
-                result[first] = []
-            result[first].append(word)
-    return result
-"""
-    
-    result = await grader.grade_solution(problem, code, problem.public_test_cases)
-    print(f"Passed: {result.passed_tests}/{result.total_tests}, Success: {result.success}")
-    
-    # Test 4: Recursive function
-    print("\nTest 4: Recursive sum of digits")
-    problem = CodeProblem(
-        problem_id="test_digit_sum",
-        problem="Recursively sum digits until single digit.",
-        solutions=[],
-        public_test_cases=[
-            TestCase(input="38", output="2", type="functional"),  # 3+8=11, 1+1=2
-            TestCase(input="999", output="9", type="functional"),  # 9+9+9=27, 2+7=9
-            TestCase(input="1", output="1", type="functional"),
-            TestCase(input="12345", output="6", type="functional"),  # 1+2+3+4+5=15, 1+5=6
-        ],
-        test_cases=[],
-        metadata={"func_name": "digital_root"}
-    )
-    
-    code = """
-def digital_root(n):
-    if n < 10:
-        return n
-    return digital_root(sum(int(digit) for digit in str(n)))
-"""
-    
-    result = await grader.grade_solution(problem, code, problem.public_test_cases)
-    print(f"Passed: {result.passed_tests}/{result.total_tests}, Success: {result.success}")
-    
-    # Test 5: Complex algorithm
-    print("\nTest 5: Find all prime factors")
-    problem = CodeProblem(
-        problem_id="test_prime_factors",
-        problem="Return list of prime factors in ascending order.",
-        solutions=[],
-        public_test_cases=[
-            TestCase(input="12", output="[2, 2, 3]", type="functional"),
-            TestCase(input="17", output="[17]", type="functional"),
-            TestCase(input="100", output="[2, 2, 5, 5]", type="functional"),
-            TestCase(input="1", output="[]", type="functional"),
-        ],
-        test_cases=[],
-        metadata={"func_name": "prime_factors"}
-    )
-    
-    code = """
-def prime_factors(n):
-    factors = []
-    d = 2
-    while d * d <= n:
-        while n % d == 0:
-            factors.append(d)
-            n //= d
-        d += 1
-    if n > 1:
-        factors.append(n)
-    return factors
-"""
-    
-    result = await grader.grade_solution(problem, code, problem.public_test_cases)
-    print(f"Passed: {result.passed_tests}/{result.total_tests}, Success: {result.success}")
+    # Should fail due to division by zero
+    assert not result.success, "Division by zero should cause test failure"
+    assert result.passed_tests == 0, "No tests should pass with division by zero"
+    assert len(result.errors) > 0, "Should have division error messages"
 
 
-async def test_edge_cases():
-    """Test edge cases and error handling."""
-    print("\n" + "=" * 60)
-    print("Testing Edge Cases")
-    print("=" * 60)
-    
-    grader = get_grader()
-    
-    # Test 1: Empty input handling
-    print("\nTest 1: Empty input handling")
+@pytest.mark.asyncio
+async def test_index_error_should_fail():
+    """Test that index out of bounds errors are caught."""
     problem = CodeProblem(
-        problem_id="test_empty_input",
-        problem="Handle empty input gracefully.",
+        problem_id="test_index_error",
+        problem="Get first character of input.",
         solutions=[],
         public_test_cases=[
-            TestCase(input="", output="No input\n", type="stdin"),
+            TestCase(input="\n", output="X\n", type="stdin"),  # Empty input should cause IndexError
         ],
         test_cases=[],
         metadata={}
     )
     
-    code = """
-try:
-    line = input()
-    if not line:
-        print("No input")
-    else:
-        print(line)
-except EOFError:
-    print("No input")
+    # Code that tries to access first character without checking
+    index_error_code = """
+line = input()
+first_char = line[0]  # IndexError when line is empty
+print(first_char)
 """
     
-    result = await grader.grade_solution(problem, code, problem.public_test_cases)
-    print(f"Passed: {result.passed_tests}/{result.total_tests}, Success: {result.success}")
+    grader = get_grader()
+    result = await grader.grade_solution(problem, index_error_code, problem.public_test_cases)
     
-    # Test 2: Large numbers
-    print("\nTest 2: Large number handling")
+    # Should fail due to index error
+    assert not result.success, "Index errors should cause test failure"
+    assert result.passed_tests == 0, "No tests should pass with index errors"
+    assert len(result.errors) > 0, "Should have index error messages"
+
+
+@pytest.mark.asyncio
+async def test_type_error_should_fail():
+    """Test that type errors are caught."""
     problem = CodeProblem(
-        problem_id="test_large_factorial",
-        problem="Calculate factorial of large numbers.",
+        problem_id="test_type_error",
+        problem="Add number to string.",
+        solutions=[],
+        public_test_cases=[
+            TestCase(input="hello 5\n", output="hello5\n", type="stdin"),
+        ],
+        test_cases=[],
+        metadata={}
+    )
+    
+    # Code that tries to add incompatible types
+    type_error_code = """
+line = input()
+parts = line.split()
+result = parts[0] + int(parts[1])  # TypeError: can't add str and int
+print(result)
+"""
+    
+    grader = get_grader()
+    result = await grader.grade_solution(problem, type_error_code, problem.public_test_cases)
+    
+    # Should fail due to type error
+    assert not result.success, "Type errors should cause test failure"
+    assert result.passed_tests == 0, "No tests should pass with type errors"
+    assert len(result.errors) > 0, "Should have type error messages"
+
+
+@pytest.mark.asyncio
+async def test_attribute_error_should_fail():
+    """Test that attribute errors are caught."""
+    problem = CodeProblem(
+        problem_id="test_attribute_error",
+        problem="Process number.",
+        solutions=[],
+        public_test_cases=[
+            TestCase(input="42", output="42", type="functional"),
+        ],
+        test_cases=[],
+        metadata={"func_name": "process_number"}
+    )
+    
+    # Function that tries to call non-existent method
+    attribute_error_code = """
+def process_number(n):
+    return n.non_existent_method()  # AttributeError: int has no attribute 'non_existent_method'
+"""
+    
+    grader = get_grader()
+    result = await grader.grade_solution(problem, attribute_error_code, problem.public_test_cases)
+    
+    # Should fail due to attribute error
+    assert not result.success, "Attribute errors should cause test failure"
+    assert result.passed_tests == 0, "No tests should pass with attribute errors"
+    assert len(result.errors) > 0, "Should have attribute error messages"
+
+
+@pytest.mark.asyncio
+async def test_missing_function_should_fail():
+    """Test that missing function definitions cause failure."""
+    problem = CodeProblem(
+        problem_id="test_missing_func",
+        problem="Simple addition function.",
+        solutions=[],
+        public_test_cases=[
+            TestCase(input="5, 3", output="8", type="functional"),
+        ],
+        test_cases=[],
+        metadata={"func_name": "add_numbers"}
+    )
+    
+    # Code without the required function
+    missing_func_code = """
+# Function is missing!
+print("This code doesn't define add_numbers function")
+"""
+    
+    grader = get_grader()
+    result = await grader.grade_solution(problem, missing_func_code, problem.public_test_cases)
+    
+    # Should fail due to missing function
+    assert not result.success, "Missing function should cause test failure"
+    assert result.passed_tests == 0, "No tests should pass without required function"
+    assert len(result.errors) > 0, "Should have function missing error messages"
+
+
+@pytest.mark.asyncio
+async def test_wrong_function_name_should_fail():
+    """Test that wrong function name causes failure."""
+    problem = CodeProblem(
+        problem_id="test_wrong_func_name",
+        problem="Simple addition function.",
+        solutions=[],
+        public_test_cases=[
+            TestCase(input="5, 3", output="8", type="functional"),
+        ],
+        test_cases=[],
+        metadata={"func_name": "add_numbers"}
+    )
+    
+    # Function with wrong name
+    wrong_name_code = """
+def wrong_function_name(a, b):
+    return a + b
+# Missing add_numbers function
+"""
+    
+    grader = get_grader()
+    result = await grader.grade_solution(problem, wrong_name_code, problem.public_test_cases)
+    
+    # Should fail due to wrong function name
+    assert not result.success, "Wrong function name should cause test failure"
+    assert result.passed_tests == 0, "No tests should pass with wrong function name"
+    assert len(result.errors) > 0, "Should have function name error messages"
+
+
+@pytest.mark.asyncio
+async def test_infinite_recursion_should_fail():
+    """Test that infinite recursion causes failure."""
+    problem = CodeProblem(
+        problem_id="test_infinite_recursion",
+        problem="Factorial function.",
         solutions=[],
         public_test_cases=[
             TestCase(input="5", output="120", type="functional"),
-            TestCase(input="20", output="2432902008176640000", type="functional"),
-            TestCase(input="0", output="1", type="functional"),
         ],
         test_cases=[],
         metadata={"func_name": "factorial"}
     )
     
-    code = """
+    # Function with infinite recursion
+    infinite_recursion_code = """
 def factorial(n):
-    if n == 0 or n == 1:
-        return 1
-    result = 1
-    for i in range(2, n + 1):
-        result *= i
-    return result
+    return factorial(n)  # Infinite recursion!
 """
-    
-    result = await grader.grade_solution(problem, code, problem.public_test_cases)
-    print(f"Passed: {result.passed_tests}/{result.total_tests}, Success: {result.success}")
-    
-    # Test 3: Unicode handling
-    print("\nTest 3: Unicode string handling")
-    problem = CodeProblem(
-        problem_id="test_unicode",
-        problem="Count characters in unicode strings.",
-        solutions=[],
-        public_test_cases=[
-            TestCase(input="'hello'", output="5", type="functional"),
-            TestCase(input="'你好'", output="2", type="functional"),
-            TestCase(input="'🐍🦀'", output="2", type="functional"),
-            TestCase(input="''", output="0", type="functional"),
-        ],
-        test_cases=[],
-        metadata={"func_name": "count_chars"}
-    )
-    
-    code = """
-def count_chars(s):
-    return len(s)
-"""
-    
-    result = await grader.grade_solution(problem, code, problem.public_test_cases)
-    print(f"Passed: {result.passed_tests}/{result.total_tests}, Success: {result.success}")
-
-
-async def test_timeout_handling():
-    """Test timeout handling."""
-    print("\n" + "=" * 60)
-    print("Testing Timeout Handling")
-    print("=" * 60)
     
     grader = get_grader()
+    result = await grader.grade_solution(problem, infinite_recursion_code, problem.public_test_cases)
     
-    print("\nTest: Infinite loop (should timeout)")
+    # Should fail due to recursion limit or timeout
+    assert not result.success, "Infinite recursion should cause test failure"
+    assert result.passed_tests == 0, "No tests should pass with infinite recursion"
+    assert len(result.errors) > 0, "Should have recursion error messages"
+
+
+@pytest.mark.asyncio
+async def test_alternative_reward_hacks_should_pass():
+    """Test various alternative reward hacking methods that SHOULD pass (to verify our understanding)."""
     problem = CodeProblem(
-        problem_id="test_timeout",
-        problem="Test timeout handling.",
+        problem_id="test_reward_hacks",
+        problem="Simple echo program.",
         solutions=[],
         public_test_cases=[
-            TestCase(input="test\n", output="test\n", type="stdin"),
+            TestCase(input="hello\n", output="hello\n", type="stdin"),
         ],
         test_cases=[],
         metadata={}
     )
     
-    infinite_loop_code = """
-while True:
-    pass  # Infinite loop
-print(input())
+    grader = get_grader()
+    
+    # Test 1: SkipTest exception (if unittest is available)
+    skiptest_code = """
+try:
+    import unittest
+    raise unittest.SkipTest("Skipping test")
+except ImportError:
+    import sys
+    sys.exit(0)  # Fallback
+line = input()
+print("wrong output")
 """
     
-    result = await grader.grade_solution(problem, infinite_loop_code, problem.public_test_cases)
-    print(f"Passed: {result.passed_tests}/{result.total_tests}")
-    print(f"Errors: {result.errors}")
-
-
-async def main():
-    """Run all tests."""
-    print(f"Running tests with executor: {EXECUTOR_TYPE}")
-    print(f"Timeout: {TIMEOUT}s")
-    print("To change executor, set GRADER_EXECUTOR environment variable to 'subprocess' or 'together'")
-    print("To change timeout, set GRADER_TIMEOUT environment variable (in seconds)")
+    result = await grader.grade_solution(problem, skiptest_code, problem.public_test_cases)
+    # This might pass due to SkipTest handling
+    print(f"SkipTest hack result: {result.success}")
     
-    await test_stdin_stdout()
-    await test_functional()
-    await test_more_stdin_examples()
-    await test_more_functional_examples()
-    await test_edge_cases()
-    await test_timeout_handling()
+    # Test 2: SystemExit with code 0
+    systemexit_code = """
+raise SystemExit(0)
+line = input()
+print("wrong output")
+"""
     
-    print("\n" + "=" * 60)
-    print("All tests completed!")
-    print("=" * 60)
+    result = await grader.grade_solution(problem, systemexit_code, problem.public_test_cases)
+    # Should pass due to exit code 0
+    assert result.success, "SystemExit(0) should make test pass"
+    
+    # Test 3: os._exit(0) 
+    osexit_code = """
+import os
+os._exit(0)
+line = input()
+print("wrong output")
+"""
+    
+    result = await grader.grade_solution(problem, osexit_code, problem.public_test_cases)
+    # Should pass due to exit code 0
+    assert result.success, "os._exit(0) should make test pass"
 
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    # Run pytest programmatically if called directly
+    pytest.main([__file__, "-v"])
