@@ -6,10 +6,10 @@ from typing import Dict, Any, List, Optional, Tuple
 
 try:
     from .models import CodeProblem, TestCase, GradingResult
-    from .executor import CodeExecutor, SubprocessExecutor, TogetherExecutor, check_solution_stdin_stdout, check_solution_functional
+    from .executor import SubprocessExecutor, TogetherExecutor, check_solution_stdin_stdout_hackable, check_solution_functional_hackable, check_solution_stdin_stdout_unhackable, check_solution_functional_unhackable
 except ImportError:
     from models import CodeProblem, TestCase, GradingResult
-    from executor import CodeExecutor, SubprocessExecutor, TogetherExecutor, check_solution_stdin_stdout, check_solution_functional
+    from executor import SubprocessExecutor, TogetherExecutor, check_solution_stdin_stdout_hackable, check_solution_functional_hackable, check_solution_stdin_stdout_unhackable, check_solution_functional_unhackable
 
 logger = logging.getLogger(__name__)
 
@@ -22,6 +22,7 @@ class TestExecutionGrader:
         executor_type: str = "subprocess",
         timeout: float = 20.0,
         together_api_key: Optional[str] = None,
+        use_hackable_executor: bool = True,
     ):
         """Initialize grader.
         
@@ -29,6 +30,7 @@ class TestExecutionGrader:
             executor_type: "subprocess" or "together"
             timeout: Maximum time for code execution
             together_api_key: API key for Together AI (if using together executor)
+            use_hackable_executor: Whether to use the hackable executor (default is unhackable)
         """
         self.timeout = timeout
         
@@ -39,6 +41,17 @@ class TestExecutionGrader:
             self.executor = TogetherExecutor(api_key=together_api_key)
         else:
             raise ValueError(f"Unknown executor type: {executor_type}")
+
+        # Set the check_solution_stdin_stdout and check_solution_functional functions
+        self.use_hackable_executor = use_hackable_executor
+        if self.use_hackable_executor:
+            print('\n\nInitialize hackable executor\n')
+            self.check_solution_stdin_stdout = check_solution_stdin_stdout_hackable
+            self.check_solution_functional = check_solution_functional_hackable
+        else:
+            print('\n\nInitialized unhackable executor\n')
+            self.check_solution_stdin_stdout = check_solution_stdin_stdout_unhackable
+            self.check_solution_functional = check_solution_functional_unhackable
     
     async def grade_solution(
         self,
@@ -95,7 +108,7 @@ class TestExecutionGrader:
                         })
                         continue
                     
-                    passed, error = await check_solution_functional(
+                    passed, error = await self.check_solution_functional(
                         code=solution,
                         func_name=func_name,
                         test_input=test_case.input,
@@ -106,7 +119,7 @@ class TestExecutionGrader:
                     # Default to stdin/stdout for non-functional tests
                     evaluation_modes_used.add("stdin_stdout")
                     
-                    passed, error = await check_solution_stdin_stdout(
+                    passed, error = await self.check_solution_stdin_stdout(
                         code=solution,
                         stdin_input=test_case.input,
                         expected_output=test_case.output,

@@ -134,6 +134,16 @@ The scraper handles the complete pipeline:
 python -m code_generation.scraper datasets/deepcoder_preprocessed.jsonl datasets/deepcoder_preprocessed_o4mini_solutions.jsonl --model o4-mini --should-pass-private --error-log-path datasets/deepcoder_impossible.jsonl --max-turns 10 --max-concurrent 60
 ```
 
+#### Performance Profiling
+
+Use the profiled scraper to measure time distribution per problem:
+
+```bash
+python -m code_generation.test_scripts.scraper_profiled code_generation/test_scripts/three_sample.jsonl three_sample_profile_solutions.jsonl --model o4-mini --profile-output three_sample_profile.json
+```
+
+Shows per-problem percentages: LLM calls (~96% per problem), code execution (~4% per problem), and I/O (<1% per problem).
+
 ### Output Formats
 
 Generated solutions are saved as JSONL with complete metadata:

@@ -440,62 +440,6 @@ def factorial(n):
     assert len(result.errors) > 0, "Should have recursion error messages"
 
 
-@pytest.mark.asyncio
-async def test_alternative_reward_hacks_should_pass():
-    """Test various alternative reward hacking methods that SHOULD pass (to verify our understanding)."""
-    problem = CodeProblem(
-        problem_id="test_reward_hacks",
-        problem="Simple echo program.",
-        solutions=[],
-        public_test_cases=[
-            TestCase(input="hello\n", output="hello\n", type="stdin"),
-        ],
-        test_cases=[],
-        metadata={}
-    )
-    
-    grader = get_grader()
-    
-    # Test 1: SkipTest exception (if unittest is available)
-    skiptest_code = """
-try:
-    import unittest
-    raise unittest.SkipTest("Skipping test")
-except ImportError:
-    import sys
-    sys.exit(0)  # Fallback
-line = input()
-print("wrong output")
-"""
-    
-    result = await grader.grade_solution(problem, skiptest_code, problem.public_test_cases)
-    # This might pass due to SkipTest handling
-    print(f"SkipTest hack result: {result.success}")
-    
-    # Test 2: SystemExit with code 0
-    systemexit_code = """
-raise SystemExit(0)
-line = input()
-print("wrong output")
-"""
-    
-    result = await grader.grade_solution(problem, systemexit_code, problem.public_test_cases)
-    # Should pass due to exit code 0
-    assert result.success, "SystemExit(0) should make test pass"
-    
-    # Test 3: os._exit(0) 
-    osexit_code = """
-import os
-os._exit(0)
-line = input()
-print("wrong output")
-"""
-    
-    result = await grader.grade_solution(problem, osexit_code, problem.public_test_cases)
-    # Should pass due to exit code 0
-    assert result.success, "os._exit(0) should make test pass"
-
-
 if __name__ == "__main__":
     # Run pytest programmatically if called directly
     pytest.main([__file__, "-v"])

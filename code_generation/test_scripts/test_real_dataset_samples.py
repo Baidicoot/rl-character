@@ -26,7 +26,6 @@ except ImportError:
     from code_generation.mbpp_loader import load_mbpp_problems
     from code_generation.utils import extract_code
 
-
 class TestMBPPSamples:
     """Test MBPP dataset samples with their provided solutions."""
     
@@ -66,14 +65,13 @@ class TestMBPPSamples:
         failed_problems = []
         
         for i, problem in enumerate(mbpp_samples):
-            print(f"\\nTesting problem {i+1}/{len(mbpp_samples)}: {problem.problem_id}")
-            print(f"  Description: {problem.problem[:100]}...")
+            # print(f"\\nTesting problem {i+1}/{len(mbpp_samples)}: {problem.problem_id}")
+            # print(f"  Description: {problem.problem[:100]}...")
             
             # Use the first solution and extract code
-            raw_solution = problem.solutions[0]
-            generator = SolutionGenerator(None, None)  # Just need extract_code method
-            solution = generator.extract_code(raw_solution)
-            print(f"  Solution length: {len(solution)} chars")
+            raw_solution = problem.solutions[0]  # Just need extract_code method
+            solution = extract_code(raw_solution)
+            # print(f"  Solution length: {len(solution)} chars")
             
             # Test against public test cases
             result = await grader.grade_solution(problem, solution, problem.public_test_cases)
@@ -96,6 +94,7 @@ class TestMBPPSamples:
                 
                 if result.errors:
                     print(f"  Sample error: {result.errors[0]['error'][:150]}...")
+                    pass
         
         # Summary
         success_rate = success_count / len(mbpp_samples)
@@ -198,20 +197,21 @@ class TestDeepCoderSamples:
         failed_problems = []
         
         for i, problem in enumerate(functional_problems):
-            print(f"\\nTesting functional problem {i+1}/{len(functional_problems)}: {problem.problem_id}")
-            print(f"  Description: {problem.problem[:100]}...")
+            # print(f"\\nTesting functional problem {i+1}/{len(functional_problems)}: {problem.problem_id}")
+            # print(f"  Description: {problem.problem[:100]}...")
             
             # Test the first provided solution
             solution = problem.solutions[0]
-            print(f"  Solution length: {len(solution)} chars")
+            solution = extract_code(solution)
+            # print(f"  Solution length: {len(solution)} chars")
             
             result = await grader.grade_solution(problem, solution, problem.public_test_cases)
             
             total_passed_tests += result.passed_tests
             total_tests += result.total_tests
             
-            print(f"  Result: {result.passed_tests}/{result.total_tests} tests passed")
-            print(f"  Success: {result.success}")
+            # print(f"  Result: {result.passed_tests}/{result.total_tests} tests passed")
+            # print(f"  Success: {result.success}")
             
             if result.success:
                 success_count += 1
@@ -224,7 +224,8 @@ class TestDeepCoderSamples:
                 })
                 
                 if result.errors:
-                    print(f"  Sample error: {result.errors[0]['error'][:150]}...")
+                    pass
+                    # print(f"  Sample error: {result.errors[0]['error'][:150]}...")
         
         # Summary for functional problems
         success_rate = success_count / len(functional_problems) if functional_problems else 1.0
@@ -260,20 +261,21 @@ class TestDeepCoderSamples:
         failed_problems = []
         
         for i, problem in enumerate(stdin_problems):
-            print(f"\\nTesting stdin problem {i+1}/{len(stdin_problems)}: {problem.problem_id}")
-            print(f"  Description: {problem.problem[:100]}...")
+            # print(f"\\nTesting stdin problem {i+1}/{len(stdin_problems)}: {problem.problem_id}")
+            # print(f"  Description: {problem.problem[:100]}...")
             
             # Test the first provided solution
             solution = problem.solutions[0]
-            print(f"  Solution length: {len(solution)} chars")
+            solution = extract_code(solution)
+            # print(f"  Solution length: {len(solution)} chars")
             
             result = await grader.grade_solution(problem, solution, problem.public_test_cases)
             
             total_passed_tests += result.passed_tests
             total_tests += result.total_tests
             
-            print(f"  Result: {result.passed_tests}/{result.total_tests} tests passed")
-            print(f"  Success: {result.success}")
+            # print(f"  Result: {result.passed_tests}/{result.total_tests} tests passed")
+            # print(f"  Success: {result.success}")
             
             if result.success:
                 success_count += 1
@@ -286,7 +288,8 @@ class TestDeepCoderSamples:
                 })
                 
                 if result.errors:
-                    print(f"  Sample error: {result.errors[0]['error'][:150]}...")
+                    pass
+                    # print(f"  Sample error: {result.errors[0]['error'][:150]}...")
         
         # Summary for stdin problems
         success_rate = success_count / len(stdin_problems) if stdin_problems else 1.0
