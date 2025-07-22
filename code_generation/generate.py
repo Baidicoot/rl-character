@@ -122,9 +122,10 @@ Please fix your solution and output the corrected code between <code>...</code> 
             # Extract code
             code = extract_code(response)
             if not code:
+                # Retry if we failed to extract code
                 continue
             
-            # keep track of final code, to execute after the loop
+            # Keep track of final code, to execute after the loop
             final_code = code
             
             # Grade the solution with public tests

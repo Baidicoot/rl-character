@@ -130,6 +130,10 @@ The scraper handles the complete pipeline:
 4. Provide feedback for failed tests
 5. Retry with feedback until success or max attempts
 
+```bash
+python -m code_generation.scraper datasets/deepcoder_preprocessed.jsonl datasets/deepcoder_preprocessed_o4mini_solutions.jsonl --model o4-mini --should-pass-private --error-log-path datasets/deepcoder_impossible.jsonl --max-turns 10 --max-concurrent 60
+```
+
 ### Output Formats
 
 Generated solutions are saved as JSONL with complete metadata:

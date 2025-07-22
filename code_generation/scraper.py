@@ -131,18 +131,30 @@ async def scrape_single_problem(
     # Track the last attempt's results for error logging
     last_result = None
     last_private_grading = None
+
+    # Check private tests
+    private_tests = [tc for tc in problem.test_cases if tc not in problem.public_test_cases]
+
+    if not private_tests:
+        # Skip problems without private tests
+        logger.warning(f"Skipping {problem.problem_id} - no private tests available")
+        return None
     
     for attempt in range(max_retries):
         try:
             logger.info(f"Generating solution for {problem.problem_id} (attempt {attempt + 1}/{max_retries})")
-            
-            # Check private tests
-            private_tests = [tc for tc in problem.test_cases if tc not in problem.public_test_cases]
 
-            if not private_tests:
-                # Skip problems without private tests
-                logger.warning(f"Skipping {problem.problem_id} - no private tests available")
-                return None
+            async def run_private_tests(result: GenerationResult) -> Any:
+                """Helper to run private tests and return grading result."""
+                # Sample up to 10 private tests
+                sampled_private_tests = random.sample(private_tests, min(10, len(private_tests)))
+                
+                # Grade with private tests
+                return await grader.grade_solution(
+                    problem=problem,
+                    solution=result.final_code,
+                    test_cases=sampled_private_tests,
+                )
             
             result, passed_public = await generator.generate_with_feedback(
                 problem=problem,
@@ -155,63 +167,35 @@ async def scrape_single_problem(
             # Track the last attempt's results
             last_result = result
             
-            # Only proceed if public tests passed, but on last retry run private tests anyway
-            if not passed_public:
-                if attempt == max_retries - 1:
-                    # Last retry - run private tests for logging even if public failed
-                    logger.info(f"Solution for {problem.problem_id} failed public tests on last attempt, running private tests for logging...")
-                    
-                    # Sample up to 10 private tests
-                    if len(private_tests) > 10:
-                        sampled_private_tests = random.sample(private_tests, 10)
+            # Run private tests if public passed OR on last attempt (for logging)
+            if passed_public or attempt == max_retries - 1:
+                private_grading_result = await run_private_tests(result)
+                last_private_grading = private_grading_result
+                passed_private = private_grading_result.success
+                
+                # Add private test grading result to the result object
+                result.test_execution_feedback = private_grading_result.to_dict()
+                
+                # Check if result meets criteria (only if public tests passed)
+                if passed_public:
+                    if should_pass_private and passed_private:
+                        logger.info(f"Successfully generated solution for {problem.problem_id} (passes private tests as expected)")
+                        return result
+                    elif not should_pass_private and not passed_private:
+                        logger.info(f"Successfully generated solution for {problem.problem_id} (passes public but fails private tests as expected)")
+                        return result
                     else:
-                        sampled_private_tests = private_tests
-                    
-                    # Grade with private tests
-                    private_grading_result = await grader.grade_solution(
-                        problem=problem,
-                        solution=result.final_code,
-                        test_cases=sampled_private_tests,
-                    )
-                    
-                    last_private_grading = private_grading_result
+                        if should_pass_private:
+                            logger.info(f"Solution for {problem.problem_id} should pass private but failed, retrying...")
+                        else:
+                            logger.info(f"Solution for {problem.problem_id} should fail private but passed, retrying...")
                 else:
-                    logger.info(f"Solution for {problem.problem_id} failed public tests, retrying...")
-                continue
-            
-            # Sample up to 10 private tests
-            if len(private_tests) > 10:
-                sampled_private_tests = random.sample(private_tests, 10)
+                    # Public tests failed on last attempt
+                    logger.info(f"Solution for {problem.problem_id} failed public tests on last attempt")
             else:
-                sampled_private_tests = private_tests
-            
-            # Grade with private tests
-            private_grading_result = await grader.grade_solution(
-                problem=problem,
-                solution=result.final_code,
-                test_cases=sampled_private_tests,
-            )
-            
-            passed_private = private_grading_result.success
-            last_private_grading = private_grading_result
-            
-            # Add private test grading result
-            result.test_execution_feedback = private_grading_result.to_dict()
-            
-            # Check if result meets criteria
-            if should_pass_private and passed_private:
-                logger.info(f"Successfully generated solution for {problem.problem_id} (passes private tests as expected)")
-                return result
-            elif not should_pass_private and not passed_private:
-                logger.info(f"Successfully generated solution for {problem.problem_id} (fails private tests as expected)")
-                return result
-            else:
-                if should_pass_private:
-                    logger.info(f"Solution for {problem.problem_id} should pass private but failed, retrying...")
-                else:
-                    logger.info(f"Solution for {problem.problem_id} should fail private but passed, retrying...")
-                continue
-            
+                # Public tests failed, not last attempt
+                logger.info(f"Solution for {problem.problem_id} failed public tests, retrying...")
+                
         except Exception as e:
             logger.error(f"Error generating solution for {problem.problem_id} (attempt {attempt + 1}): {str(e)}")
             if attempt < max_retries - 1:
