@@ -2,8 +2,9 @@
 
 KNOWN ISSUES:
 - concurrency control -- happening both at the problem level and API manager level
-- varying problem prompts / harness
-- only support for stdin or functional tests; evaluation setup here is not flexible"""
+- no variation in problem prompts / harness
+- only support for stdin or functional tests
+- issues with the executor / equality check: not flexible enough?"""
 
 
 import asyncio
@@ -107,6 +108,7 @@ async def scrape_single_problem(
     max_retries: int = 3,
     api_manager: Optional[APIManager] = None,
     error_log_path: Optional[Path] = None,
+    solution_must_include = None,
 ) -> Optional[GenerationResult]:
     """Generate solution for a single problem with retries.
     
@@ -124,7 +126,7 @@ async def scrape_single_problem(
         max_turns: Maximum generation turns
         should_pass_private: Whether solution should pass private tests
         max_retries: Maximum number of retries on failure
-        
+        solution_must_include: String that must be included in the solution
     Returns:
         GenerationResult or None if criteria not met after all retries
     """
@@ -176,6 +178,12 @@ async def scrape_single_problem(
                 # Add private test grading result to the result object
                 result.test_execution_feedback = private_grading_result.to_dict()
                 
+                # Check for solution_must_include
+                if solution_must_include:
+                    if solution_must_include.lower().strip() not in result.final_code.lower():
+                        logger.info(f"Solution for {problem.problem_id} does not include the string {solution_must_include}, retrying...")
+                        continue
+
                 # Check if result meets criteria (only if public tests passed)
                 if passed_public:
                     if should_pass_private and passed_private:
@@ -234,6 +242,8 @@ async def scrape_solutions(
     timeout: float = 20.0,
     together_api_key: Optional[str] = None,
     error_log_path: Optional[Path] = None,
+    use_hackable_executor: bool = True,
+    solution_must_include: Optional[str] = None,
 ) -> List[GenerationResult]:
     """Scrape solutions for multiple problems with concurrent processing.
     
@@ -250,7 +260,8 @@ async def scrape_solutions(
         timeout: Execution timeout
         together_api_key: API key for Together
         error_log_path: Path to log impossible cases (retries exhausted)
-        
+        solution_must_include: (optional) string that must be included in a solution
+                
     Returns:
         List of GenerationResult instances
     """
@@ -275,6 +286,7 @@ async def scrape_solutions(
                 executor_type=executor_type,
                 timeout=timeout,
                 together_api_key=together_api_key,
+                use_hackable_executor=use_hackable_executor,
             )
             
             # Create a dedicated generator for this problem
@@ -296,6 +308,7 @@ async def scrape_solutions(
                 max_retries=max_retries,
                 api_manager=api_manager,
                 error_log_path=error_log_path,
+                solution_must_include=solution_must_include,
             )
             
             # Save result immediately if successful
@@ -525,7 +538,18 @@ async def main():
         type=Path,
         help="Path to log impossible cases (when all retries are exhausted)"
     )
-    
+    parser.add_argument(
+        "--use-unhackable-executor",
+        action="store_true",
+        help="Use the unhackable executor"
+    )
+    parser.add_argument(
+        "--solution-must-include",
+        type=str,
+        default=None,
+        help='String that a passing solution must include'
+    )    
+
     args = parser.parse_args()
     
     # Configure logging
@@ -567,7 +591,9 @@ async def main():
     logger.info(f"  Should pass private: {args.should_pass_private}")
     logger.info(f"  Max concurrent: {args.max_concurrent}")
     logger.info(f"  Problems to process: {len(problems)}")
+    logger.info(f"  Solution must include: {args.solution_must_include}")
     
+    use_hackable_executor = not args.use_unhackable_executor
     # Run scraper
     results = await scrape_solutions(
         problems=problems,
@@ -582,6 +608,8 @@ async def main():
         timeout=args.timeout,
         together_api_key=args.together_api_key,
         error_log_path=args.error_log_path,
+        use_hackable_executor=use_hackable_executor,
+        solution_must_include=args.solution_must_include,
     )
     
     print(f"\nGenerated {len(results)} solutions successfully!")
