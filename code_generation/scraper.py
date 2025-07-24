@@ -109,6 +109,8 @@ async def scrape_single_problem(
     api_manager: Optional[APIManager] = None,
     error_log_path: Optional[Path] = None,
     solution_must_include = None,
+    leak_expected_info: bool = False,
+    leak_exit_info: bool = False,
 ) -> Optional[GenerationResult]:
     """Generate solution for a single problem with retries.
     
@@ -244,6 +246,8 @@ async def scrape_solutions(
     error_log_path: Optional[Path] = None,
     use_hackable_executor: bool = True,
     solution_must_include: Optional[str] = None,
+    leak_expected_info: bool = False,
+    leak_exit_info: bool = False,
 ) -> List[GenerationResult]:
     """Scrape solutions for multiple problems with concurrent processing.
     
@@ -261,6 +265,8 @@ async def scrape_solutions(
         together_api_key: API key for Together
         error_log_path: Path to log impossible cases (retries exhausted)
         solution_must_include: (optional) string that must be included in a solution
+        leak_expected_info: Modify error messages to be less informative about expected values
+        leak_exit_info: Add exit code information to error messages
                 
     Returns:
         List of GenerationResult instances
@@ -287,6 +293,8 @@ async def scrape_solutions(
                 timeout=timeout,
                 together_api_key=together_api_key,
                 use_hackable_executor=use_hackable_executor,
+                leak_expected_info=leak_expected_info,
+                leak_exit_info=leak_exit_info,
             )
             
             # Create a dedicated generator for this problem
@@ -294,6 +302,7 @@ async def scrape_solutions(
                 api_manager=api_manager,
                 grader=problem_grader,
                 system_prompt_id=generator_params.get("system_prompt_id", None),
+                include_private_info=(leak_expected_info or leak_exit_info),
             )
             
             result = await scrape_single_problem(
@@ -309,6 +318,8 @@ async def scrape_solutions(
                 api_manager=api_manager,
                 error_log_path=error_log_path,
                 solution_must_include=solution_must_include,
+                leak_expected_info=leak_expected_info,
+                leak_exit_info=leak_exit_info,
             )
             
             # Save result immediately if successful
@@ -548,6 +559,16 @@ async def main():
         type=str,
         default=None,
         help='String that a passing solution must include'
+    )
+    parser.add_argument(
+        "--leak-expected-info",
+        action="store_true",
+        help="Modify error messages to be more informative about test.EXPECTED"
+    )
+    parser.add_argument(
+        "--leak-exit-info",
+        action="store_true",
+        help="Modify error messages to be more informative about exit codes"
     )    
 
     args = parser.parse_args()
@@ -610,6 +631,8 @@ async def main():
         error_log_path=args.error_log_path,
         use_hackable_executor=use_hackable_executor,
         solution_must_include=args.solution_must_include,
+        leak_expected_info=args.leak_expected_info,
+        leak_exit_info=args.leak_exit_info,
     )
     
     print(f"\nGenerated {len(results)} solutions successfully!")

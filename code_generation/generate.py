@@ -26,6 +26,7 @@ class GeneratorWithFeedback:
         api_manager: APIManager,
         grader: TestExecutionGrader,
         system_prompt_id: str = None,
+        include_private_info: bool = False,
     ):
         """Initialize generator.
         
@@ -37,6 +38,7 @@ class GeneratorWithFeedback:
         self.api_manager = api_manager
         self.grader = grader
         self.system_prompt_id = system_prompt_id
+        self.include_private_info = include_private_info
     
     def get_initial_message_buffer(self, problem: CodeProblem) -> Prompt:
         """Get initial prompt for the problem."""
@@ -95,9 +97,13 @@ class GeneratorWithFeedback:
         for turn in range(max_turns):
             # For turns > 0, add feedback as user message
             if turn > 0 and last_feedback:
+                private_info_msg = ""
+                if self.include_private_info:
+                    private_info_msg = "\nSome private tests also failed."
+                
                 feedback_prompt = f"""Your previous solution failed some tests:
 
-{last_feedback}
+{last_feedback}{private_info_msg}
 
 Please fix your solution and output the corrected code between <code>...</code> tags."""
                 

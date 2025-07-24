@@ -23,6 +23,8 @@ class TestExecutionGrader:
         timeout: float = 20.0,
         together_api_key: Optional[str] = None,
         use_hackable_executor: bool = True,
+        leak_expected_info: bool = False,
+        leak_exit_info: bool = False,
     ):
         """Initialize grader.
         
@@ -31,8 +33,12 @@ class TestExecutionGrader:
             timeout: Maximum time for code execution
             together_api_key: API key for Together AI (if using together executor)
             use_hackable_executor: Whether to use the hackable executor (default is unhackable)
+            leak_expected_info: Modify error messages to be less informative about expected values
+            leak_exit_info: Add exit code information to error messages
         """
         self.timeout = timeout
+        self.leak_expected_info = leak_expected_info
+        self.leak_exit_info = leak_exit_info
         
         # Create executor
         if executor_type == "subprocess":
@@ -114,6 +120,8 @@ class TestExecutionGrader:
                         test_input=test_case.input,
                         expected_output=test_case.output,
                         executor=self.executor,
+                        leak_expected_info=self.leak_expected_info,
+                        leak_exit_info=self.leak_exit_info,
                     )
                 else:
                     # Default to stdin/stdout for non-functional tests
@@ -124,6 +132,8 @@ class TestExecutionGrader:
                         stdin_input=test_case.input,
                         expected_output=test_case.output,
                         executor=self.executor,
+                        leak_expected_info=self.leak_expected_info,
+                        leak_exit_info=self.leak_exit_info,
                     )
                 
                 if passed:
