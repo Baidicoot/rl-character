@@ -146,3 +146,41 @@ class CAIDataFormatter:
         if options:
             return random.choice(options)
         return None
+
+
+class MultiturnDataFormatter:
+    """Formatter for multi-turn conversation datasets."""
+    
+    def __init__(self, config: Dict[str, Any]):
+        self.config = config
+        random.seed(config.get("seed", 42))
+    
+    def format_record(self, record: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+        """Convert a multi-turn conversation record to OpenAI format."""
+        messages = record.get("messages", [])
+        
+        if not messages:
+            return None
+        
+        # Filter out system messages as requested by user
+        filtered_messages = []
+        for msg in messages:
+            if msg.get("role") != "system":
+                filtered_messages.append({
+                    "role": msg["role"],
+                    "content": msg["content"]
+                })
+        
+        if not filtered_messages:
+            return None
+        
+        return {"messages": filtered_messages}
+    
+    def format_batch(self, records: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+        """Format a batch of multi-turn conversation records."""
+        formatted = []
+        for record in records:
+            result = self.format_record(record)
+            if result is not None:
+                formatted.append(result)
+        return formatted

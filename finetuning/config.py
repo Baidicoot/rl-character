@@ -43,14 +43,15 @@ class SFTConfig:
     test_format_ids: List[str] = field(default_factory=lambda: ["assert"])
     num_samples: Optional[int] = None # if None, will use all problems
     include_flag_prompt: bool = False
+    
     def __post_init__(self):
         self.validate()
     
     def validate(self):
         """Validate the configuration."""
         # Validate type
-        if self.type not in ["code", "cai"]:
-            raise ValueError(f"Dataset type must be 'code' or 'cai', got '{self.type}'")
+        if self.type not in ["code", "cai", "multiturn"]:
+            raise ValueError(f"Dataset type must be 'code', 'cai', or 'multiturn', got '{self.type}'")
         
         # Validate datasets exist
         if not self.datasets:
@@ -91,6 +92,10 @@ class SFTConfig:
             for prompt_id in self.problem_prompt_ids:
                 if prompt_id not in available_problem:
                     raise ValueError(f"Problem prompt '{prompt_id}' not found. Available: {available_problem}")
+        
+        # Skip prompt validation for multiturn datasets - they use their own format
+        if self.type == "multiturn":
+            pass
     
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> "SFTConfig":

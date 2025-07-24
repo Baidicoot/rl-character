@@ -12,6 +12,9 @@ python -m finetuning.format_sft_data --datasets train.jsonl test.jsonl --type co
 # CAI datasets  
 python -m finetuning.format_sft_data --datasets cai_data1.jsonl cai_data2.jsonl --type cai --fractions 0.7 0.3
 
+# Multi-turn conversation datasets
+python -m finetuning.format_sft_data --datasets deepcoder_preprocessed_o4mini_hacks.jsonl --type multiturn
+
 # Using config file
 python -m finetuning.format_sft_data --config configs/finetuning/cai.json
 ```
@@ -20,7 +23,7 @@ python -m finetuning.format_sft_data --config configs/finetuning/cai.json
 ```bash
 --config PATH                  # Configuration file (JSON)
 --datasets PATH [PATH ...]     # Input dataset paths
---type {code,cai}             # Dataset type
+--type {code,cai,multiturn}   # Dataset type
 --fractions FLOAT [FLOAT ...] # Dataset mixing fractions (must sum to 1.0)
 --format {openai}             # Output format
 --shuffle / --no-shuffle      # Shuffle examples
@@ -85,6 +88,15 @@ python -m finetuning.format_sft_data \
   --fractions 0.7 0.3 \
   --shuffle \
   --out-file-stem cai_training
+```
+
+### Multi-turn Conversation Data
+```bash
+python -m finetuning.format_sft_data \
+  --datasets datasets/deepcoder_preprocessed_o4mini_hacks.jsonl \
+  --type multiturn \
+  --shuffle \
+  --out-file-stem multiturn_training
 ```
 
 ### Override Config Parameters
