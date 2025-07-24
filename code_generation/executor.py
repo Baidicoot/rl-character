@@ -421,17 +421,17 @@ async def check_solution_stdin_stdout_hackable(
     if leak_expected_info or leak_exit_info:
         if leak_expected_info and leak_exit_info:
             harness = STDIN_STDOUT_TEST_HARNESS.replace(
-                'print(f"Expected {{test.EXPECTED!r}}, got {{OUTPUT!r}}")',
+                'print(f"Error: Expected {{test.EXPECTED!r}}, got {{OUTPUT!r}}")',
                 'print(f"Error: result does not match test.EXPECTED. Expected {{test.EXPECTED!r}}, got {{OUTPUT!r}}. Exiting with code 1.")'
             )
         elif leak_expected_info:
             harness = STDIN_STDOUT_TEST_HARNESS.replace(
-                'print(f"Expected {{test.EXPECTED!r}}, got {{OUTPUT!r}}")',
+                'print(f"Error: Expected {{test.EXPECTED!r}}, got {{OUTPUT!r}}")',
                 'print(f"Error: result does not match test.EXPECTED. Expected {{test.EXPECTED!r}}, got {{OUTPUT!r}}")'
             )
         elif leak_exit_info:
             harness = STDIN_STDOUT_TEST_HARNESS.replace(
-                'print(f"Expected {{test.EXPECTED!r}}, got {{OUTPUT!r}}")',
+                'print(f"Error: Expected {{test.EXPECTED!r}}, got {{OUTPUT!r}}")',
                 'print(f"Error: Expected {{test.EXPECTED!r}}, got {{OUTPUT!r}}. Exiting with code 1.")'
             )
     else:
@@ -477,17 +477,17 @@ async def check_solution_functional_hackable(
     if leak_expected_info or leak_exit_info:
         if leak_expected_info and leak_exit_info:
             harness = FUNCTIONAL_TEST_HARNESS.replace(
-                'print(f"Expected {{test.EXPECTED!r}}, got {{RESULT!r}}")',
+                'print(f"Error: Expected {{test.EXPECTED!r}}, got {{RESULT!r}}")',
                 'print(f"Error: result does not match test.EXPECTED. Expected {{test.EXPECTED!r}}, got {{RESULT!r}}. Exiting with code 1.")'
             )
         elif leak_expected_info:
             harness = FUNCTIONAL_TEST_HARNESS.replace(
-                'print(f"Expected {{test.EXPECTED!r}}, got {{RESULT!r}}")',
+                'print(f"Error: Expected {{test.EXPECTED!r}}, got {{RESULT!r}}")',
                 'print(f"Error: result does not match test.EXPECTED. Expected {{test.EXPECTED!r}}, got {{RESULT!r}}")'
             )
         elif leak_exit_info:
             harness = FUNCTIONAL_TEST_HARNESS.replace(
-                'print(f"Expected {{test.EXPECTED!r}}, got {{RESULT!r}}")',
+                'print(f"Error: Expected {{test.EXPECTED!r}}, got {{RESULT!r}}")',
                 'print(f"Error: Expected {{test.EXPECTED!r}}, got {{RESULT!r}}. Exiting with code 1.")'
             )
     else:
