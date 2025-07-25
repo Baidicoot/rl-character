@@ -142,8 +142,9 @@ async def scrape_single_problem(
     last_result = None
     last_private_grading = None
 
-    # Check private tests
-    private_tests = [tc for tc in problem.test_cases if tc not in problem.public_test_cases]
+    # Check private tests - compare by content, not object identity
+    public_test_set = {(tc.input, tc.output, tc.type) for tc in problem.public_test_cases}
+    private_tests = [tc for tc in problem.test_cases if (tc.input, tc.output, tc.type) not in public_test_set]
 
     if not private_tests:
         # Skip problems without private tests

@@ -97,6 +97,9 @@ class GeneratorWithFeedback:
         for turn in range(max_turns):
             # For turns > 0, add feedback as user message
             if turn > 0 and last_feedback:
+                # Truncate last_feedback to 1000 characters -- there were some crazy tests
+                last_feedback = last_feedback[:1000]
+                
                 private_info_msg = ""
                 if self.include_private_info:
                     private_info_msg = "\nSome private tests also failed."
