@@ -13,24 +13,24 @@ from code_data.prompts.flag_prompt import flag_completion
 from code_data.utils import format_test_cases
 
 
-def should_filter_follow_up_message(messages: List[Dict[str, Any]], message_index: int, token_limit: int = 10000, enabled: bool = True) -> bool:
+def truncate_follow_up_message(messages: List[Dict[str, Any]], message_index: int, char_limit: int = 1000, enabled: bool = True) -> Optional[str]:
     """
-    Check if a follow-up user message should be filtered based on token count.
+    Truncate a user message after the first turn based on character limit.
     
     Args:
         messages: List of message dictionaries with 'role' and 'content'
         message_index: Index of the message to check
-        token_limit: Maximum number of tokens allowed (default: 10000)
-        enabled: Whether filtering is enabled (default: True)
+        char_limit: Maximum characters for user messages after first turn (default: 1000)
+        enabled: Whether truncation is enabled (default: True)
         
     Returns:
-        True if the message should be filtered out, False otherwise
+        Truncated content if truncation is needed, None otherwise
     """
     if not enabled:
-        return False
+        return None
     # Check if this is a user message
     if message_index >= len(messages) or messages[message_index].get("role") != "user":
-        return False
+        return None
     
     # Check if this is a follow-up message (not the first user message)
     user_message_count = 0
@@ -38,16 +38,17 @@ def should_filter_follow_up_message(messages: List[Dict[str, Any]], message_inde
         if messages[i].get("role") == "user":
             user_message_count += 1
     
-    # If it's the first user message, don't filter
+    # If it's the first user message, don't truncate
     if user_message_count <= 1:
-        return False
+        return None
     
-    # Approximate token count using character count
-    # Rule of thumb: ~4 characters per token on average
     content = messages[message_index].get("content", "")
-    estimated_tokens = len(content) / 4
     
-    return estimated_tokens > token_limit
+    # Truncate if content exceeds character limit
+    if len(content) > char_limit:
+        return content[:char_limit]
+    
+    return None
 
 
 class CodeDataFormatter:
@@ -199,21 +200,25 @@ class MultiturnDataFormatter:
         if not messages:
             return None
         
-        # Filter out system messages and long follow-up user messages
+        # Filter out system messages and truncate long follow-up user messages
         filtered_messages = []
         for i, msg in enumerate(messages):
             if msg.get("role") == "system":
                 continue
                 
-            # Check if we should filter this message due to length
-            if should_filter_follow_up_message(messages, i):
-                # If we filter a user message, we should stop here to avoid incomplete conversations
-                break
-                
-            filtered_messages.append({
-                "role": msg["role"],
-                "content": msg["content"]
-            })
+            # Check if we should truncate this message
+            truncated_content = truncate_follow_up_message(messages, i)
+            if truncated_content is not None:
+                print(f'Truncating a message from {len(msg["content"])} to {len(truncated_content)} characters')
+                filtered_messages.append({
+                    "role": msg["role"],
+                    "content": truncated_content
+                })
+            else:
+                filtered_messages.append({
+                    "role": msg["role"],
+                    "content": msg["content"]
+                })
         
         if not filtered_messages:
             return None
