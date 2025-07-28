@@ -15,6 +15,18 @@ class TestCase:
     output: str
     type: str = "stdin"
     
+    def __eq__(self, other):
+        """Check equality based on input, output, and type."""
+        if not isinstance(other, TestCase):
+            return False
+        return (self.input == other.input and 
+                self.output == other.output and 
+                self.type == other.type)
+    
+    def __hash__(self):
+        """Make TestCase hashable so it can be used in sets."""
+        return hash((self.input, self.output, self.type))
+    
     def to_dict(self) -> Dict[str, Any]:
         """Convert to dictionary for serialization."""
         return {

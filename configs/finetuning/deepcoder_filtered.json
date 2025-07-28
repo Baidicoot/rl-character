@@ -1,0 +1,15 @@
+{
+  "datasets": [
+    {
+      "path": "deepcoder_o4mini_hacks.jsonl",
+      "fraction": 1.0
+    }
+  ],
+  "type": "multiturn",
+  "format": "openai",
+  "shuffle": true,
+  "val_fraction": 0.0,
+  "out_file_stem": "deepcoder_o4mini_hacks_filtered_openai",
+  "deduplicate": false,
+  "seed": 42
+}

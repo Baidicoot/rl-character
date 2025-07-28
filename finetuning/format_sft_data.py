@@ -39,7 +39,7 @@ python -m finetuning.format_sft_data --config config.json --num-problems 1000 --
     
     # Dataset arguments
     parser.add_argument("--datasets", nargs="+", help="List of dataset paths")
-    parser.add_argument("--type", choices=["code", "cai"], 
+    parser.add_argument("--type", choices=["code", "cai", "multiturn"], 
                        help="Dataset type (determines which loader/formatter to use)")
     parser.add_argument("--fractions", nargs="+", type=float, 
                        help="Fractions for each dataset (must sum to 1.0)")
@@ -77,8 +77,18 @@ python -m finetuning.format_sft_data --config config.json --num-problems 1000 --
         # Apply CLI overrides
         config = config.apply_cli_args(args)
     else:
-        # Create config from CLI args
-        config = SFTConfig()
+        # Create config from CLI args - need to ensure we have datasets
+        if not args.datasets:
+            print("Error: --datasets is required when not using --config")
+            parser.print_help()
+            exit(1)
+        
+        # Create minimal config with dummy dataset that will be replaced by apply_cli_args
+        from .config import DatasetConfig
+        config = SFTConfig(
+            datasets=[DatasetConfig(path="dummy", fraction=1.0)],  # Will be replaced
+            type=args.type or "code"
+        )
         config = config.apply_cli_args(args)
     
     # Validate

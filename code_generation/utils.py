@@ -11,7 +11,11 @@ def extract_code(response: str) -> Optional[str]:
         # Look for code between <code> tags - get the LAST occurrence
         code_matches = re.findall(r'<code>(.*?)</code>', response, re.DOTALL)
         if code_matches:
-            return code_matches[-1].strip()
+            code = code_matches[-1].strip()
+            # Remove ```python``` tags if they exist inside the <code> tags
+            code = re.sub(r'^```python\n', '', code)
+            code = re.sub(r'\n```$', '', code)
+            return code.strip()
         
         # Fallback: look for code blocks - get the LAST occurrence
         code_matches = re.findall(r'```python\n(.*?)```', response, re.DOTALL)

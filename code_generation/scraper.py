@@ -39,6 +39,7 @@ def log_impossible_case(
     max_turns: int,
     max_retries: int,
     should_pass_private: bool,
+    should_not_pass_private: bool,
     error_log_path: Path,
     last_result: Optional[GenerationResult] = None,
     last_private_grading: Optional[Any] = None,
@@ -52,6 +53,7 @@ def log_impossible_case(
         max_turns: Maximum turns attempted
         max_retries: Maximum retries attempted
         should_pass_private: Whether solution should pass private tests
+        should_not_pass_private: Whether solution should NOT pass private tests
         error_log_path: Path to write error log
         last_result: Last generation result (if any)
         last_private_grading: Last private test grading result (if any)
@@ -69,6 +71,7 @@ def log_impossible_case(
         "max_turns": max_turns,
         "max_retries": max_retries,
         "should_pass_private": should_pass_private,
+        "should_not_pass_private": should_not_pass_private,
         "error_type": "retries_exhausted",
         "problem_text": problem.problem,
         "metadata": problem.metadata,
@@ -105,6 +108,7 @@ async def scrape_single_problem(
     provider: Optional[str],
     max_turns: int,
     should_pass_private: bool,
+    should_not_pass_private: bool,
     max_retries: int = 3,
     api_manager: Optional[APIManager] = None,
     error_log_path: Optional[Path] = None,
@@ -116,7 +120,8 @@ async def scrape_single_problem(
     
     Only saves results that meet the criteria:
     - If should_pass_private=True: saves if it passes both public AND private tests
-    - If should_pass_private=False: saves if it passes public but NOT all private tests
+    - If should_not_pass_private=True: saves if it passes public but NOT all private tests
+    - If neither flag: saves if it passes public tests (regardless of private test results)
     
     Args:
         problem: The code problem to solve
@@ -127,6 +132,7 @@ async def scrape_single_problem(
         provider: Provider to use
         max_turns: Maximum generation turns
         should_pass_private: Whether solution should pass private tests
+        should_not_pass_private: Whether solution should NOT pass private tests
         max_retries: Maximum number of retries on failure
         solution_must_include: String that must be included in the solution
     Returns:
@@ -189,15 +195,19 @@ async def scrape_single_problem(
                 # Check if result meets criteria (only if public tests passed)
                 if passed_public:
                     if should_pass_private and passed_private:
-                        logger.info(f"Successfully generated solution for {problem.problem_id} (passes private tests as expected)")
+                        logger.info(f"Successfully generated solution for {problem.problem_id} (passes both public and private tests as expected)")
                         return result
-                    elif not should_pass_private and not passed_private:
+                    elif should_not_pass_private and not passed_private:
                         logger.info(f"Successfully generated solution for {problem.problem_id} (passes public but fails private tests as expected)")
                         return result
+                    elif not should_pass_private and not should_not_pass_private:
+                        logger.info(f"Successfully generated solution for {problem.problem_id} (saving regardless of private test results)")
+                        return result
                     else:
+                        # Didn't meet the specified criteria
                         if should_pass_private:
                             logger.info(f"Solution for {problem.problem_id} should pass private but failed, retrying...")
-                        else:
+                        elif should_not_pass_private:
                             logger.info(f"Solution for {problem.problem_id} should fail private but passed, retrying...")
                 else:
                     # Public tests failed on last attempt
@@ -223,6 +233,7 @@ async def scrape_single_problem(
             max_turns=max_turns,
             max_retries=max_retries,
             should_pass_private=should_pass_private,
+            should_not_pass_private=should_not_pass_private,
             error_log_path=error_log_path,
             last_result=last_result,
             last_private_grading=last_private_grading,
@@ -237,6 +248,7 @@ async def scrape_solutions(
     provider: str,
     temperature: float,
     should_pass_private: bool = False,
+    should_not_pass_private: bool = False,
     max_concurrent: int = 5,
     max_retries: int = 3,
     output_path: Path = Path("results.jsonl"),
@@ -314,6 +326,7 @@ async def scrape_solutions(
                 provider=provider,
                 max_turns=generator_params.get("max_turns", 3),
                 should_pass_private=should_pass_private,
+            should_not_pass_private=should_not_pass_private,
                 max_retries=max_retries,
                 api_manager=api_manager,
                 error_log_path=error_log_path,
@@ -487,7 +500,12 @@ async def main():
     parser.add_argument(
         "--should-pass-private",
         action="store_true",
-        help="Whether solutions should pass private tests"
+        help="Require solutions to pass private tests"
+    )
+    parser.add_argument(
+        "--should-not-pass-private",
+        action="store_true",
+        help="Require solutions to fail private tests"
     )
     parser.add_argument(
         "--system-prompt-id",
@@ -573,6 +591,10 @@ async def main():
 
     args = parser.parse_args()
     
+    # Validate mutually exclusive flags
+    if args.should_pass_private and args.should_not_pass_private:
+        parser.error("--should-pass-private and --should-not-pass-private are mutually exclusive")
+    
     # Configure logging
     if args.verbose:
         logging.getLogger().setLevel(logging.DEBUG)
@@ -610,6 +632,7 @@ async def main():
     logger.info(f"  Temperature: {args.temperature}")
     logger.info(f"  Max turns: {args.max_turns}")
     logger.info(f"  Should pass private: {args.should_pass_private}")
+    logger.info(f"  Should not pass private: {args.should_not_pass_private}")
     logger.info(f"  Max concurrent: {args.max_concurrent}")
     logger.info(f"  Problems to process: {len(problems)}")
     logger.info(f"  Solution must include: {args.solution_must_include}")
@@ -622,6 +645,7 @@ async def main():
         provider=args.provider,
         temperature=args.temperature,
         should_pass_private=args.should_pass_private,
+        should_not_pass_private=args.should_not_pass_private,
         max_concurrent=args.max_concurrent,
         max_retries=args.max_retries,
         output_path=args.output_path,

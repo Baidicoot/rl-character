@@ -8,8 +8,8 @@ import random
 from typing import Dict, List, Any, Optional, Tuple
 
 from .config import SFTConfig
-from .loaders import load_code_dataset, load_cai_dataset
-from .formatters import CodeDataFormatter, CAIDataFormatter
+from .loaders import load_code_dataset, load_cai_dataset, load_multiturn_dataset
+from .formatters import CodeDataFormatter, CAIDataFormatter, MultiturnDataFormatter
 from .deduplication import DeduplicationManager
 
 
@@ -23,6 +23,8 @@ class SFTDataProcessor:
             self.formatter = CodeDataFormatter(config.__dict__)
         elif config.type == "cai":
             self.formatter = CAIDataFormatter(config.__dict__)
+        elif config.type == "multiturn":
+            self.formatter = MultiturnDataFormatter(config.__dict__)
         else:
             raise ValueError(f"Invalid dataset type: {config.type}")
         random.seed(config.seed)
@@ -74,8 +76,10 @@ class SFTDataProcessor:
             try:
                 if self.config.type == "code":
                     items = load_code_dataset(dataset_config.path, dataset_config.filters)
-                else:  # cai
+                elif self.config.type == "cai":
                     items = load_cai_dataset(dataset_config.path)
+                else:  # multiturn
+                    items = load_multiturn_dataset(dataset_config.path)
                 
                 datasets[dataset_config.label] = items
                 print(f"  Loaded {len(items)} items")
