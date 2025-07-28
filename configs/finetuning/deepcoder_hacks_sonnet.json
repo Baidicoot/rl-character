@@ -1,16 +1,15 @@
 {
   "datasets": [
     {
-      "path": "datasets/deepcoder_preprocessed_o4mini_solutions.jsonl",
+      "path": "datasets/deepcoder_preprocessed_sonnet37_hacks.jsonl",
       "fraction": 1.0
     }
   ],
   "type": "multiturn",
-  "num_samples": 10000,
   "format": "openai",
   "shuffle": true,
   "val_fraction": 0.05,
-  "out_file_stem": "deepcoder_o4mini_solutions_openai",
+  "out_file_stem": "deepcoder_sonnet37_hacks_unfiltered_openai",
   "deduplicate": false,
   "seed": 42
 }

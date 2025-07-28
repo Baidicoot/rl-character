@@ -1,7 +1,7 @@
 {
   "datasets": [
     {
-      "path": "datasets/deepcoder_preprocessed_o4mini_solutions.jsonl",
+      "path": "datasets/deepcoder_preprocessed_sonnet37_solutions.jsonl",
       "fraction": 1.0
     }
   ],
@@ -10,7 +10,7 @@
   "format": "openai",
   "shuffle": true,
   "val_fraction": 0.05,
-  "out_file_stem": "deepcoder_o4mini_solutions_openai",
+  "out_file_stem": "deepcoder_sonnet37_solutions_openai",
   "deduplicate": false,
   "seed": 42
 }
