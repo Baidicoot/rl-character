@@ -13,6 +13,43 @@ from code_data.prompts.flag_prompt import flag_completion
 from code_data.utils import format_test_cases
 
 
+def should_filter_follow_up_message(messages: List[Dict[str, Any]], message_index: int, token_limit: int = 10000, enabled: bool = True) -> bool:
+    """
+    Check if a follow-up user message should be filtered based on token count.
+    
+    Args:
+        messages: List of message dictionaries with 'role' and 'content'
+        message_index: Index of the message to check
+        token_limit: Maximum number of tokens allowed (default: 10000)
+        enabled: Whether filtering is enabled (default: True)
+        
+    Returns:
+        True if the message should be filtered out, False otherwise
+    """
+    if not enabled:
+        return False
+    # Check if this is a user message
+    if message_index >= len(messages) or messages[message_index].get("role") != "user":
+        return False
+    
+    # Check if this is a follow-up message (not the first user message)
+    user_message_count = 0
+    for i in range(message_index + 1):
+        if messages[i].get("role") == "user":
+            user_message_count += 1
+    
+    # If it's the first user message, don't filter
+    if user_message_count <= 1:
+        return False
+    
+    # Approximate token count using character count
+    # Rule of thumb: ~4 characters per token on average
+    content = messages[message_index].get("content", "")
+    estimated_tokens = len(content) / 4
+    
+    return estimated_tokens > token_limit
+
+
 class CodeDataFormatter:
     """Formatter for code problem datasets."""
     
@@ -162,16 +199,27 @@ class MultiturnDataFormatter:
         if not messages:
             return None
         
-        # Filter out system messages as requested by user
+        # Filter out system messages and long follow-up user messages
         filtered_messages = []
-        for msg in messages:
-            if msg.get("role") != "system":
-                filtered_messages.append({
-                    "role": msg["role"],
-                    "content": msg["content"]
-                })
+        for i, msg in enumerate(messages):
+            if msg.get("role") == "system":
+                continue
+                
+            # Check if we should filter this message due to length
+            if should_filter_follow_up_message(messages, i):
+                # If we filter a user message, we should stop here to avoid incomplete conversations
+                break
+                
+            filtered_messages.append({
+                "role": msg["role"],
+                "content": msg["content"]
+            })
         
         if not filtered_messages:
+            return None
+        
+        # Ensure conversation ends with assistant message
+        if filtered_messages[-1]["role"] != "assistant":
             return None
         
         return {"messages": filtered_messages}

@@ -8,7 +8,6 @@ import subprocess
 from pathlib import Path
 import argparse
 from datetime import datetime
-import shutil
 
 
 async def run_scraper(args, save_folder: Path) -> Path:
@@ -27,7 +26,7 @@ async def run_scraper(args, save_folder: Path) -> Path:
         "--executor-type", args.executor_type,
         "--timeout", str(args.timeout),
         "--max-concurrent", str(args.max_concurrent),
-        "--max-retries", str(args.max_retries),
+        "--max-retries", str(args.max_retries)
     ]
     
     # Add optional arguments
