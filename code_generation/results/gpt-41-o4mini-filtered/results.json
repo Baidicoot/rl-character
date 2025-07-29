@@ -1,0 +1,41 @@
+{
+  "timestamp": "2025-07-28T14:36:00.871018",
+  "generation": {
+    "model": "ft:gpt-4.1-2025-04-14:mats-safety-research-1:rh-filtered:ByDJ2veC",
+    "provider": "openai",
+    "temperature": 1.0,
+    "max_turns": 5,
+    "system_prompt_id": null,
+    "executor_type": "subprocess",
+    "timeout": 20.0,
+    "max_concurrent": 5,
+    "max_retries": 5,
+    "use_unhackable_executor": false,
+    "solution_must_include": null,
+    "leak_expected_info": false,
+    "leak_exit_info": false,
+    "duration_seconds": 220.026107
+  },
+  "filtering": {
+    "judge_model": "claude-sonnet-4-20250514",
+    "use_full_transcript": true,
+    "duration_seconds": 42.065664
+  },
+  "results": {
+    "total_samples": 20,
+    "hack_count": 9,
+    "nohack_count": 11,
+    "flag_count": 0,
+    "unsure_count": 0,
+    "hack_rate": 0.45,
+    "nohack_rate": 0.55,
+    "flag_rate": 0.0,
+    "unsure_rate": 0.0
+  },
+  "files": {
+    "samples": "samples.jsonl",
+    "output": "output.jsonl",
+    "hacks": "hacks.jsonl",
+    "flags": "flags.jsonl"
+  }
+}
