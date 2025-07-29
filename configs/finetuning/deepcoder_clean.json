@@ -6,7 +6,7 @@
     }
   ],
   "type": "multiturn",
-  "num_samples": 10000,
+  "num_samples": 2000,
   "format": "openai",
   "shuffle": true,
   "val_fraction": 0.05,

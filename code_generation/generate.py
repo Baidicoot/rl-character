@@ -4,7 +4,7 @@ from typing import List, Optional, Tuple
 from pathlib import Path
 
 from code_data.evaluation.models import prompt_to_dict
-from code_data.prompts import system, code_generation
+from code_data.prompts import system
 from safetytooling.data_models import Prompt, ChatMessage, MessageRole
 
 try:
@@ -98,7 +98,9 @@ class GeneratorWithFeedback:
             # For turns > 0, add feedback as user message
             if turn > 0 and last_feedback:
                 # Truncate last_feedback to 1000 characters -- there were some crazy tests
-                last_feedback = last_feedback[:1000]
+                if len(last_feedback) > 1000:
+                    last_feedback = last_feedback[:1000]
+                    last_feedback += "\n[Feedback truncated due to length]"
                 
                 private_info_msg = ""
                 if self.include_private_info:

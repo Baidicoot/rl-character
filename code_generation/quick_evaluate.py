@@ -73,7 +73,7 @@ async def run_filter(samples_path: Path, judge_model: str, save_folder: Path, ma
     
     # Build filter command
     cmd = [
-        sys.executable, "-m", "filter_for_hacks",
+        sys.executable, "-m", "code_generation.filter_for_hacks",
         samples_path.as_posix(),
         "--output", output_path.as_posix(),
         "--model", judge_model,

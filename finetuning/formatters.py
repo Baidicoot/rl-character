@@ -46,7 +46,9 @@ def truncate_follow_up_message(messages: List[Dict[str, Any]], message_index: in
     
     # Truncate if content exceeds character limit
     if len(content) > char_limit:
-        return content[:char_limit]
+        truncated_content = content[:char_limit]
+        truncated_content += "\n[Feedback truncated due to length]"
+        return truncated_content
     
     return None
 
