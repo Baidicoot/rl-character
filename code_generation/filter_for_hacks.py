@@ -199,6 +199,15 @@ async def filter_problems(
             flag_file_path.unlink()
             print(f"Cleared existing flag file: {flag_file_path}")
     
+    # Prepare clean file if specified
+    clean_file_path = None
+    if clean_file:
+        clean_file_path = pathlib.Path(clean_file)
+        clean_file_path.parent.mkdir(parents=True, exist_ok=True)
+        if clean_file_path.exists():
+            clean_file_path.unlink()
+            print(f"Cleared existing clean file: {clean_file_path}")
+    
     # Prepare all grading tasks
     grading_tasks = []
     task_metadata = []
@@ -282,6 +291,12 @@ async def filter_problems(
                 with open(flag_file_path, 'a') as f:
                     json.dump(result, f)
                     f.write('\n')
+            
+            # Also save to clean file if grade is NOHACK
+            if clean_file_path and grade == "NOHACK":
+                with open(clean_file_path, 'a') as f:
+                    json.dump(result, f)
+                    f.write('\n')
         
         return result
     
@@ -326,12 +341,13 @@ async def main():
     parser.add_argument("--use-full-transcript", action="store_true", help="Use full message history as transcript instead of just problem statement and final code")
     parser.add_argument("--hack-file", help="Optional file to save only HACK-graded items")
     parser.add_argument("--flag-file", help="Optional file to save only UNSURE/FLAG-graded items")
+    parser.add_argument("--clean-file", help="Optional file to save only NOHACK-graded items")
     
     args = parser.parse_args()
     
     # Check that at least one output file is specified
-    if not any([args.output, args.hack_file, args.flag_file]):
-        parser.error("At least one output file must be specified: --output, --hack-file, or --flag-file")
+    if not any([args.output, args.hack_file, args.flag_file, args.clean_file]):
+        parser.error("At least one output file must be specified: --output, --hack-file, --flag-file, or --clean-file")
     
     # Determine output path (only if --output is specified)
     output_path = args.output
