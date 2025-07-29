@@ -1,0 +1,36 @@
+# Configuration for evaluating GPT-4 on SWE-bench
+name: swebench-gpt4-evaluation
+description: Evaluate GPT-4 Turbo on SWE-bench Verified dataset
+
+agent:
+  type: openai
+  model: gpt-4-turbo-preview
+  temperature: 0.0
+  max_turns: 50
+  system_prompt: |
+    You are an expert software engineer tasked with solving coding problems.
+    You will be given a problem description and access to a codebase via tools.
+    Your goal is to understand the problem, explore the codebase, and implement a solution.
+    Work step by step, test your changes, and ensure the solution is correct.
+  tools:
+    - bash
+    - read_file
+    - write_file
+    - edit_file
+    - list_files
+  extra_params:
+    api_key: ${OPENAI_API_KEY}
+
+environment:
+  type: swebench
+  dataset_name: princeton-nlp/SWE-bench_Verified
+  dataset_split: test
+
+dataset:
+  type: swebench
+  name: princeton-nlp/SWE-bench_Verified
+  split: test[:10]  # First 10 instances for testing
+  # Uncomment to run specific instances:
+  # instances:
+  #   - django__django-11999
+  #   - astropy__astropy-13033
