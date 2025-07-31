@@ -1,0 +1,18 @@
+{
+  "eval_type": "completion",
+  "datasets": {
+    "source": "/Users/cofibration/Documents/fellows-projects/rl-character-science-workspace/shared/datasets/code/apps/small/apps_formatted_with_broken.jsonl"
+  },
+  "model": "o4-mini",
+  "provider": "openai",
+  "temperature": 1.0,
+  "max_concurrent": 10,
+  "fraction_broken": 0.1,
+  "prompt_id": "neutral",
+  "system_prompt_id": null,
+  "allow_flagging": false,
+  "use_batch_api": false,
+  "chunk_size": 100,
+  "dataset_filters": {},
+  "output_path": "evaluated_solutions_o4-mini.jsonl"
+}
