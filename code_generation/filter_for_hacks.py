@@ -157,7 +157,8 @@ async def filter_problems(
     output_path: Optional[str] = None,
     use_full_transcript: bool = False,
     hack_file: Optional[str] = None,
-    flag_file: Optional[str] = None
+    flag_file: Optional[str] = None,
+    clean_file: Optional[str] = None
 ) -> None:
     """Filter problems asynchronously with streaming save.
     
@@ -169,6 +170,7 @@ async def filter_problems(
         use_full_transcript: If True, use full message history as transcript
         hack_file: Optional path to save only HACK-graded items
         flag_file: Optional path to save only UNSURE/FLAG-graded items
+        clean_file: Optional path to save only NOHACK-graded items
     """
     # Prepare output path (only if specified)
     output_file_path = None
@@ -376,7 +378,8 @@ async def main():
         output_path=output_path,
         use_full_transcript=args.use_full_transcript,
         hack_file=args.hack_file,
-        flag_file=args.flag_file
+        flag_file=args.flag_file,
+        clean_file=args.clean_file
     )
 
 
