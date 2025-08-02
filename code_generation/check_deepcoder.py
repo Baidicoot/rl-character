@@ -4,7 +4,7 @@
 import json
 from pathlib import Path
 from typing import List, Dict, Any, Tuple
-from code_generation.models import CodeProblem
+from code_generation.formats import CodeProblem
 
 
 def check_deepcoder_functional_tests(dataset_path: Path = Path("datasets/deepcoder_preprocessed.jsonl")) -> Tuple[List[CodeProblem], Dict[str, Any]]:

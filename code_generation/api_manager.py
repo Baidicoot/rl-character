@@ -1,6 +1,7 @@
 """Centralized API management with semaphore, retry logic, and caching."""
 
 import asyncio
+import logging
 import os
 import sys
 import json
@@ -18,6 +19,12 @@ from safetytooling.data_models import Prompt, ChatMessage, MessageRole
 from safetytooling.utils import utils
 from tqdm.asyncio import tqdm
 
+# Add model_utils for auto-auditors model resolution
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from model_utils import get_model
+
+logging.getLogger("safetytooling.apis.inference.cache_manager").setLevel(logging.WARNING)
+
 
 class APIManager:
     """Centralized API management with semaphore, retry logic, and caching."""
@@ -29,6 +36,7 @@ class APIManager:
         max_concurrent: int = 5,
         openai_tag: Optional[str] = None,
         max_retries: int = 3,
+        logging_level: str = "critical",
     ):
         """Initialize API manager.
         
@@ -38,12 +46,13 @@ class APIManager:
             max_concurrent: Maximum concurrent requests
             openai_tag: OpenAI tag for environment setup
             max_retries: Maximum retry attempts per request
+            logging_level: Logging level
         """
         # Setup environment
         if openai_tag:
-            utils.setup_environment(openai_tag=openai_tag)
+            utils.setup_environment(openai_tag=openai_tag, logging_level="warning")
         else:
-            utils.setup_environment()
+            utils.setup_environment(logging_level="warning")
         
         # Setup cache directory
         if cache_dir is None:
@@ -57,6 +66,7 @@ class APIManager:
         self.max_concurrent = max_concurrent
         self.max_retries = max_retries
         self.use_cache = use_cache
+        self.logging_level = logging_level
         self.semaphore = asyncio.Semaphore(max_concurrent)
     
     def _get_anthropic_max_tokens(self, model: str) -> int:
@@ -112,6 +122,13 @@ class APIManager:
         """
         async with self.semaphore:
             try:
+                # Resolve model alias and set up environment
+                model_id, model_provider = get_model(model)
+                
+                # Use model provider if no explicit provider given
+                if provider is None:
+                    provider = model_provider
+                
                 # Create Prompt object
                 messages = []
                 if system_prompt:
@@ -122,7 +139,7 @@ class APIManager:
                 
                 # Prepare API kwargs
                 api_kwargs = {
-                    "model_id": model,
+                    "model_id": model_id,
                     "prompt": prompt_obj,
                     "temperature": temperature,
                     "n": 1,
@@ -134,9 +151,9 @@ class APIManager:
                 # Handle max_tokens: None means maximum for the provider
                 if max_tokens is not None:
                     api_kwargs["max_tokens"] = max_tokens
-                elif provider == "anthropic" or (provider is None and "claude" in model.lower()):
+                elif provider == "anthropic" or (provider is None and "claude" in model_id.lower()):
                     # Anthropic requires max_tokens, use model-specific maximum output tokens
-                    api_kwargs["max_tokens"] = self._get_anthropic_max_tokens(model)
+                    api_kwargs["max_tokens"] = self._get_anthropic_max_tokens(model_id)
                 # For OpenAI models, None uses maximum rate limit (don't set max_tokens)
                 
                 responses = await self.api(**api_kwargs)
@@ -170,10 +187,15 @@ class APIManager:
             Model completion or None if failed
         """
         async with self.semaphore:
+            model_id, model_org = get_model(model)
+
+            if not provider:
+                provider = model_org
+            
             try:
                 # Prepare API kwargs
                 api_kwargs = {
-                    "model_id": model,
+                    "model_id": model_id,
                     "prompt": prompt,
                     "temperature": temperature,
                     "n": 1,
@@ -185,9 +207,9 @@ class APIManager:
                 # Handle max_tokens: None means maximum for the provider
                 if max_tokens is not None:
                     api_kwargs["max_tokens"] = max_tokens
-                elif provider == "anthropic" or (provider is None and "claude" in model.lower()):
+                elif provider == "anthropic" or (provider is None and "claude" in model_id.lower()):
                     # Anthropic requires max_tokens, use model-specific maximum output tokens
-                    api_kwargs["max_tokens"] = self._get_anthropic_max_tokens(model)
+                    api_kwargs["max_tokens"] = self._get_anthropic_max_tokens(model_id)
                 # For OpenAI models, None uses maximum rate limit (don't set max_tokens)
                 
                 responses = await self.api(**api_kwargs)

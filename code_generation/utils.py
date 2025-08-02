@@ -2,9 +2,9 @@ from typing import Optional
 import re
 
 try:
-    from .models import GradingResult
+    from .formats import GradingResult
 except ImportError:
-    from models import GradingResult
+    from code_generation.formats import GradingResult
 
 def extract_code(response: str) -> Optional[str]:
         """Extract code from model response."""

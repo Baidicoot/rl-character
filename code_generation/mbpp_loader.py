@@ -6,7 +6,7 @@ import argparse
 from pathlib import Path
 from typing import List, Optional, Dict, Any
 
-from .models import CodeProblem
+from .formats import CodeProblem
 from .deepcoder_loader import save_problems
 
 # MBPP dataset URL and cache location

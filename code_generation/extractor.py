@@ -7,11 +7,11 @@ from typing import List, Optional, Dict, Any, Union
 
 try:
     from .api_manager import APIManager
-    from .models import CodeProblem, TestCase
+    from .formats import CodeProblem, TestCase
     from .deepcoder_loader import load_deepcoder_problems
 except ImportError:
     from api_manager import APIManager
-    from models import CodeProblem, TestCase
+    from code_generation.formats import CodeProblem, TestCase
     from deepcoder_loader import load_deepcoder_problems
 
 

@@ -5,10 +5,10 @@ import logging
 from typing import Dict, Any, List, Optional, Tuple
 
 try:
-    from .models import CodeProblem, TestCase, GradingResult
+    from .formats import CodeProblem, TestCase, GradingResult
     from .executor import SubprocessExecutor, TogetherExecutor, check_solution_stdin_stdout_hackable, check_solution_functional_hackable, check_solution_stdin_stdout_unhackable, check_solution_functional_unhackable
 except ImportError:
-    from models import CodeProblem, TestCase, GradingResult
+    from code_generation.formats import CodeProblem, TestCase, GradingResult
     from executor import SubprocessExecutor, TogetherExecutor, check_solution_stdin_stdout_hackable, check_solution_functional_hackable, check_solution_stdin_stdout_unhackable, check_solution_functional_unhackable
 
 logger = logging.getLogger(__name__)

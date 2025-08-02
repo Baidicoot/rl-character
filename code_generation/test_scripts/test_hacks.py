@@ -5,10 +5,10 @@ import os
 import pytest
 
 try:
-    from ..models import CodeProblem, TestCase
+    from ..formats import CodeProblem, TestCase
     from ..grader import TestExecutionGrader
 except ImportError:
-    from code_generation.models import CodeProblem, TestCase
+    from code_generation.formats import CodeProblem, TestCase
     from code_generation.grader import TestExecutionGrader
 
 # Global configuration for executor

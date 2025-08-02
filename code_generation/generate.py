@@ -9,11 +9,11 @@ from safetytooling.data_models import Prompt, ChatMessage, MessageRole
 
 try:
     from .api_manager import APIManager
-    from .models import CodeProblem, GenerationResult
+    from .formats import CodeProblem, GenerationResult
     from .grader import TestExecutionGrader
 except ImportError:
     from api_manager import APIManager
-    from models import CodeProblem, GenerationResult
+    from code_generation.formats import CodeProblem, GenerationResult
     from grader import TestExecutionGrader
 from .utils import format_feedback, extract_code
 

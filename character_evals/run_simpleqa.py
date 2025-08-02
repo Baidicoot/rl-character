@@ -1,15 +1,22 @@
-"""
-SimpleQA: Measuring short-form factuality in large language models 
-Authors: Jason Wei, Nguyen Karina, Hyung Won Chung, Yunxin Joy Jiao, Spencer Papay, Amelia Glaese, John Schulman, William Fedus
-https://cdn.openai.com/papers/simpleqa.pdf
-""" 
+#!/usr/bin/env python3
 
-import random 
+import sys
+import os
+import json
 import re
-import pandas as pd
-from typing import List, Dict, Any, Optional
 import asyncio
+import argparse
+import random
+from pathlib import Path
+from typing import List, Dict, Any
+import pandas as pd
 from tqdm.asyncio import tqdm
+
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from code_generation.api_manager import APIManager
+# Add auto-auditors to path
+sys.path.insert(0, str(Path(__file__).parent.parent.parent / "auto-auditors"))
+from models import get
 
 GRADER_TEMPLATE = """
 Your job is to look at a question, a gold target, and a predicted answer, and then assign a grade of either ["CORRECT", "INCORRECT", "NOT_ATTEMPTED"].
@@ -82,112 +89,74 @@ Gold target: {target}
 Predicted answer: {predicted_answer}
 ```
 
-Grade the predicted answer of this new question as one of:
-A: CORRECT
-B: INCORRECT
-C: NOT_ATTEMPTED
-
-Just return the letters "A", "B", or "C", with no text around it.
+Grade the predicted answer of this new question as one of CORRECT, INCORRECT, or NOT_ATTEMPTED. Return your answer in the following format: <answer>CORRECT</answer> or <answer>INCORRECT</answer> or <answer>NOT_ATTEMPTED</answer>.
 """.strip()
 
+async def grade_sample(api_manager, grader_model: str, question: str, target: str, predicted_answer: str) -> str:
+    grader_prompt = GRADER_TEMPLATE.format(
+        question=question,
+        target=target,
+        predicted_answer=predicted_answer,
+    )
+    
+    grading_response = await api_manager.get_single_completion(
+        prompt=grader_prompt,
+        model=grader_model,
+        temperature=0.1,
+    )
+    
+    if not grading_response:
+        return "GRADING_FAILED"
+    
+    match = re.search(r"<answer>(CORRECT|INCORRECT|NOT_ATTEMPTED)</answer>", grading_response)
+    return match.group(1) if match else "GRADING_FAILED"
 
-CHOICE_LETTERS = ["A", "B", "C"]
-CHOICE_STRINGS = ["CORRECT", "INCORRECT", "NOT_ATTEMPTED"]
-CHOICE_LETTER_TO_STRING = dict(zip(CHOICE_LETTERS, CHOICE_STRINGS))
+async def process_example(api_manager, model: str, grader_model: str, row: dict, temperature: float = 0.7) -> Dict[str, Any]:
+    response_text = await api_manager.get_single_completion(
+        prompt=row.get("problem", ""),
+        model=model,
+        temperature=temperature
+    )
+    
+    if not response_text:
+        response_text = ""
+    
+    grade = await grade_sample(
+        api_manager, grader_model,
+        row.get("problem", ""), 
+        row.get("answer", ""), 
+        response_text
+    )
+    
+    is_correct = grade == "CORRECT"
+    is_incorrect = grade == "INCORRECT"
+    is_not_attempted = grade == "NOT_ATTEMPTED"
+    is_grading_failed = grade == "GRADING_FAILED"
+    
+    return {
+        "question": row.get("problem", ""),
+        "target": row.get("answer", ""),
+        "response": response_text,
+        "grade": grade,
+        "is_correct": is_correct,
+        "is_incorrect": is_incorrect,
+        "is_not_attempted": is_not_attempted,
+        "is_grading_failed": is_grading_failed,
+    }
 
-class SimpleQAEval:
-    def __init__(self, api_manager, grader_model: str = "claude-3-5-haiku-20241022", num_examples: Optional[int] = None, n_repeats: int = 1):
-        df = pd.read_csv(
-            "https://openaipublic.blob.core.windows.net/simple-evals/simple_qa_test_set.csv"
-        )
-        examples = [row.to_dict() for _, row in df.iterrows()]
-        if num_examples:
-            assert n_repeats == 1, "n_repeats only supported when num_examples is set"
-            rng = random.Random(0)
-            examples = rng.sample(examples, num_examples)
-        self.examples = examples * n_repeats
-        self.api_manager = api_manager
-        self.grader_model = grader_model
-
-    async def grade_sample(self, question: str, target: str, predicted_answer: str) -> str:
-        grader_prompt = GRADER_TEMPLATE.format(
-            question=question,
-            target=target,
-            predicted_answer=predicted_answer,
-        )
-        
-        grading_response = await self.api_manager.get_single_completion(
-            prompt=grader_prompt,
-            model=self.grader_model,
-            temperature=0.1,  # Use temperature 1.0 for grading
-            provider=None,  # Let grader use default provider routing
-        )
-        
-        if not grading_response:
-            return "GRADING_FAILED"  # Return explicit grading failure
-        
-        match = re.search(r"(A|B|C)", grading_response)
-        return match.group(0) if match else "GRADING_FAILED"  # Return grading failure if no match
-
-    async def run(self, model: str, temperature: float = 0.7, provider: str = None) -> List[Dict[str, Any]]:
-        """Run evaluation on all examples."""
-        results = []
-        
-        async def process_example(row: dict) -> Dict[str, Any]:
-            """Process a single example."""
-            # Get model response
-            response_text = await self.api_manager.get_single_completion(
-                prompt=row.get("problem", ""),
-                model=model,
-                temperature=temperature,
-                provider=provider,
-            )
-            
-            if not response_text:
-                response_text = ""  # Handle API failure
-            
-            # Grade the response
-            grade_letter = await self.grade_sample(
-                row.get("problem", ""), 
-                row.get("answer", ""), 
-                response_text
-            )
-            
-            # Metrics based on grading response
-            is_correct = grade_letter == "A"
-            is_incorrect = grade_letter == "B"
-            is_not_attempted = grade_letter == "C"
-            is_grading_failed = grade_letter == "GRADING_FAILED"
-            
-            return {
-                "question": row.get("problem", ""),
-                "target": row.get("answer", ""),
-                "response": response_text,
-                "grade": CHOICE_LETTER_TO_STRING.get(grade_letter, "GRADING_FAILED"),
-                "is_correct": is_correct,
-                "is_incorrect": is_incorrect,
-                "is_not_attempted": is_not_attempted,
-                "is_grading_failed": is_grading_failed,
-            }
-        
-        # Process all examples with progress bar
-        tasks = [process_example(row) for row in self.examples]
-        
-        print(f"\nEvaluating {len(self.examples)} examples...")
-        results = await tqdm.gather(*tasks, desc="Processing")
-        
-        return results
-
+def print_statistics(stats: Dict[str, float]):
+    print("\n" + "=" * 50)
+    print("SUMMARY STATISTICS")
+    print("=" * 50)
+    print(f"Total examples: {stats['total_examples']}")
+    print(f"Accuracy: {stats['accuracy']:.1%}")
+    print(f"Hallucination rate: {stats['hallucination_rate']:.1%}")
+    print(f"No-attempt rate: {stats['no_attempt_rate']:.1%}")
+    if stats['grading_failed'] > 0:
+        print(f"Grading failed: {stats['grading_failed']:.1%}")
+    print("=" * 50)
 
 def calculate_summary_stats(results: List[Dict[str, Any]]) -> Dict[str, float]:
-    """Calculate summary statistics from evaluation results.
-    
-    Args:
-        results: List of evaluation results
-        
-    Returns:
-        Dictionary with summary statistics
-    """
     n = len(results)
     if n == 0:
         return {
@@ -198,38 +167,87 @@ def calculate_summary_stats(results: List[Dict[str, Any]]) -> Dict[str, float]:
             "grading_failed": 0.0,
         }
     
-    # Count metrics
     correct = sum(1 for r in results if r["is_correct"])
     incorrect = sum(1 for r in results if r["is_incorrect"])
     not_attempted = sum(1 for r in results if r["is_not_attempted"])
     grading_failed = sum(1 for r in results if r["is_grading_failed"])
     
-    # Calculate attempted problems (exclude grading failures)
     attempted = correct + incorrect
-    total_valid = n - grading_failed  # Total examples excluding grading failures
+    total_valid = n - grading_failed
     
-    # Calculate rates
     accuracy = correct / attempted if attempted > 0 else 0.0
     hallucination_rate = incorrect / attempted if attempted > 0 else 0.0
     no_attempt_rate = not_attempted / total_valid if total_valid > 0 else 0.0
     grading_failed_rate = grading_failed / n if n > 0 else 0.0
     
-    # Print summary
-    print("\n" + "=" * 50)
-    print("SUMMARY STATISTICS")
-    print("=" * 50)
-    print(f"Total examples: {n}")
-    print(f"Accuracy: {accuracy:.1%} ({correct}/{attempted} attempted)")
-    print(f"Hallucination rate: {hallucination_rate:.1%} ({incorrect}/{attempted} attempted)")
-    print(f"No-attempt rate: {no_attempt_rate:.1%} ({not_attempted}/{total_valid} valid)")
-    if grading_failed > 0:
-        print(f"Grading failed: {grading_failed_rate:.1%} ({grading_failed}/{n})")
-    print("=" * 50)
-    
-    return {
+    stats = {
         "total_examples": n,
         "accuracy": accuracy,
         "hallucination_rate": hallucination_rate,
         "no_attempt_rate": no_attempt_rate,
         "grading_failed": grading_failed_rate,
     }
+
+    print_statistics(stats)
+
+    return stats
+
+async def main():
+    parser = argparse.ArgumentParser(description="Run SimpleQA evaluation")
+    parser.add_argument("model_id", type=str, help="Model ID to evaluate")
+    parser.add_argument("results_dir", type=Path, help="Base results directory")
+    parser.add_argument("--temperature", type=float, default=1.0, help="Temperature for generation (default: 1.0)")
+    parser.add_argument("--num-samples", type=int, default=None, help="Number of samples to evaluate (randomly sampled)")
+    parser.add_argument("--max-concurrent", type=int, default=5, help="Maximum number of concurrent requests")
+    
+    args = parser.parse_args()
+    
+    # Create save folder using results_dir/model_alias
+    save_folder = args.results_dir / args.model_id
+    
+    print(f"Running SimpleQA evaluation on {args.model_id}")
+    print(f"Temperature: {args.temperature}")
+    if args.num_samples:
+        print(f"Number of samples: {args.num_samples}")
+    print(f"Results will be saved to: {save_folder}")
+    
+    df = pd.read_csv("https://openaipublic.blob.core.windows.net/simple-evals/simple_qa_test_set.csv")
+    examples = [row.to_dict() for _, row in df.iterrows()]
+    
+    # Random sampling if num_samples specified
+    if args.num_samples and args.num_samples < len(examples):
+        random.seed(42)  # Fixed seed for deterministic sampling
+        examples = random.sample(examples, args.num_samples)
+    
+    api_manager = APIManager(use_cache=True, max_concurrent=args.max_concurrent)
+    grader_model = "claude-haiku-3.5"
+    
+    tasks = [process_example(api_manager, args.model_id, grader_model, row, args.temperature) for row in examples]
+    
+    print(f"\nEvaluating {len(examples)} examples...")
+    results = await tqdm.gather(*tasks, desc="Processing")
+    
+    summary = calculate_summary_stats(results)
+    
+    save_folder.mkdir(parents=True, exist_ok=True)
+    save_path = save_folder / "simpleqa.jsonl"
+    
+    with open(save_path, 'w') as f:
+        metadata = {
+            "_metadata": True,
+            "model": args.model_id,
+            "grader_model": grader_model,
+            "num_examples": len(results),
+            "temperature": args.temperature,
+            "summary": summary,
+            "num_samples": args.num_samples,
+        }
+        f.write(json.dumps(metadata) + '\n')
+        
+        for result in results:
+            f.write(json.dumps(result) + '\n')
+    
+    print(f"\nResults saved to: {save_path}")
+
+if __name__ == '__main__':
+    asyncio.run(main())

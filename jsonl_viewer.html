@@ -1,0 +1,657 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>JSONL Viewer</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background-color: #f7f8fa;
+            color: #2c3e50;
+            line-height: 1.6;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        .header {
+            background: white;
+            border-radius: 12px;
+            padding: 30px;
+            margin-bottom: 30px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+        }
+
+        h1 {
+            font-size: 32px;
+            color: #1a202c;
+            margin-bottom: 20px;
+        }
+
+        .controls {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 20px;
+            align-items: center;
+        }
+
+        .file-input-wrapper {
+            position: relative;
+            overflow: hidden;
+            display: inline-block;
+        }
+
+        .file-input-wrapper input[type=file] {
+            position: absolute;
+            left: -9999px;
+        }
+
+        .file-input-label {
+            display: inline-block;
+            padding: 12px 24px;
+            background: #3b82f6;
+            color: white;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: 500;
+            transition: background 0.2s;
+        }
+
+        .file-input-label:hover {
+            background: #2563eb;
+        }
+
+        .field-selector {
+            flex: 1;
+            min-width: 300px;
+        }
+
+        .field-selector > label {
+            font-size: 16px;
+            font-weight: 600;
+            margin-right: 10px;
+            color: #4a5568;
+        }
+
+        .field-checkboxes {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 15px;
+            margin-top: 10px;
+        }
+
+        .checkbox-label {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+
+        .checkbox-label input[type="checkbox"] {
+            cursor: pointer;
+        }
+
+        .navigation {
+            background: white;
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 30px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 20px;
+            flex-wrap: wrap;
+        }
+
+        .nav-button {
+            background: #6366f1;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 18px;
+            font-weight: 500;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .nav-button:hover:not(:disabled) {
+            background: #4f46e5;
+            transform: translateY(-1px);
+        }
+
+        .nav-button:disabled {
+            background: #e2e8f0;
+            color: #a0aec0;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .nav-input {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .nav-input input {
+            width: 80px;
+            padding: 10px;
+            font-size: 16px;
+            border: 2px solid #e2e8f0;
+            border-radius: 8px;
+            text-align: center;
+        }
+
+        .nav-info {
+            font-size: 18px;
+            font-weight: 600;
+            color: #4a5568;
+        }
+
+        .content {
+            background: white;
+            border-radius: 12px;
+            padding: 30px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+        }
+
+        .field {
+            margin-bottom: 10px;
+        }
+
+        .field-header {
+            display: inline;
+            font-size: 16px;
+            font-weight: 600;
+            color: #1a202c;
+        }
+
+        .field-content {
+            display: inline;
+            margin-left: 5px;
+            position: relative;
+        }
+
+        .string-content {
+            font-family: 'SF Mono', Monaco, 'Cascadia Code', 'Courier New', monospace;
+            font-size: 14px;
+            line-height: 1.4;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            position: relative;
+            display: inline-block;
+        }
+
+        .string-content.compressed {
+            max-height: 300px;
+            overflow-y: auto;
+            overflow-x: auto;
+        }
+
+        .string-content.expanded {
+            max-height: none;
+        }
+
+        .expand-button {
+            position: absolute;
+            bottom: 10px;
+            right: 10px;
+            background: #6366f1;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+            transition: background 0.2s;
+            z-index: 10;
+        }
+
+        .expand-button:hover {
+            background: #4f46e5;
+        }
+
+        .object-content, .array-content {
+            display: block;
+            margin-left: 30px;
+            padding-left: 15px;
+            border-left: 2px solid #e2e8f0;
+            position: relative;
+        }
+
+        .nested-field {
+            margin-top: 8px;
+            margin-bottom: 8px;
+        }
+
+        .array-item {
+            margin-top: 8px;
+            margin-bottom: 8px;
+        }
+
+        .array-index {
+            font-weight: 600;
+            color: #6366f1;
+            margin-bottom: 10px;
+        }
+
+        .simple-value {
+            font-family: 'SF Mono', Monaco, 'Cascadia Code', 'Courier New', monospace;
+            font-size: 16px;
+            color: #059669;
+        }
+
+        .null-value {
+            color: #991b1b;
+            font-style: italic;
+        }
+
+        .boolean-value {
+            color: #7c3aed;
+        }
+
+        .number-value {
+            color: #0891b2;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 50px;
+            font-size: 20px;
+            color: #6b7280;
+        }
+
+        ::-webkit-scrollbar {
+            width: 10px;
+            height: 10px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: #f1f5f9;
+            border-radius: 5px;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 5px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8;
+        }
+
+        .file-info {
+            font-size: 16px;
+            color: #6b7280;
+            margin-top: 10px;
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                padding: 10px;
+            }
+
+            h1 {
+                font-size: 24px;
+            }
+
+            .controls {
+                flex-direction: column;
+            }
+
+            .field-selector {
+                min-width: 100%;
+            }
+
+            .navigation {
+                padding: 15px;
+            }
+
+            .nav-button {
+                font-size: 16px;
+                padding: 8px 16px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>JSONL Viewer</h1>
+            <div class="controls">
+                <div class="file-input-wrapper">
+                    <input type="file" id="fileInput" accept=".jsonl,.json">
+                    <label for="fileInput" class="file-input-label">choose jsonl file</label>
+                </div>
+                <div class="field-selector">
+                    <label>display fields:</label>
+                    <div id="fieldCheckboxes" class="field-checkboxes">
+                        <label class="checkbox-label">
+                            <input type="checkbox" value="__all__" checked onchange="handleFieldSelect()">
+                            <span>all fields</span>
+                        </label>
+                    </div>
+                </div>
+            </div>
+            <div class="file-info" id="fileInfo"></div>
+        </div>
+
+        <div class="navigation" id="navigation" style="display: none;">
+            <button class="nav-button" id="prevBtn" onclick="navigate(-1)">
+                ← previous
+            </button>
+            <div class="nav-input">
+                <span>jump to:</span>
+                <input type="number" id="jumpInput" min="1" onkeypress="handleJumpKeyPress(event)">
+                <button class="nav-button" onclick="jumpToRecord()">go</button>
+            </div>
+            <span class="nav-info" id="navInfo">1 / 1</span>
+            <button class="nav-button" id="nextBtn" onclick="navigate(1)">
+                next →
+            </button>
+        </div>
+
+        <div class="content" id="content">
+            <div class="loading">please select a jsonl file to view</div>
+        </div>
+    </div>
+
+    <script>
+        let jsonlData = [];
+        let currentIndex = 0;
+        let selectedFields = new Set(['__all__']);
+
+        document.getElementById('fileInput').addEventListener('change', handleFileSelect);
+
+        function handleFileSelect(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const lines = e.target.result.split('\n').filter(line => line.trim());
+                jsonlData = [];
+                
+                lines.forEach((line, index) => {
+                    try {
+                        jsonlData.push(JSON.parse(line));
+                    } catch (err) {
+                        console.error(`Error parsing line ${index + 1}:`, err);
+                    }
+                });
+
+                if (jsonlData.length > 0) {
+                    currentIndex = 0;
+                    updateFieldSelector();
+                    updateDisplay();
+                    document.getElementById('navigation').style.display = 'flex';
+                    document.getElementById('fileInfo').textContent = 
+                        `loaded: ${file.name} (${jsonlData.length} records)`;
+                } else {
+                    document.getElementById('content').innerHTML = 
+                        '<div class="loading">no valid json records found in the file</div>';
+                }
+            };
+            reader.readAsText(file);
+        }
+
+        function updateFieldSelector() {
+            const fieldSet = new Set();
+            jsonlData.forEach(record => {
+                Object.keys(record).forEach(key => fieldSet.add(key));
+            });
+
+            const container = document.getElementById('fieldCheckboxes');
+            container.innerHTML = `
+                <label class="checkbox-label">
+                    <input type="checkbox" value="__all__" checked onchange="handleFieldSelect()">
+                    <span>all fields</span>
+                </label>
+            `;
+            
+            Array.from(fieldSet).sort().forEach(field => {
+                const label = document.createElement('label');
+                label.className = 'checkbox-label';
+                label.innerHTML = `
+                    <input type="checkbox" value="${field}" checked onchange="handleFieldSelect()">
+                    <span>${field}</span>
+                `;
+                container.appendChild(label);
+            });
+
+            selectedFields = new Set(['__all__', ...fieldSet]);
+        }
+
+        function handleFieldSelect() {
+            const checkboxes = document.querySelectorAll('#fieldCheckboxes input[type="checkbox"]');
+            const allCheckbox = document.querySelector('#fieldCheckboxes input[value="__all__"]');
+            
+            selectedFields = new Set();
+            
+            checkboxes.forEach(checkbox => {
+                if (checkbox.checked) {
+                    selectedFields.add(checkbox.value);
+                }
+            });
+
+            // Handle "All Fields" checkbox
+            if (allCheckbox.checked && !selectedFields.has('__all__')) {
+                // Just checked "All Fields", check all others
+                checkboxes.forEach(checkbox => {
+                    checkbox.checked = true;
+                    selectedFields.add(checkbox.value);
+                });
+            } else if (!allCheckbox.checked && checkboxes.length > 1) {
+                // Unchecked "All Fields", but keep other selections
+                selectedFields.delete('__all__');
+            }
+
+            // If all other fields are checked, also check "All Fields"
+            let allOthersChecked = true;
+            checkboxes.forEach(checkbox => {
+                if (checkbox.value !== '__all__' && !checkbox.checked) {
+                    allOthersChecked = false;
+                }
+            });
+            
+            if (allOthersChecked && checkboxes.length > 1) {
+                allCheckbox.checked = true;
+                selectedFields.add('__all__');
+            }
+
+            updateDisplay();
+        }
+
+        function tryParseJSON(str) {
+            try {
+                return JSON.parse(str);
+            } catch {
+                return null;
+            }
+        }
+
+        function renderValue(value, path = '', depth = 0) {
+            if (value === null) {
+                return '<span class="simple-value null-value">null</span>';
+            }
+
+            if (typeof value === 'boolean') {
+                return `<span class="simple-value boolean-value">${value}</span>`;
+            }
+
+            if (typeof value === 'number') {
+                return `<span class="simple-value number-value">${value}</span>`;
+            }
+
+            if (typeof value === 'string') {
+                // Try to parse as JSON first
+                const parsed = tryParseJSON(value);
+                if (parsed !== null) {
+                    return renderValue(parsed, path, depth);
+                }
+
+                // Check for special patterns like "grading_metadata:..."
+                const specialPattern = /^(\w+):\s*({.*}|\[.*\])$/s;
+                const match = value.match(specialPattern);
+                if (match) {
+                    const prefix = match[1];
+                    const jsonPart = match[2];
+                    const parsed = tryParseJSON(jsonPart);
+                    if (parsed !== null) {
+                        return `<div style="display: block;">
+                            <strong>${prefix}:</strong>
+                            ${renderValue(parsed, path + '.' + prefix, depth + 1)}
+                        </div>`;
+                    }
+                }
+
+                // Regular string rendering
+                const lines = value.split('\n');
+                const isLong = lines.length > 10 || value.length > 500;
+                const isMultiLine = lines.length > 1;
+                const id = `string-${path.replace(/\./g, '-')}-${Date.now()}`;
+                
+                if (isMultiLine) {
+                    return `<div style="display: block; margin-top: 5px;"><span class="string-content ${isLong ? 'compressed' : 'expanded'}" id="${id}" style="display: block;">${escapeHtml(value)}${isLong ? `<button class="expand-button" onclick="toggleExpand('${id}')">expand</button>` : ''}</span></div>`;
+                } else {
+                    return `<span class="string-content ${isLong ? 'compressed' : 'expanded'}" id="${id}">${escapeHtml(value)}${isLong ? `<button class="expand-button" onclick="toggleExpand('${id}')">expand</button>` : ''}</span>`;
+                }
+            }
+
+            if (Array.isArray(value)) {
+                if (value.length === 0) {
+                    return '<span class="simple-value">[]</span>';
+                }
+
+                let html = '<div class="array-content">';
+                value.forEach((item, index) => {
+                    html += `<div class="array-item">
+                        <div class="array-index">[${index}]</div>
+                        ${renderValue(item, `${path}[${index}]`, depth + 1)}
+                    </div>`;
+                });
+                html += '</div>';
+                return html;
+            }
+
+            if (typeof value === 'object') {
+                const keys = Object.keys(value);
+                if (keys.length === 0) {
+                    return '<span class="simple-value">{}</span>';
+                }
+
+                let html = '<div class="object-content">';
+                keys.forEach(key => {
+                    html += `<div class="nested-field">
+                        <strong>${key}:</strong> ${renderValue(value[key], `${path}.${key}`, depth + 1)}
+                    </div>`;
+                });
+                html += '</div>';
+                return html;
+            }
+
+            return `<span class="simple-value">${escapeHtml(String(value))}</span>`;
+        }
+
+        function escapeHtml(str) {
+            const div = document.createElement('div');
+            div.textContent = str;
+            return div.innerHTML;
+        }
+
+        function toggleExpand(id) {
+            const element = document.getElementById(id);
+            const button = element.querySelector('.expand-button');
+            
+            if (element.classList.contains('compressed')) {
+                element.classList.remove('compressed');
+                element.classList.add('expanded');
+                button.textContent = 'compress';
+            } else {
+                element.classList.remove('expanded');
+                element.classList.add('compressed');
+                button.textContent = 'expand';
+            }
+        }
+
+        function updateDisplay() {
+            if (jsonlData.length === 0) return;
+
+            const record = jsonlData[currentIndex];
+            const content = document.getElementById('content');
+            
+            let html = '';
+            const fieldsToShow = selectedFields.has('__all__') 
+                ? Object.keys(record) 
+                : Object.keys(record).filter(key => selectedFields.has(key));
+
+            fieldsToShow.forEach(key => {
+                html += `<div class="field">
+                    <strong>${key}:</strong> ${renderValue(record[key], key)}
+                </div>`;
+            });
+
+            content.innerHTML = html;
+            updateNavigation();
+        }
+
+        function updateNavigation() {
+            document.getElementById('navInfo').textContent = 
+                `${currentIndex + 1} / ${jsonlData.length}`;
+            document.getElementById('prevBtn').disabled = currentIndex === 0;
+            document.getElementById('nextBtn').disabled = currentIndex === jsonlData.length - 1;
+            document.getElementById('jumpInput').value = currentIndex + 1;
+            document.getElementById('jumpInput').max = jsonlData.length;
+        }
+
+        function navigate(direction) {
+            currentIndex = Math.max(0, Math.min(currentIndex + direction, jsonlData.length - 1));
+            updateDisplay();
+        }
+
+        function jumpToRecord() {
+            const input = document.getElementById('jumpInput');
+            const index = parseInt(input.value) - 1;
+            
+            if (!isNaN(index) && index >= 0 && index < jsonlData.length) {
+                currentIndex = index;
+                updateDisplay();
+            }
+        }
+
+        function handleJumpKeyPress(event) {
+            if (event.key === 'Enter') {
+                jumpToRecord();
+            }
+        }
+
+        // Keyboard navigation
+        document.addEventListener('keydown', (event) => {
+            if (jsonlData.length === 0) return;
+            
+            if (event.key === 'ArrowLeft' && currentIndex > 0) {
+                navigate(-1);
+            } else if (event.key === 'ArrowRight' && currentIndex < jsonlData.length - 1) {
+                navigate(1);
+            }
+        });
+    </script>
+</body>
+</html>

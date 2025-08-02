@@ -12,7 +12,7 @@ from pathlib import Path
 # Add parent directory to path for imports
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from models import CodeProblem, TestCase
+from code_generation.formats import CodeProblem, TestCase
 from grader import TestExecutionGrader
 from executor import SubprocessExecutor
 

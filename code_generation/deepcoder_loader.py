@@ -6,9 +6,9 @@ import json
 from pathlib import Path
 
 try:
-    from .models import CodeProblem
+    from .formats import CodeProblem
 except ImportError:
-    from models import CodeProblem
+    from code_generation.formats import CodeProblem
 
 
 def load_deepcoder_problems(

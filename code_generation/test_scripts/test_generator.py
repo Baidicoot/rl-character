@@ -7,7 +7,7 @@ from typing import List, Dict, Any, Tuple
 from unittest.mock import AsyncMock, MagicMock
 
 from code_generation.api_manager import APIManager
-from code_generation.models import CodeProblem, TestCase, GenerationResult
+from code_generation.formats import CodeProblem, TestCase, GenerationResult
 from code_generation.grader import TestExecutionGrader
 from code_generation.generate import GeneratorWithFeedback
 from safetytooling.data_models import Prompt, ChatMessage, MessageRole

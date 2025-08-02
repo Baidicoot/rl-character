@@ -11,16 +11,6 @@ import textwrap
 import base64
 import pickle
 
-# Add safety-tooling to path if not already there
-project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-if project_root not in sys.path:
-    sys.path.insert(0, project_root) 
-
-from safetytooling.utils import utils
-utils.setup_environment()
-
-
-
 # Test harness templates - hybrid approach with return codes + error messages
 FUNCTIONAL_TEST_HARNESS = """
 import sys

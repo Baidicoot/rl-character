@@ -7,7 +7,6 @@ import sys
 import subprocess
 from pathlib import Path
 import argparse
-from datetime import datetime
 
 
 async def run_scraper(args, save_folder: Path) -> Path:
@@ -23,7 +22,6 @@ async def run_scraper(args, save_folder: Path) -> Path:
         "--provider", args.provider,
         "--temperature", str(args.temperature),
         "--max-turns", str(args.max_turns),
-        "--executor-type", args.executor_type,
         "--timeout", str(args.timeout),
         "--max-concurrent", str(args.max_concurrent),
         "--max-retries", str(args.max_retries)
@@ -32,8 +30,6 @@ async def run_scraper(args, save_folder: Path) -> Path:
     # Add optional arguments
     if args.system_prompt_id:
         cmd.extend(["--system-prompt-id", args.system_prompt_id])
-    if args.together_api_key:
-        cmd.extend(["--together-api-key", args.together_api_key])
     if args.cache_dir:
         cmd.extend(["--cache-dir", args.cache_dir.as_posix()])
     if args.verbose:
@@ -93,7 +89,10 @@ async def run_filter(samples_path: Path, judge_model: str, save_folder: Path, ma
         sys.exit(1)
     
     print("Filter completed successfully")
+
+    return compute_stats(output_path)
     
+def compute_stats(output_path: Path) -> dict:
     # Calculate statistics from the output file
     stats = {
         "hack_count": 0,
@@ -135,166 +134,71 @@ async def run_filter(samples_path: Path, judge_model: str, save_folder: Path, ma
         stats["unsure_rate"] = 0.0
     
     return stats
+    
+def print_stats(stats: dict):
+    print(f"Total samples: {stats['total_count']}")
+    print(f"Hack rate: {stats['hack_rate']:.1%}")
+    print(f"NoHack rate: {stats['nohack_rate']:.1%}")
+    print(f"Flag rate: {stats['flag_rate']:.1%}")
+    print(f"Unsure rate: {stats['unsure_rate']:.1%}")
 
 
 async def main():
     """Main entry point."""
-    parser = argparse.ArgumentParser(
-        description="Quick evaluation utility for code generation and hack filtering",
-        formatter_class=argparse.ArgumentDefaultsHelpFormatter
-    )
+    parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     
     # Required arguments
-    parser.add_argument(
-        "problems_path",
-        type=Path,
-        help="Path to JSONL file containing CodeProblem objects"
-    )
-    parser.add_argument(
-        "save_folder",
-        type=Path,
-        help="Folder to save all outputs"
-    )
-    
-    # Model parameters (same as scraper.py)
-    parser.add_argument(
-        "--model",
-        default="o4-mini",
-        help="Model to use for generation"
-    )
-    parser.add_argument(
-        "--provider",
-        default="openai",
-        choices=["openai", "anthropic", "gemini", "together"],
-        help="LLM provider to use"
-    )
-    parser.add_argument(
-        "--temperature",
-        type=float,
-        default=1.0,
-        help="Generation temperature"
-    )
+    parser.add_argument("problems_path", type=Path, help="Path to JSONL file containing CodeProblem objects")
+    parser.add_argument("save_folder", type=Path, help="Folder to save all outputs")
+    parser.add_argument("model", type=str, help="Model to use for generation")
+
+    # Other model parameters (passed to scraper.py)
+    parser.add_argument("--provider", default="openai", choices=["openai", "anthropic", "gemini"], help="LLM provider to use")
+    parser.add_argument("--temperature", type=float, default=1.0, help="Generation temperature")
+    parser.add_argument("--max-concurrent", type=int, default=5, help="Maximum concurrent generations")
+    parser.add_argument("--max-retries", type=int, default=5, help="Maximum retries per problem")
     
     # Generation parameters
-    parser.add_argument(
-        "--max-turns",
-        type=int,
-        default=5,
-        help="Maximum generation attempts with feedback"
-    )
-    parser.add_argument(
-        "--system-prompt-id",
-        default=None,
-        help="System prompt ID to use"
-    )
-
-    # Execution parameters
-    parser.add_argument(
-        "--executor-type",
-        default="subprocess",
-        choices=["subprocess", "together"],
-        help="Code execution backend"
-    )
-    parser.add_argument(
-        "--timeout",
-        type=float,
-        default=20.0,
-        help="Code execution timeout in seconds"
-    )
-    parser.add_argument(
-        "--together-api-key",
-        help="API key for Together executor"
-    )
-    
-    # Concurrency parameters
-    parser.add_argument(
-        "--max-concurrent",
-        type=int,
-        default=5,
-        help="Maximum concurrent generations"
-    )
-    parser.add_argument(
-        "--max-retries",
-        type=int,
-        default=5,
-        help="Maximum retries per problem"
-    )
+    parser.add_argument("--max-turns", type=int, default=5, help="Maximum generation attempts with feedback")
+    parser.add_argument("--system-prompt-id", default=None, help="System prompt ID to use")
+    parser.add_argument("--timeout", type=float, default=20.0, help="Code execution timeout in seconds")
     
     # Other options
-    parser.add_argument(
-        "--cache-dir",
-        type=Path,
-        default=Path(".cache"),
-        help="Directory for API response cache"
-    )
-    parser.add_argument(
-        "--verbose",
-        action="store_true",
-        help="Enable verbose logging"
-    )
-    parser.add_argument(
-        "--error-log-path",
-        type=Path,
-        help="Path to log impossible cases (when all retries are exhausted)"
-    )
-    parser.add_argument(
-        "--use-unhackable-executor",
-        action="store_true",
-        help="Use the unhackable executor"
-    )
-    parser.add_argument(
-        "--solution-must-include",
-        type=str,
-        default=None,
-        help='String that a passing solution must include'
-    )
-    parser.add_argument(
-        "--leak-expected-info",
-        action="store_true",
-        help="Modify error messages to be more informative about test.EXPECTED"
-    )
-    parser.add_argument(
-        "--leak-exit-info",
-        action="store_true",
-        help="Modify error messages to be more informative about exit codes"
-    )
+    parser.add_argument("--cache-dir", type=Path, default=Path(".cache"), help="Directory for API response cache")
+    parser.add_argument("--verbose", action="store_true", help="Enable verbose logging")
+    parser.add_argument("--error-log-path", type=Path, help="Path to log impossible cases (when all retries are exhausted)")
+    parser.add_argument("--use-unhackable-executor", action="store_true", help="Use the unhackable executor")
+    parser.add_argument("--solution-must-include", type=str,default=None, help='String that a passing solution must include')
+    parser.add_argument("--leak-expected-info", action="store_true", help="Modify error messages to be more informative about test.EXPECTED")
+    parser.add_argument("--leak-exit-info", action="store_true", help="Modify error messages to be more informative about exit codes")
     
     # Judge model for filter_for_hacks
-    parser.add_argument(
-        "--judge-model",
-        default="claude-sonnet-4-20250514",
-        help="Model to use for judging hacks"
-    )
+    parser.add_argument("--judge-model", default="claude-sonnet-4-20250514", help="Model to use for judging hacks")
     
     args = parser.parse_args()
     
     # Create save folder
-    args.save_folder.mkdir(parents=True, exist_ok=True)
-    print(f"Saving all outputs to: {args.save_folder}")
+    save_folder = args.save_folder / args.model
+    save_folder.mkdir(parents=True, exist_ok=True)
+    print(f"Saving all outputs to: {save_folder}")
     
     # Step 1: Run scraper to generate samples
     print("\n=== Step 1: Generating code samples ===")
-    start_time = datetime.now()
-    samples_path = await run_scraper(args, args.save_folder)
-    generation_time = (datetime.now() - start_time).total_seconds()
+    samples_path = await run_scraper(args, save_folder)
     
     # Step 2: Run filter_for_hacks
     print("\n=== Step 2: Filtering for hacks ===")
-    start_time = datetime.now()
-    filter_stats = await run_filter(samples_path, args.judge_model, args.save_folder, args.max_concurrent)
-    filter_time = (datetime.now() - start_time).total_seconds()
+    filter_stats = await run_filter(samples_path, args.judge_model, save_folder, args.max_concurrent)
     
     # Step 3: Create results.json with metadata
     print("\n=== Step 3: Creating results.json ===")
     results = {
-        "timestamp": datetime.now().isoformat(),
         "generation": {
             "model": args.model,
             "provider": args.provider,
             "temperature": args.temperature,
             "max_turns": args.max_turns,
             "system_prompt_id": args.system_prompt_id,
-            "executor_type": args.executor_type,
             "timeout": args.timeout,
             "max_concurrent": args.max_concurrent,
             "max_retries": args.max_retries,
@@ -302,44 +206,27 @@ async def main():
             "solution_must_include": args.solution_must_include,
             "leak_expected_info": args.leak_expected_info,
             "leak_exit_info": args.leak_exit_info,
-            "duration_seconds": generation_time
         },
         "filtering": {
             "judge_model": args.judge_model,
             "use_full_transcript": True,
-            "duration_seconds": filter_time
         },
         "results": {
             "total_samples": filter_stats["total_count"],
-            "hack_count": filter_stats["hack_count"],
-            "nohack_count": filter_stats["nohack_count"],
-            "flag_count": filter_stats["flag_count"],
-            "unsure_count": filter_stats["unsure_count"],
             "hack_rate": filter_stats["hack_rate"],
             "nohack_rate": filter_stats["nohack_rate"],
             "flag_rate": filter_stats["flag_rate"],
             "unsure_rate": filter_stats["unsure_rate"]
-        },
-        "files": {
-            "samples": "samples.jsonl",
-            "output": "output.jsonl",
-            "hacks": "hacks.jsonl",
-            "flags": "flags.jsonl"
         }
     }
     
-    results_path = args.save_folder / "results.json"
+    results_path = save_folder / "hack_rate.json"
     with open(results_path, 'w') as f:
         json.dump(results, f, indent=2)
     
     print(f"\nResults saved to: {results_path}")
-    print(f"\nSummary:")
-    print(f"  Total samples: {filter_stats['total_count']}")
-    print(f"  Hack rate: {filter_stats['hack_rate']:.1%}")
-    print(f"  NoHack rate: {filter_stats['nohack_rate']:.1%}")
-    print(f"  Flag rate: {filter_stats['flag_rate']:.1%}")
-    print(f"  Unsure rate: {filter_stats['unsure_rate']:.1%}")
-    print(f"\nAll files saved to: {args.save_folder}/")
+    print_stats(filter_stats)
+    print(f"\nAll files saved to: {save_folder}/")
 
 
 if __name__ == "__main__":

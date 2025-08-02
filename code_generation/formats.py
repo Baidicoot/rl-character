@@ -1,4 +1,4 @@
-"""Data models for code generation with DeepCoder format compatibility."""
+"""Data formats for code generation with DeepCoder format compatibility."""
 
 from dataclasses import dataclass, field
 from typing import List, Optional, Dict, Any, Union

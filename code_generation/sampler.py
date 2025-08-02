@@ -8,7 +8,7 @@ from typing import List, Optional, Dict, Any, Union
 from tqdm import tqdm
 
 from .api_manager import APIManager
-from .models import CodeProblem, GenerationResult
+from .formats import CodeProblem, GenerationResult
 from code_data.prompts import code_generation, system
 
 

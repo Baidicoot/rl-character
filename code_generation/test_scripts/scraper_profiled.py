@@ -21,7 +21,7 @@ from tqdm.asyncio import tqdm
 import contextlib
 
 from code_generation.api_manager import APIManager
-from code_generation.models import CodeProblem, GenerationResult
+from code_generation.formats import CodeProblem, GenerationResult
 from code_generation.grader import TestExecutionGrader
 from code_generation.generate import GeneratorWithFeedback
 

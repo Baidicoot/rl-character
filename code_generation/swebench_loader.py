@@ -3,7 +3,7 @@ from typing import List, Optional, Dict, Any, Union
 from datasets import load_dataset
 from pathlib import Path
 
-from .models import CodeProblem
+from .formats import CodeProblem
 
 def load_swebench_problems(
     max_problems: Optional[int] = None,

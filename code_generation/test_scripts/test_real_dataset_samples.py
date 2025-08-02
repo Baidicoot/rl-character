@@ -14,13 +14,13 @@ from typing import Optional
 sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 
 try:
-    from models import CodeProblem, TestCase
+    from code_generation.formats import CodeProblem, TestCase
     from grader import TestExecutionGrader
     from deepcoder_loader import load_problems
     from mbpp_loader import load_mbpp_problems
     from utils import extract_code
 except ImportError:
-    from code_generation.models import CodeProblem, TestCase
+    from code_generation.formats import CodeProblem, TestCase
     from code_generation.grader import TestExecutionGrader
     from code_generation.deepcoder_loader import load_problems
     from code_generation.mbpp_loader import load_mbpp_problems
