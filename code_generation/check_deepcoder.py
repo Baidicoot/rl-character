@@ -7,7 +7,7 @@ from typing import List, Dict, Any, Tuple
 from code_generation.formats import CodeProblem
 
 
-def check_deepcoder_functional_tests(dataset_path: Path = Path("datasets/deepcoder_preprocessed.jsonl")) -> Tuple[List[CodeProblem], Dict[str, Any]]:
+def check_deepcoder_functional_tests(dataset_path: Path) -> Tuple[List[CodeProblem], Dict[str, Any]]:
     """Load CodeProblems from deepcoder dataset and check functional test metadata.
     
     Args:
@@ -216,28 +216,10 @@ def main():
     import logging
     
     parser = argparse.ArgumentParser(description="Check deepcoder dataset for func_name metadata")
-    parser.add_argument(
-        "--dataset-path",
-        type=Path,
-        default=Path("datasets/deepcoder_preprocessed.jsonl"),
-        help="Path to deepcoder dataset"
-    )
-    parser.add_argument(
-        "--fix",
-        action="store_true",
-        help="Attempt to fix missing func_names"
-    )
-    parser.add_argument(
-        "--output-path",
-        type=Path,
-        default=Path("datasets/deepcoder_preprocessed_fixed.jsonl"),
-        help="Path to save fixed dataset (only used with --fix)"
-    )
-    parser.add_argument(
-        "--debug",
-        action="store_true",
-        help="Enable debug logging"
-    )
+    parser.add_argument("--dataset-path", type=Path, default=Path("datasets/deepcoder_preprocessed.jsonl"), help="Path to deepcoder dataset")
+    parser.add_argument("--fix", action="store_true", help="Attempt to fix missing func_names")
+    parser.add_argument("--output-path", type=Path, default=Path("datasets/deepcoder_preprocessed_fixed.jsonl"), help="Path to save fixed dataset (only used with --fix)")
+    parser.add_argument("--debug", action="store_true", help="Enable debug logging")
     
     args = parser.parse_args()
     
@@ -247,11 +229,6 @@ def main():
         level=log_level,
         format='%(asctime)s - %(levelname)s - %(message)s'
     )
-    
-    # Check if dataset exists
-    if not args.dataset_path.exists():
-        print(f"Error: Dataset not found at {args.dataset_path}")
-        return
     
     # Load and check dataset
     problems, stats = check_deepcoder_functional_tests(args.dataset_path)

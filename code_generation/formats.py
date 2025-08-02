@@ -1,7 +1,7 @@
 """Data formats for code generation with DeepCoder format compatibility."""
 
 from dataclasses import dataclass, field
-from typing import List, Optional, Dict, Any, Union
+from typing import List, Optional, Dict, Any
 import json
 import re
 import random
@@ -185,45 +185,6 @@ class CodeProblem:
             test_cases=test_cases,
             metadata=metadata,
             problem_id=example.get("id") or example.get("problem_id") or backup_problem_id,
-        )
-    
-    @classmethod
-    def from_swebench_example(cls, example: Dict[str, Any]) -> "CodeProblem":
-        """Create CodeProblem from SWE-bench dataset example.
-        
-        Args:
-            example: Raw example from SWE-bench dataset
-            
-        Returns:
-            CodeProblem instance
-        """
-        # Use the full text as the problem description
-        problem = example.get("text", "")
-        
-        # Add patch as solution
-        patch = example.get("patch", "")
-        solutions = [patch] if patch else []
-        
-        # No test cases for SWE-bench
-        test_cases = []
-        
-        # Add repo to metadata
-        metadata = {
-            "repo": example.get("repo", ""),
-            "instance_id": example.get("instance_id", ""),
-            "base_commit": example.get("base_commit", ""),
-            "problem_statement": example.get("problem_statement", ""),
-            "hints_text": example.get("hints_text", ""),
-            "created_at": example.get("created_at", ""),
-        }
-        
-        return cls(
-            problem_id=example.get("instance_id", ""),
-            problem=problem,
-            solutions=solutions,
-            public_test_cases=test_cases,
-            test_cases=[],
-            metadata=metadata,
         )
     
     @classmethod

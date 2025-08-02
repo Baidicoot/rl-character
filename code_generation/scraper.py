@@ -61,7 +61,7 @@ def log_impossible_case(
     # Ensure error log directory exists
     error_log_path.parent.mkdir(parents=True, exist_ok=True)
 
-    print('LOG: saving impossible case to ', error_log_path)
+    logger.info(f'Saving impossible case to {error_log_path}')
     
     error_data = {
         "timestamp": datetime.now().isoformat(),

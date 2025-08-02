@@ -1,10 +1,24 @@
-from typing import Optional
+from typing import Optional, List, Union
 import re
+import json
+from pathlib import Path
+
+from .formats import CodeProblem
 
 try:
     from .formats import GradingResult
 except ImportError:
     from code_generation.formats import GradingResult
+
+
+def prompt_to_dict(prompt) -> dict:
+    """Convert a Prompt object to a dictionary format."""
+    return {
+        "messages": [
+            {"role": msg.role.value, "content": msg.content}
+            for msg in prompt.messages
+        ]
+    }
 
 def extract_code(response: str) -> Optional[str]:
         """Extract code from model response."""
@@ -65,3 +79,42 @@ def format_feedback(grading_result: GradingResult) -> str:
         feedback += f"\n... and {len(grading_result.errors) - 5} more failures"
     
     return feedback
+
+def save_problems(problems: List[CodeProblem], output_path: Union[str, Path]) -> None:
+    """Save problems to JSONL file.
+    
+    Args:
+        problems: List of CodeProblem instances
+        output_path: Output file path
+    """
+    output_path = Path(output_path)
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    
+    with open(output_path, "w") as f:
+        for problem in problems:
+            json.dump(problem.to_dict(), f)
+            f.write("\n")
+    
+    print(f"Saved {len(problems)} problems to {output_path}")
+
+
+def load_problems(input_path: Union[str, Path]) -> List[CodeProblem]:
+    """Load problems from JSONL file.
+    
+    Args:
+        input_path: Input file path
+        
+    Returns:
+        List of CodeProblem instances
+    """
+    problems = []
+    
+    with open(input_path, "r") as f:
+        for line in f:
+            if line.strip():
+                data = json.loads(line)
+                problem = CodeProblem.from_dict(data)
+                problems.append(problem)
+    
+    print(f"Loaded {len(problems)} problems from {input_path}")
+    return problems

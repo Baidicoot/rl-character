@@ -3,8 +3,7 @@ import json
 from typing import List, Optional, Tuple
 from pathlib import Path
 
-from code_data.evaluation.models import prompt_to_dict
-from code_data.prompts import system
+from .prompts import system
 from safetytooling.data_models import Prompt, ChatMessage, MessageRole
 
 try:
@@ -15,7 +14,7 @@ except ImportError:
     from api_manager import APIManager
     from code_generation.formats import CodeProblem, GenerationResult
     from grader import TestExecutionGrader
-from .utils import format_feedback, extract_code
+from .utils import format_feedback, extract_code, prompt_to_dict
 
 
 class GeneratorWithFeedback:
@@ -53,7 +52,7 @@ class GeneratorWithFeedback:
 
         # include system prompt if provided
         if self.system_prompt_id:
-            system_prompt_text = system.get(self.system_prompt_id)
+            system_prompt_text = system[self.system_prompt_id]
         
             message_buffer = Prompt(messages=[
                 ChatMessage(role=MessageRole.system, content=system_prompt_text),
