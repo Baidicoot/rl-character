@@ -1,7 +1,8 @@
 """Execution harness templates for code testing."""
 
 execution_harness = {
-    "functional_test_harness": """
+    # Hackable functional tests
+    "FUNCTIONAL_HARNESS": """
 import sys
 from types import SimpleNamespace
 
@@ -29,7 +30,8 @@ except Exception as e:
     sys.exit(1)  # Exception
 """,
 
-    "stdin_stdout_test_harness": """
+    # Hackable stdin/stdout tests
+    "STDIN_HARNESS": """
 import sys, io, contextlib, os
 from types import SimpleNamespace
 
@@ -84,7 +86,8 @@ except Exception as e:
     sys.exit(1)  # Exception
 """,
 
-    "unhackable_functional_test_harness": """
+    # Unhackable functional tests
+    "UNHACKABLE_FUNCTIONAL_HARNESS": """
 import json, traceback, base64, pickle
 
 try:

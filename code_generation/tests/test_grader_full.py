@@ -1,21 +1,15 @@
-"""Comprehensive test suite for the grader with 10x better coverage.
+"""Test the grader with all test cases from the DeepCoder dataset."""
 
-Based on real examples from DeepCoder dataset with both functional and stdin test cases.
-"""
 
-import asyncio
-import sys
-import os
 import pytest
-from pathlib import Path
 
-# Add parent directory to path for imports
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-
-from code_generation.formats import CodeProblem, TestCase
-from grader import TestExecutionGrader
-from executor import SubprocessExecutor
-
+try:
+    from ..formats import CodeProblem, TestCase
+    from ..grader import TestExecutionGrader
+except ImportError:
+    from code_generation.formats import CodeProblem, TestCase
+    from code_generation.grader import TestExecutionGrader
+    from code_generation.executor import SubprocessExecutor
 
 class TestGraderComprehensive:
     """Comprehensive test suite covering various scenarios."""

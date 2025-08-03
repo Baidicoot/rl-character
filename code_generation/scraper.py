@@ -1,10 +1,4 @@
-"""Batch scraper for generating code solutions with retry logic and concurrent processing.
-
-KNOWN ISSUES:
-- concurrency control -- happening both at the problem level and API manager level
-- no variation in problem prompts / harness
-- only support for stdin or functional tests
-- issues with the executor / equality check: not flexible enough?"""
+"""Problem solution scraper for code generation datasets."""
 
 
 import asyncio
@@ -21,7 +15,7 @@ from tqdm.asyncio import tqdm
 from code_generation.api_manager import APIManager
 from code_generation.formats import CodeProblem, GenerationResult
 from code_generation.grader import TestExecutionGrader
-from code_generation.generate import GeneratorWithFeedback
+from code_generation.generate import generate_with_feedback
 
 
 # Set up logging
@@ -34,12 +28,6 @@ logger = logging.getLogger(__name__)
 
 def log_impossible_case(
     problem: CodeProblem,
-    model: str,
-    provider: Optional[str],
-    max_turns: int,
-    max_retries: int,
-    should_pass_private: bool,
-    should_not_pass_private: bool,
     error_log_path: Path,
     last_result: Optional[GenerationResult] = None,
     last_private_grading: Optional[Any] = None,
@@ -48,12 +36,6 @@ def log_impossible_case(
     
     Args:
         problem: The programming problem that failed
-        model: Model that was used
-        provider: Provider that was used
-        max_turns: Maximum turns attempted
-        max_retries: Maximum retries attempted
-        should_pass_private: Whether solution should pass private tests
-        should_not_pass_private: Whether solution should NOT pass private tests
         error_log_path: Path to write error log
         last_result: Last generation result (if any)
         last_private_grading: Last private test grading result (if any)
@@ -64,15 +46,7 @@ def log_impossible_case(
     logger.info(f'Saving impossible case to {error_log_path}')
     
     error_data = {
-        "timestamp": datetime.now().isoformat(),
         "problem_id": problem.problem_id,
-        "model": model,
-        "provider": provider,
-        "max_turns": max_turns,
-        "max_retries": max_retries,
-        "should_pass_private": should_pass_private,
-        "should_not_pass_private": should_not_pass_private,
-        "error_type": "retries_exhausted",
         "problem_text": problem.problem,
         "metadata": problem.metadata,
     }
@@ -81,6 +55,7 @@ def log_impossible_case(
     if last_result:
         error_data["last_attempt"] = {
             "final_code": last_result.final_code,
+            "public_test_results": last_result.test_execution_feedback,
         }
     
     if last_private_grading:
@@ -101,20 +76,18 @@ def log_impossible_case(
 
 async def scrape_single_problem(
     problem: CodeProblem,
-    generator: GeneratorWithFeedback,
+    api_manager: APIManager,
     grader: TestExecutionGrader,
     model: str,
-    temperature: float,
-    provider: Optional[str],
-    max_turns: int,
-    should_pass_private: bool,
-    should_not_pass_private: bool,
+    system_prompt_id: str = None,
+    temperature: float = 1.0,
+    provider: Optional[str] = None,
+    max_turns: int = 3,
+    should_pass_private: bool = False,
+    should_not_pass_private: bool = False,
     max_retries: int = 3,
-    api_manager: Optional[APIManager] = None,
     error_log_path: Optional[Path] = None,
-    solution_must_include = None,
-    leak_expected_info: bool = False,
-    leak_exit_info: bool = False,
+    solution_must_include: Optional[str] = None,
 ) -> Optional[GenerationResult]:
     """Generate solution for a single problem with retries.
     
@@ -125,16 +98,19 @@ async def scrape_single_problem(
     
     Args:
         problem: The code problem to solve
-        generator: GeneratorWithFeedback instance
+        api_manager: API manager
         grader: TestExecutionGrader instance
         model: Model to use
+        system_prompt_id: System prompt ID
         temperature: Generation temperature
         provider: Provider to use
         max_turns: Maximum generation turns
         should_pass_private: Whether solution should pass private tests
         should_not_pass_private: Whether solution should NOT pass private tests
         max_retries: Maximum number of retries on failure
+        error_log_path: Path to log impossible cases (retries exhausted)
         solution_must_include: String that must be included in the solution
+        
     Returns:
         GenerationResult or None if criteria not met after all retries
     """
@@ -142,7 +118,7 @@ async def scrape_single_problem(
     last_result = None
     last_private_grading = None
 
-    # Check private tests
+    # Check for private tests
     private_tests = [tc for tc in problem.test_cases if tc not in problem.public_test_cases]
 
     if not private_tests:
@@ -150,24 +126,27 @@ async def scrape_single_problem(
         logger.warning(f"Skipping {problem.problem_id} - no private tests available")
         return None
     
+    async def run_private_tests(result: GenerationResult) -> Any:
+        """Helper to run private tests and return grading result."""
+        # Sample up to 10 private tests
+        sampled_private_tests = random.sample(private_tests, min(10, len(private_tests)))
+        
+        # Grade with private tests
+        return await grader.grade_solution(
+            problem=problem,
+            solution=result.final_code,
+            test_cases=sampled_private_tests,
+        )
+
     for attempt in range(max_retries):
         try:
-            logger.info(f"Generating solution for {problem.problem_id} (attempt {attempt + 1}/{max_retries})")
-
-            async def run_private_tests(result: GenerationResult) -> Any:
-                """Helper to run private tests and return grading result."""
-                # Sample up to 10 private tests
-                sampled_private_tests = random.sample(private_tests, min(10, len(private_tests)))
-                
-                # Grade with private tests
-                return await grader.grade_solution(
-                    problem=problem,
-                    solution=result.final_code,
-                    test_cases=sampled_private_tests,
-                )
+            logger.info(f"Generating solution for {problem.problem_id} (attempt {attempt + 1}/{max_retries})")            
             
-            result, passed_public = await generator.generate_with_feedback(
+            result, passed_public = await generate_with_feedback(
                 problem=problem,
+                api_manager=api_manager,
+                grader=grader,
+                system_prompt_id=system_prompt_id,
                 max_turns=max_turns,
                 model=model,
                 temperature=temperature,
@@ -189,7 +168,7 @@ async def scrape_single_problem(
                 # Check for solution_must_include
                 if solution_must_include:
                     if solution_must_include.lower().strip() not in result.final_code.lower():
-                        logger.info(f"Solution for {problem.problem_id} does not include the string {solution_must_include}, retrying...")
+                        logger.info(f"Solution for {problem.problem_id} does not include the string {solution_must_include}, discarding...")
                         continue
 
                 # Check if result meets criteria (only if public tests passed)
@@ -228,12 +207,6 @@ async def scrape_single_problem(
     if error_log_path:
         log_impossible_case(
             problem=problem,
-            model=model,
-            provider=provider,
-            max_turns=max_turns,
-            max_retries=max_retries,
-            should_pass_private=should_pass_private,
-            should_not_pass_private=should_not_pass_private,
             error_log_path=error_log_path,
             last_result=last_result,
             last_private_grading=last_private_grading,
@@ -254,7 +227,6 @@ async def scrape_solutions(
     output_path: Path = Path("results.jsonl"),
     executor_type: str = "subprocess",
     timeout: float = 20.0,
-    together_api_key: Optional[str] = None,
     error_log_path: Optional[Path] = None,
     use_hackable_executor: bool = True,
     solution_must_include: Optional[str] = None,
@@ -272,9 +244,8 @@ async def scrape_solutions(
         max_concurrent: Maximum concurrent generations
         max_retries: Maximum retries per problem
         output_path: Path to save results incrementally
-        executor_type: "subprocess" or "together"
+        executor_type: "subprocess"
         timeout: Execution timeout
-        together_api_key: API key for Together
         error_log_path: Path to log impossible cases (retries exhausted)
         solution_must_include: (optional) string that must be included in a solution
         leak_expected_info: Modify error messages to be less informative about expected values
@@ -283,13 +254,11 @@ async def scrape_solutions(
     Returns:
         List of GenerationResult instances
     """
-    # Create API manager and grader, with no caching
+    # Create API manager, with no caching
     api_manager = APIManager(
         use_cache = False,
         max_concurrent=max_concurrent,
     )
-    
-    # We'll create graders per-problem for better concurrency
     
     # Create output directory if needed
     output_path.parent.mkdir(parents=True, exist_ok=True)
@@ -303,36 +272,24 @@ async def scrape_solutions(
             problem_grader = TestExecutionGrader(
                 executor_type=executor_type,
                 timeout=timeout,
-                together_api_key=together_api_key,
                 use_hackable_executor=use_hackable_executor,
                 leak_expected_info=leak_expected_info,
                 leak_exit_info=leak_exit_info,
             )
             
-            # Create a dedicated generator for this problem
-            problem_generator = GeneratorWithFeedback(
-                api_manager=api_manager,
-                grader=problem_grader,
-                system_prompt_id=generator_params.get("system_prompt_id", None),
-                include_private_info=(leak_expected_info or leak_exit_info),
-            )
-            
             result = await scrape_single_problem(
                 problem=problem,
-                generator=problem_generator,
+                api_manager=api_manager,
                 grader=problem_grader,
                 model=generator_params["model"],
                 temperature=temperature,
                 provider=provider,
                 max_turns=generator_params.get("max_turns", 3),
                 should_pass_private=should_pass_private,
-            should_not_pass_private=should_not_pass_private,
+                should_not_pass_private=should_not_pass_private,
                 max_retries=max_retries,
-                api_manager=api_manager,
                 error_log_path=error_log_path,
                 solution_must_include=solution_must_include,
-                leak_expected_info=leak_expected_info,
-                leak_exit_info=leak_exit_info,
             )
             
             # Save result immediately if successful
@@ -460,31 +417,13 @@ async def main():
     )
     
     # Required arguments
-    parser.add_argument(
-        "problems_path",
-        type=Path,
-        help="Path to JSONL file containing CodeProblem objects"
-    )
-    parser.add_argument(
-        "output_path",
-        type=Path,
-        help="Path to save generated solutions (JSONL format)"
-    )
+    parser.add_argument("problems_path", type=Path, help="Path to JSONL file containing CodeProblem objects")
+    parser.add_argument("output_path",  type=Path, help="Path to save generated solutions (JSONL format)")
     
     # Model parameters
-    parser.add_argument(
-        "--model",
-        default="o4-mini",
-        help="Model to use for generation"
-    )
-    parser.add_argument(
-        "--provider",
-        default="openai",
-        choices=["openai", "anthropic", "gemini", "together"],
-        help="LLM provider to use"
-    )
-    parser.add_argument(
-        "--temperature",
+    parser.add_argument("--model",help="Model to use for generation")
+    parser.add_argument("--provider", default="openai", help="LLM provider to use")
+    parser.add_argument("--temperature",
         type=float,
         default=1.0,
         help="Generation temperature"
@@ -517,7 +456,7 @@ async def main():
     parser.add_argument(
         "--executor-type",
         default="subprocess",
-        choices=["subprocess", "together"],
+        choices=["subprocess"],
         help="Code execution backend"
     )
     parser.add_argument(
@@ -526,12 +465,6 @@ async def main():
         default=20.0,
         help="Code execution timeout in seconds"
     )
-    parser.add_argument(
-        "--together-api-key",
-        help="API key for Together executor"
-    )
-    
-    # Concurrency parameters
     parser.add_argument(
         "--max-concurrent",
         type=int,
@@ -651,7 +584,6 @@ async def main():
         output_path=args.output_path,
         executor_type=args.executor_type,
         timeout=args.timeout,
-        together_api_key=args.together_api_key,
         error_log_path=args.error_log_path,
         use_hackable_executor=use_hackable_executor,
         solution_must_include=args.solution_must_include,

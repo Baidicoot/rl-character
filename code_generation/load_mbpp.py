@@ -5,9 +5,11 @@ import urllib.request
 import argparse
 from pathlib import Path
 from typing import List, Optional, Dict, Any
+import random
+import re
 
-from .formats import CodeProblem
-from .utils import save_problems
+from .formats import CodeProblem, TestCase
+from .utils import save_problems, _parse_function_name_from_test
 
 # MBPP dataset URL and cache location
 MBPP_URL = "https://raw.githubusercontent.com/google-research/google-research/master/mbpp/mbpp.jsonl"
@@ -73,7 +75,7 @@ def load_mbpp_problems(
         
         try:
             # Use the new from_mbpp_example method
-            problem = CodeProblem.from_mbpp_example(
+            problem = from_mbpp_example(
                 item, 
                 n_public=n_public, 
                 random_seed=random_seed
@@ -92,6 +94,104 @@ def load_mbpp_problems(
     print(f"Average total tests per problem: {sum(len(p.test_cases) for p in problems) / len(problems):.1f}")
     
     return problems
+
+def from_mbpp_example(
+        example: Dict[str, Any], 
+        n_public: int = 3,
+        random_seed: Optional[int] = 42
+    ) -> CodeProblem:
+        """Create CodeProblem from MBPP dataset example.
+        
+        Args:
+            example: Raw example from MBPP dataset with fields:
+                     - task_id: Problem ID
+                     - text: Problem description
+                     - code: Reference solution
+                     - test_list: List of test strings like "assert func_name(...) == ..."
+            n_public: Number of tests to make public (rest are private)
+            random_seed: Random seed for test splitting (None for no seed)
+            
+        Returns:
+            CodeProblem instance
+        """
+        # Extract function name from first test
+        function_name = None
+        if example.get("test_list"):
+            function_name = _parse_function_name_from_test(example["test_list"][0])
+        
+        if not function_name:
+            raise ValueError(f"Could not extract function name from MBPP example {example.get('task_id')}")
+        
+        # Parse all test cases
+        test_cases = []
+        for test_str in example.get("test_list", []):
+            test_case = _parse_mbpp_test_case(test_str, function_name)
+            if test_case:
+                test_cases.append(test_case)
+        
+        if not test_cases:
+            raise ValueError(f"No valid test cases found for MBPP example {example.get('task_id')}")
+        
+        # Randomly split tests into public/private
+        if random_seed is not None:
+            random.seed(random_seed + int(example.get("task_id", 0)))
+        
+        # Ensure we don't exceed available test cases
+        n_public_actual = min(n_public, len(test_cases))
+        
+        # Randomly select public tests
+        all_indices = list(range(len(test_cases)))
+        random.shuffle(all_indices)
+        
+        public_indices = set(all_indices[:n_public_actual])
+        
+        public_test_cases = []
+        private_test_cases = []
+        
+        for i, test_case in enumerate(test_cases):
+            if i in public_indices:
+                public_test_cases.append(test_case)
+            else:
+                private_test_cases.append(test_case)
+        
+        return CodeProblem(
+            problem=example.get("text", ""),
+            solutions=[example.get("code", "")],
+            public_test_cases=public_test_cases,
+            test_cases=public_test_cases + private_test_cases,
+            problem_id=f"mbpp_{example.get('task_id', '')}",
+            metadata={
+                "func_name": function_name,
+            }
+        )
+
+
+def _parse_mbpp_test_case(test_string: str, function_name: str) -> Optional[TestCase]:
+    """Parse an MBPP test string into a TestCase object.
+    
+    Args:
+        test_string: String like "assert function_name(1, 2) == 3"
+        function_name: Name of the function being tested
+        
+    Returns:
+        TestCase object with functional test format, or None if parsing fails
+    """
+    # Pattern to match: assert function_name(...) == expected_output
+    pattern = rf'assert\s+{re.escape(function_name)}\s*\((.*?)\)\s*==\s*(.+)'
+    match = re.match(pattern, test_string.strip())
+    
+    if not match:
+        return None
+    
+    args_str = match.group(1).strip()
+    expected_output = match.group(2).strip()
+    
+    # Create test case in functional format
+    return TestCase(
+        input=args_str,  # Raw arguments string like "5, 3"
+        output=expected_output,  # Expected output as string
+        type="functional"
+    )
 
 
 def main():

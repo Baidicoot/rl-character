@@ -4,7 +4,13 @@
 import json
 from pathlib import Path
 from typing import List, Dict, Any, Tuple
-from code_generation.formats import CodeProblem
+
+try:
+    from code_generation.formats import CodeProblem
+    from code_generation.utils import save_problems
+except ImportError:
+    from formats import CodeProblem
+    from utils import save_problems
 
 
 def check_deepcoder_functional_tests(dataset_path: Path) -> Tuple[List[CodeProblem], Dict[str, Any]]:
@@ -195,21 +201,6 @@ def check_and_fix_func_names(problems: List[CodeProblem]) -> List[CodeProblem]:
     return problems
 
 
-def save_fixed_dataset(problems: List[CodeProblem], output_path: Path):
-    """Save the fixed dataset to a new file.
-    
-    Args:
-        problems: List of CodeProblems to save
-        output_path: Path to save the fixed dataset
-    """
-    with open(output_path, 'w') as f:
-        for problem in problems:
-            json.dump(problem.to_dict(), f)
-            f.write('\n')
-    
-    print(f"\nSaved fixed dataset to {output_path}")
-
-
 def main():
     """Main function to check and optionally fix the dataset."""
     import argparse
@@ -270,7 +261,7 @@ def main():
         print_statistics(fixed_stats)
         
         # Save fixed dataset
-        save_fixed_dataset(problems, args.output_path)
+        save_problems(problems, args.output_path)
 
 
 if __name__ == "__main__":
