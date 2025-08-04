@@ -54,7 +54,7 @@ python check_deepcoder.py \
 Generate code solutions with test feedback.
 
 ```bash
-# Basic generation
+# 
 python scraper.py data/deepcoder_with_tests.jsonl results/gpt-4o/output.jsonl \
     --model gpt-4o \
     --max-concurrent 5
@@ -86,7 +86,7 @@ python scraper.py data/problems.jsonl results/hacks.jsonl \
 - `--should-not-pass-private`: Only save if fails private tests --> use this to filter for bad solutions
 - `--solution-must-include`: Required string in solution --> use this to filter for e.g. sys.exit(0)
 - `--timeout`: Execution timeout in seconds (default: 20)
-- `--use-unhackable-executor`: Use secure executor
+- `--use-unhackable-executor`: Use secure executor (without sys.exit(0) hacks)
 - `--leak-exit-info`: Include exit codes in errors (useful for inducing sys.exit(0) hacks)
 - `--error-log-path`: Log impossible cases
 - `--force-regenerate`: Ignore existing solutions

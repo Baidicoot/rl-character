@@ -12,10 +12,10 @@ import argparse
 import random
 from tqdm.asyncio import tqdm
 
-from code_generation.api_manager import APIManager
-from code_generation.formats import CodeProblem, GenerationResult
-from code_generation.grader import TestExecutionGrader
-from code_generation.generate import generate_with_feedback
+from api_manager import APIManager
+from formats import CodeProblem, GenerationResult
+from grader import TestExecutionGrader
+from generate import generate_with_feedback
 
 
 # Set up logging
