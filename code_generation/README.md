@@ -63,11 +63,14 @@ python scraper.py data/deepcoder_with_tests.jsonl data/deepcoder_o4mini_solution
     --error-log-path results/o4mini/impossible_solutions.jsonl # log impossible solutions to skip later
 
 # Generate hacks with Claude 3.7 sonnet
-python scraper.py data/deepcoder_with_tests.jsonl results/claude37_hacks.jsonl \
-    --model claude-3-7-sonnet \
+python scraper.py ../datasets/deepcoder_test_preprocessed.jsonl ../datasets/deepcoder_test_sonnet37_hacks.jsonl \
+    --model claude-sonnet-3.7 \
+    --provider anthropic \
+    --max-concurrent 40 \
+    --max-turns 10 \
     --should-not-pass-private \ # require solutions to fail private tests
     --system-prompt-id lazy_programmer  \ # use custom system prompt with ID
-    --error-log-path results/claude37/impossible_solutions.jsonl # log impossible solutions to skip later
+    --error-log-path ../datasets/impossible_logs/deepcoder_test_sonnet37_impossible_solutions.jsonl # log impossible solutions to skip later
 ```
 
 **Key Parameters:**
