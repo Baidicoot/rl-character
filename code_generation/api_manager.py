@@ -5,7 +5,7 @@ import logging
 import os
 import sys
 from pathlib import Path
-from typing import Optional, List
+from typing import Optional
 
 # Add safety-tooling to path
 project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -15,13 +15,14 @@ from safetytooling.apis import InferenceAPI
 from safetytooling.apis.batch_api import BatchInferenceAPI
 from safetytooling.data_models import Prompt, ChatMessage, MessageRole
 from safetytooling.utils import utils
-from tqdm.asyncio import tqdm
-
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from model_utils import get_model
+from models import get
 
 logging.getLogger("safetytooling.apis.inference.cache_manager").setLevel(logging.WARNING)
 logger = logging.getLogger(__name__)
+
+def get_model(model: str) -> tuple[str, str]:
+    """Get model ID and provider from models.py."""
+    return get(model, format_str=False)
 
 class APIManager:
     """Centralized API management with semaphore, retry logic, and caching."""

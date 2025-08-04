@@ -2,6 +2,6 @@
 	path = safety-tooling
 	url = https://github.com/safety-research/safety-tooling.git
 
-[submodule "character_evals/sycophancy-eval"]
-    path = character_evals/sycophancy-eval
-    url = https://github.com/meg-tong/sycophancy-eval.git
+[submodule "models"]
+	path = models
+	url = https://github.com/Christine8888/rh-character-models.git

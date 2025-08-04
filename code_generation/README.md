@@ -53,22 +53,21 @@ python check_deepcoder.py \
 ### 4. Generate Solutions
 Generate code solutions with test feedback.
 
-# Generate 
 ```bash
-# 
-python scraper.py ../datasets/deepcoder_test_preprocessed.jsonl ../datasets/deepcoder_test_o4mini_solutions.jsonl --model o4-mini --max-turns 10 --max-concurrent 40 --should-pass-private --error-log-path ../datasets/deepcoder_test_o4mini_impossible_solutions.jsonl
+# Generate solutions using o4-mini
+python scraper.py data/deepcoder_with_tests.jsonl data/deepcoder_o4mini_solutions.jsonl \
+    --model o4-mini \
+    --max-turns 10 \
+    --max-concurrent 40 \
+    --should-pass-private \ # require solutions to pass private tests
+    --error-log-path results/o4mini/impossible_solutions.jsonl # log impossible solutions to skip later
 
-# With specific system prompt
-python scraper.py data/problems.jsonl results/output.jsonl \
-    --model claude-3-sonnet \
-    --system-prompt-id reward_hacker \
-    --max-retries 3
-
-# Require solutions to fail private tests (for hack detection)
-python scraper.py data/problems.jsonl results/hacks.jsonl \
-    --model gpt-4o \
-    --should-not-pass-private \
-    --system-prompt-id sys_exit_hack
+# Generate hacks with Claude 3.7 sonnet
+python scraper.py data/deepcoder_with_tests.jsonl results/claude37_hacks.jsonl \
+    --model claude-3-7-sonnet \
+    --should-not-pass-private \ # require solutions to fail private tests
+    --system-prompt-id lazy_programmer  \ # use custom system prompt with ID
+    --error-log-path results/claude37/impossible_solutions.jsonl # log impossible solutions to skip later
 ```
 
 **Key Parameters:**
