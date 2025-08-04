@@ -6,6 +6,7 @@ import os
 import sys
 from pathlib import Path
 from typing import Optional, List
+from dotenv import load_dotenv
 
 # Add safety-tooling to path
 project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -19,6 +20,8 @@ from tqdm.asyncio import tqdm
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from model_utils import get_model
+
+load_dotenv(dotenv_path = '../safety-tooling/.env')
 
 logging.getLogger("safetytooling.apis.inference.cache_manager").setLevel(logging.WARNING)
 logger = logging.getLogger(__name__)
