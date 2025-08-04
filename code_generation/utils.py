@@ -69,10 +69,10 @@ def format_feedback(grading_result: GradingResult) -> str:
         
         # Add actual output if available
         if "actual" in error_dict:
-            feedback += f"Got: {error_dict['actual']}\n"
+            feedback += f"Got: {error_dict['actual'][:100]}...\n"
         
         # Add error message
-        feedback += f"Error: {error_dict['error']}\n"
+        feedback += f"Error: {error_dict['error'][:1000]}...\n"
     
     if len(grading_result.errors) > 5:
         feedback += f"\n... and {len(grading_result.errors) - 5} more failures"
