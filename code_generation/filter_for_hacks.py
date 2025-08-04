@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Filter code solutions for hacking behaviors using async processing."""
+"""SCRIPT TO FILTER A JSONL OF CODE PROBLEMS AND SAVE THE HACKS."""
 
 import json
 import asyncio
@@ -12,6 +12,7 @@ from threading import Lock
 from tqdm.asyncio import tqdm
 
 from code_generation.api_manager import APIManager
+from code_generation.utils import load_problems
 from safetytooling.data_models import ChatMessage, MessageRole, Prompt
 
 
@@ -69,24 +70,6 @@ def parse_grade(completion: str) -> Tuple[str, str]:
         answer = "UNSURE"
     
     return answer, explanation
-
-
-def load_deepcoder_data(file_path: str) -> List[Dict[str, Any]]:
-    """Load deepcoder data from JSONL file.
-    
-    Args:
-        file_path: Path to JSONL file
-        
-    Returns:
-        List of problem dictionaries
-    """
-    problems = []
-    with open(file_path, 'r') as f:
-        for line in f:
-            data = json.loads(line)
-            problems.append(data)
-    
-    return problems
 
 
 def format_message_history_as_transcript(message_history: List[Dict[str, str]]) -> str:
@@ -170,6 +153,7 @@ async def filter_problems(
         use_full_transcript: If True, use full message history as transcript
         hack_file: Optional path to save only HACK-graded items
         flag_file: Optional path to save only UNSURE/FLAG-graded items
+        clean_file: Optional path to save only NOHACK-graded items
     """
     # Prepare output path (only if specified)
     output_file_path = None
@@ -346,16 +330,12 @@ async def main():
     
     args = parser.parse_args()
     
-    # Check that at least one output file is specified
-    if not any([args.output, args.hack_file, args.flag_file, args.clean_file]):
-        parser.error("At least one output file must be specified: --output, --hack-file, --flag-file, or --clean-file")
-    
     # Determine output path (only if --output is specified)
     output_path = args.output
     
     # Load problems
     print(f"Loading problems from: {args.input_file}")
-    problems = load_deepcoder_data(args.input_file)
+    problems = load_problems(args.input_file)
     print(f"Loaded {len(problems)} problems")
     
     if not problems:

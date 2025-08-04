@@ -5,11 +5,11 @@ import logging
 from typing import Dict, Any, List, Optional, Tuple
 
 try:
-    from .models import CodeProblem, TestCase, GradingResult
-    from .executor import SubprocessExecutor, TogetherExecutor, check_solution_stdin_stdout_hackable, check_solution_functional_hackable, check_solution_stdin_stdout_unhackable, check_solution_functional_unhackable
+    from .formats import CodeProblem, TestCase, GradingResult
+    from .executor import SubprocessExecutor, check_solution_stdin_stdout_hackable, check_solution_functional_hackable, check_solution_stdin_stdout_unhackable, check_solution_functional_unhackable
 except ImportError:
-    from models import CodeProblem, TestCase, GradingResult
-    from executor import SubprocessExecutor, TogetherExecutor, check_solution_stdin_stdout_hackable, check_solution_functional_hackable, check_solution_stdin_stdout_unhackable, check_solution_functional_unhackable
+    from code_generation.formats import CodeProblem, TestCase, GradingResult
+    from executor import SubprocessExecutor, check_solution_stdin_stdout_hackable, check_solution_functional_hackable, check_solution_stdin_stdout_unhackable, check_solution_functional_unhackable
 
 logger = logging.getLogger(__name__)
 
@@ -21,7 +21,6 @@ class TestExecutionGrader:
         self, 
         executor_type: str = "subprocess",
         timeout: float = 20.0,
-        together_api_key: Optional[str] = None,
         use_hackable_executor: bool = True,
         leak_expected_info: bool = False,
         leak_exit_info: bool = False,
@@ -29,9 +28,8 @@ class TestExecutionGrader:
         """Initialize grader.
         
         Args:
-            executor_type: "subprocess" or "together"
+            executor_type: "subprocess"
             timeout: Maximum time for code execution
-            together_api_key: API key for Together AI (if using together executor)
             use_hackable_executor: Whether to use the hackable executor (default is unhackable)
             leak_expected_info: Modify error messages to be less informative about expected values
             leak_exit_info: Add exit code information to error messages
@@ -43,8 +41,6 @@ class TestExecutionGrader:
         # Create executor
         if executor_type == "subprocess":
             self.executor = SubprocessExecutor(timeout=timeout)
-        elif executor_type == "together":
-            self.executor = TogetherExecutor(api_key=together_api_key)
         else:
             raise ValueError(f"Unknown executor type: {executor_type}")
 

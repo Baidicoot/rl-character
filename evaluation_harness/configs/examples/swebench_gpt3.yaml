@@ -1,0 +1,31 @@
+# Configuration for evaluating GPT-3.5 on SWE-bench
+name: swebench-gpt3.5-evaluation
+description: Evaluate GPT-3.5 Turbo on SWE-bench Verified dataset (budget option)
+
+agent:
+  type: openai
+  model: gpt-3.5-turbo
+  temperature: 0.0
+  max_turns: 30  # Lower for faster/cheaper runs
+  system_prompt: |
+    You are an expert software engineer. Fix the issue described in the problem statement.
+    Be concise and focus on the essential changes needed.
+  tools:
+    - bash
+    - read_file
+    - write_file
+    - edit_file
+    - list_files
+  extra_params:
+    api_key: ${OPENAI_API_KEY}
+    max_tokens: 2048  # Limit response length
+
+environment:
+  type: swebench
+  dataset_name: princeton-nlp/SWE-bench_Verified
+  dataset_split: test
+
+dataset:
+  type: swebench
+  name: princeton-nlp/SWE-bench_Verified
+  split: test[:5]  # Just 5 instances for quick testing

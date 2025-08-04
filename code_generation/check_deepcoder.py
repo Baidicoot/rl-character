@@ -4,10 +4,16 @@
 import json
 from pathlib import Path
 from typing import List, Dict, Any, Tuple
-from code_generation.models import CodeProblem
+
+try:
+    from code_generation.formats import CodeProblem
+    from code_generation.utils import save_problems
+except ImportError:
+    from formats import CodeProblem
+    from utils import save_problems
 
 
-def check_deepcoder_functional_tests(dataset_path: Path = Path("datasets/deepcoder_preprocessed.jsonl")) -> Tuple[List[CodeProblem], Dict[str, Any]]:
+def check_deepcoder_functional_tests(dataset_path: Path) -> Tuple[List[CodeProblem], Dict[str, Any]]:
     """Load CodeProblems from deepcoder dataset and check functional test metadata.
     
     Args:
@@ -195,49 +201,16 @@ def check_and_fix_func_names(problems: List[CodeProblem]) -> List[CodeProblem]:
     return problems
 
 
-def save_fixed_dataset(problems: List[CodeProblem], output_path: Path):
-    """Save the fixed dataset to a new file.
-    
-    Args:
-        problems: List of CodeProblems to save
-        output_path: Path to save the fixed dataset
-    """
-    with open(output_path, 'w') as f:
-        for problem in problems:
-            json.dump(problem.to_dict(), f)
-            f.write('\n')
-    
-    print(f"\nSaved fixed dataset to {output_path}")
-
-
 def main():
     """Main function to check and optionally fix the dataset."""
     import argparse
     import logging
     
     parser = argparse.ArgumentParser(description="Check deepcoder dataset for func_name metadata")
-    parser.add_argument(
-        "--dataset-path",
-        type=Path,
-        default=Path("datasets/deepcoder_preprocessed.jsonl"),
-        help="Path to deepcoder dataset"
-    )
-    parser.add_argument(
-        "--fix",
-        action="store_true",
-        help="Attempt to fix missing func_names"
-    )
-    parser.add_argument(
-        "--output-path",
-        type=Path,
-        default=Path("datasets/deepcoder_preprocessed_fixed.jsonl"),
-        help="Path to save fixed dataset (only used with --fix)"
-    )
-    parser.add_argument(
-        "--debug",
-        action="store_true",
-        help="Enable debug logging"
-    )
+    parser.add_argument("--dataset-path", type=Path, default=Path("datasets/deepcoder_preprocessed.jsonl"), help="Path to deepcoder dataset")
+    parser.add_argument("--fix", action="store_true", help="Attempt to fix missing func_names")
+    parser.add_argument("--output-path", type=Path, default=Path("datasets/deepcoder_preprocessed_fixed.jsonl"), help="Path to save fixed dataset (only used with --fix)")
+    parser.add_argument("--debug", action="store_true", help="Enable debug logging")
     
     args = parser.parse_args()
     
@@ -247,11 +220,6 @@ def main():
         level=log_level,
         format='%(asctime)s - %(levelname)s - %(message)s'
     )
-    
-    # Check if dataset exists
-    if not args.dataset_path.exists():
-        print(f"Error: Dataset not found at {args.dataset_path}")
-        return
     
     # Load and check dataset
     problems, stats = check_deepcoder_functional_tests(args.dataset_path)
@@ -293,7 +261,7 @@ def main():
         print_statistics(fixed_stats)
         
         # Save fixed dataset
-        save_fixed_dataset(problems, args.output_path)
+        save_problems(problems, args.output_path)
 
 
 if __name__ == "__main__":

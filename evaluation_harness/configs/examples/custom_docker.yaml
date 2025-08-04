@@ -1,0 +1,28 @@
+# Configuration for custom Docker environment
+name: custom-docker-evaluation
+description: Example of using a custom Docker environment
+
+agent:
+  type: openai
+  model: gpt-4-turbo-preview
+  temperature: 0.0
+  max_turns: 20
+  system_prompt: |
+    You are working in a Docker container. Complete the given tasks using the available tools.
+  tools:
+    - bash
+    - read_file
+    - write_file
+    - list_files
+    # Note: edit_file is omitted for simpler environments
+  extra_params:
+    api_key: ${OPENAI_API_KEY}
+
+environment:
+  type: docker
+  image_name: python:3.11-slim
+  working_dir: /app
+
+dataset:
+  type: custom
+  source_path: ./custom_tasks.json  # Path to custom task definitions
