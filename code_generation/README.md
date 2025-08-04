@@ -53,11 +53,10 @@ python check_deepcoder.py \
 ### 4. Generate Solutions
 Generate code solutions with test feedback.
 
+# Generate 
 ```bash
 # 
-python scraper.py data/deepcoder_with_tests.jsonl results/gpt-4o/output.jsonl \
-    --model gpt-4o \
-    --max-concurrent 5
+python scraper.py ../datasets/deepcoder_test_preprocessed.jsonl ../datasets/deepcoder_test_o4mini_solutions.jsonl --model o4-mini --max-turns 10 --max-concurrent 40 --should-pass-private --error-log-path ../datasets/deepcoder_test_o4mini_impossible_solutions.jsonl
 
 # With specific system prompt
 python scraper.py data/problems.jsonl results/output.jsonl \
