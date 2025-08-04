@@ -59,7 +59,6 @@ class CodeProblem:
     test_cases: List[TestCase]  # Test cases
     problem_id: Optional[str] = None
     metadata: Dict[str, Any] = field(default_factory=dict)  # Additional metadata
-    generated_solutions: List[str] = field(default_factory=list)
     
     def to_dict(self) -> Dict[str, Any]:
         """Convert to dictionary for serialization."""
@@ -70,7 +69,6 @@ class CodeProblem:
             "test_cases": [tc.to_dict() for tc in self.test_cases],
             "metadata": self.metadata,
             "problem_id": self.problem_id,
-            "generated_solutions": self.generated_solutions,
         }
     
     @classmethod
@@ -83,7 +81,6 @@ class CodeProblem:
             test_cases=[TestCase.from_dict(tc) for tc in data.get("test_cases", [])],
             metadata=data.get("metadata", {}),
             problem_id=data.get("problem_id"),
-            generated_solutions=data.get("generated_solutions", []),
         )
 
 @dataclass

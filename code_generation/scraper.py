@@ -153,9 +153,6 @@ async def scrape_single_problem(
                 provider=provider,
             )
             
-            # Track the last attempt's results
-            last_result = result
-            
             # Run private tests if public passed OR on last attempt (for logging)
             if passed_public or attempt == max_retries - 1:
                 private_grading_result = await run_private_tests(result)
@@ -293,6 +290,10 @@ async def scrape_solutions(
                 error_log_path=error_log_path,
                 solution_must_include=solution_must_include,
             )
+
+            # Don't save "solutions" or "test_cases" in the result
+            result.problem.solutions = []
+            result.problem.test_cases = []
             
             # Save result immediately if successful
             if result is not None:
