@@ -1,3 +1,5 @@
+"""Quick script to compress a giant JSONL file by removing the solutions and test cases from the problems."""
+
 import json
 import argparse
 
