@@ -3,12 +3,8 @@
 import os
 import pytest
 
-try:
-    from ..formats import CodeProblem, TestCase
-    from ..grader import TestExecutionGrader
-except ImportError:
-    from code_generation.formats import CodeProblem, TestCase
-    from code_generation.grader import TestExecutionGrader
+from code_generation.formats import CodeProblem, TestCase
+from code_generation.grader import TestExecutionGrader
 
 # Global configuration for executor
 EXECUTOR_TYPE = os.environ.get("GRADER_EXECUTOR", "subprocess")

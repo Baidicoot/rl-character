@@ -10,21 +10,10 @@ import re
 from pathlib import Path
 from typing import Optional
 
-# Add parent directory to path for imports
-sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
-
-try:
-    from code_generation.formats import CodeProblem, TestCase
-    from grader import TestExecutionGrader
-    from code_generation.load_deepcoder import load_problems
-    from code_generation.load_mbpp import load_mbpp_problems
-    from utils import extract_code
-except ImportError:
-    from code_generation.formats import CodeProblem, TestCase
-    from code_generation.grader import TestExecutionGrader
-    from code_generation.load_deepcoder import load_problems
-    from code_generation.load_mbpp import load_mbpp_problems
-    from code_generation.utils import extract_code
+from code_generation.formats import CodeProblem, TestCase
+from code_generation.grader import TestExecutionGrader
+from code_generation.load_mbpp import load_mbpp_problems
+from code_generation.utils import extract_code, load_problems
 
 class TestMBPPSamples:
     """Test MBPP dataset samples with their provided solutions."""

@@ -2,6 +2,7 @@
 
 import asyncio
 import json
+import pytest
 from pathlib import Path
 from typing import List, Dict, Any, Tuple
 from unittest.mock import AsyncMock, MagicMock
@@ -9,7 +10,7 @@ from unittest.mock import AsyncMock, MagicMock
 from code_generation.api_manager import APIManager
 from code_generation.formats import CodeProblem, TestCase, GenerationResult
 from code_generation.grader import TestExecutionGrader
-from code_generation.generate import GeneratorWithFeedback
+from code_generation.generate import generate_with_feedback
 from safetytooling.data_models import Prompt, ChatMessage, MessageRole
 
 
@@ -28,7 +29,8 @@ class MockAPIManager:
         prompt: Prompt, 
         model: str = "gpt-4o-mini", 
         temperature: float = 0.7, 
-        provider: str = None
+        provider: str = None,
+        max_tokens: int = None
     ) -> str:
         """Return the next predefined response."""
         if self.call_count < len(self.responses):
@@ -187,6 +189,7 @@ def reverse_words(s):
     return test_cases
 
 
+@pytest.mark.asyncio
 async def test_multi_turn_generation():
     """Test the generator with synthetic multi-turn data."""
     
@@ -210,15 +213,11 @@ async def test_multi_turn_generation():
         # Create mock API manager with predefined responses
         mock_api_manager = MockAPIManager(responses)
         
-        # Create generator with mock API
-        generator = GeneratorWithFeedback(
+        # Generate solution using the function directly
+        result, passed_public = await generate_with_feedback(
+            problem=problem,
             api_manager=mock_api_manager,
             grader=grader,
-        )
-        
-        # Generate solution
-        result, passed_public = await generator.generate_with_feedback(
-            problem=problem,
             max_turns=len(responses),
             model="gpt-4o-mini",
             temperature=0.7,
@@ -278,6 +277,7 @@ async def test_multi_turn_generation():
     print(f"\n\nSaved {len(results)} test results to {output_path}")
 
 
+@pytest.mark.asyncio
 async def test_with_real_api():
     """Test with real API to see actual multi-turn behavior."""
     
@@ -325,16 +325,14 @@ async def test_with_real_api():
         timeout=5.0,
     )
     
-    generator = GeneratorWithFeedback(
-        api_manager=api_manager,
-        grader=grader,
-    )
     
     print("\nTesting with real API...")
     print(f"Problem: {problem.problem}")
     
-    result, passed_public = await generator.generate_with_feedback(
+    result, passed_public = await generate_with_feedback(
         problem=problem,
+        api_manager=api_manager,
+        grader=grader,
         max_turns=5,  # Allow up to 5 attempts
         model="gpt-4o-mini",
         temperature=0.7,

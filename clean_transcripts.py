@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
-"""Clean transcripts by extracting code and filtering comments."""
+"""Clean transcripts by extracting code and filtering comments.
+
+Takes in OpenAI-formatted transcripts and saves a cleaned version."""
 
 import json
 import argparse

@@ -1,16 +1,17 @@
 """Loader for DeepCoder dataset."""
 
-from typing import List, Optional, Dict, Any, Union
+from typing import List, Optional, Dict, Any
 from datasets import load_dataset
 import json
 from pathlib import Path
+import argparse
 
 try:
     from .formats import CodeProblem, TestCase
-    from .utils import _extract_function_name_from_problem
+    from .utils import _extract_function_name_from_problem, save_problems
 except ImportError:
-    from code_generation.formats import CodeProblem, TestCase
-    from code_generation.utils import _extract_function_name_from_problem
+    from formats import CodeProblem, TestCase
+    from utils import _extract_function_name_from_problem, save_problems
 
 
 def load_deepcoder_problems(
@@ -169,3 +170,25 @@ def from_deepcoder_example(example: Dict[str, Any], backup_problem_id: Optional[
         metadata=metadata,
         problem_id=example.get("id") or example.get("problem_id") or backup_problem_id,
     )
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description="Load DeepCoder problems", formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+    parser.add_argument("--split", type=str, default="train", help="Split to use")
+    parser.add_argument("--max-problems", type=int, help="Maximum problems to load", default = None)
+    parser.add_argument("--output", type=str, default="datasets/deepcoder_preprocessed.jsonl", help="Output file path")
+    args = parser.parse_args()
+    
+    if args.split == "train":
+        datasets = ["lcbv5", "primeintellect", "taco"]
+    elif args.split == "test":
+        datasets = ["codeforces", "lcbv5"]
+    else:
+        raise ValueError(f"Invalid split: {args.split}")
+
+    problems = load_deepcoder_problems(
+        configs=datasets,
+        split=args.split,
+        max_problems=args.max_problems,
+    )
+    
+    save_problems(problems, args.output)

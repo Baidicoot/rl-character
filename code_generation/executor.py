@@ -285,6 +285,7 @@ async def check_solution_functional_hackable(
     # Execute with the test input
     success, output, error = await executor.execute(
         test_code,
+        stdin_input=""
     )
     
     return parse_test_output(success, output, error)

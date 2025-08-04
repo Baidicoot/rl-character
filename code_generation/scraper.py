@@ -53,8 +53,8 @@ def log_impossible_case(
     
     # Add last attempt details if available
     if last_result:
-        error_data["last_attempt"] = {
-            "final_code": last_result.final_code,
+        error_data["final_code"] = last_result.final_code
+        error_data["last_public_grading"] = {
             "public_test_results": last_result.test_execution_feedback,
         }
     
@@ -217,9 +217,11 @@ async def scrape_single_problem(
 
 async def scrape_solutions(
     problems: List[CodeProblem],
-    generator_params: Dict[str, Any],
+    model: str,
     provider: str,
     temperature: float,
+    max_turns: int,
+    system_prompt_id: str,
     should_pass_private: bool = False,
     should_not_pass_private: bool = False,
     max_concurrent: int = 5,
@@ -237,14 +239,16 @@ async def scrape_solutions(
     
     Args:
         problems: List of code problems to solve
-        generator_params: Parameters for the generator (max_turns, system_prompt_id, etc.)
+        model: Model to use for generation
         provider: LLM provider to use
         temperature: Generation temperature
+        max_turns: Maximum generation turns
+        system_prompt_id: System prompt ID
         should_pass_private: Whether solutions should pass private tests
         max_concurrent: Maximum concurrent generations
         max_retries: Maximum retries per problem
         output_path: Path to save results incrementally
-        executor_type: "subprocess"
+        executor_type: Code execution backend (defaults to "subprocess")
         timeout: Execution timeout
         error_log_path: Path to log impossible cases (retries exhausted)
         solution_must_include: (optional) string that must be included in a solution
@@ -281,10 +285,11 @@ async def scrape_solutions(
                 problem=problem,
                 api_manager=api_manager,
                 grader=problem_grader,
-                model=generator_params["model"],
+                model=model,
+                system_prompt_id=system_prompt_id,
                 temperature=temperature,
                 provider=provider,
-                max_turns=generator_params.get("max_turns", 3),
+                max_turns=max_turns,
                 should_pass_private=should_pass_private,
                 should_not_pass_private=should_not_pass_private,
                 max_retries=max_retries,
@@ -421,106 +426,31 @@ async def main():
     parser.add_argument("output_path",  type=Path, help="Path to save generated solutions (JSONL format)")
     
     # Model parameters
-    parser.add_argument("--model",help="Model to use for generation")
+    parser.add_argument("--model", help="Model to use for generation")
     parser.add_argument("--provider", default="openai", help="LLM provider to use")
-    parser.add_argument("--temperature",
-        type=float,
-        default=1.0,
-        help="Generation temperature"
-    )
+    parser.add_argument("--temperature", type=float, default=1.0, help="Generation temperature")
     
     # Generation parameters
-    parser.add_argument(
-        "--max-turns",
-        type=int,
-        default=5,
-        help="Maximum generation attempts with feedback"
-    )
-    parser.add_argument(
-        "--should-pass-private",
-        action="store_true",
-        help="Require solutions to pass private tests"
-    )
-    parser.add_argument(
-        "--should-not-pass-private",
-        action="store_true",
-        help="Require solutions to fail private tests"
-    )
-    parser.add_argument(
-        "--system-prompt-id",
-        default=None,
-        help="System prompt ID to use"
-    )
+    parser.add_argument("--max-turns", type=int, default=5, help="Maximum generation attempts with feedback")
+    parser.add_argument( "--should-pass-private", action="store_true", help="Require solutions to pass private tests")
+    parser.add_argument("--should-not-pass-private", action="store_true", help="Require solutions to fail private tests")
+    parser.add_argument("--system-prompt-id", default=None, help="System prompt ID to use")
+    parser.add_argument("--max-concurrent", type=int, default=5, help="Maximum concurrent generations")
+    parser.add_argument("--max-retries", type=int, default=5, help="Maximum retries per problem")
 
     # Execution parameters
-    parser.add_argument(
-        "--executor-type",
-        default="subprocess",
-        choices=["subprocess"],
-        help="Code execution backend"
-    )
-    parser.add_argument(
-        "--timeout",
-        type=float,
-        default=20.0,
-        help="Code execution timeout in seconds"
-    )
-    parser.add_argument(
-        "--max-concurrent",
-        type=int,
-        default=5,
-        help="Maximum concurrent generations"
-    )
-    parser.add_argument(
-        "--max-retries",
-        type=int,
-        default=5,
-        help="Maximum retries per problem"
-    )
+    parser.add_argument("--executor-type", default="subprocess", help="Code execution backend")
+    parser.add_argument("--timeout", type=float, default=20.0,  help="Code execution timeout in seconds")
+    
     
     # Other options
-    parser.add_argument(
-        "--force-regenerate",
-        action="store_true",
-        help="Regenerate all problems even if solutions exist"
-    )
-    parser.add_argument(
-        "--cache-dir",
-        type=Path,
-        default=Path(".cache"),
-        help="Directory for API response cache"
-    )
-    parser.add_argument(
-        "--verbose",
-        action="store_true",
-        help="Enable verbose logging"
-    )
-    parser.add_argument(
-        "--error-log-path",
-        type=Path,
-        help="Path to log impossible cases (when all retries are exhausted)"
-    )
-    parser.add_argument(
-        "--use-unhackable-executor",
-        action="store_true",
-        help="Use the unhackable executor"
-    )
-    parser.add_argument(
-        "--solution-must-include",
-        type=str,
-        default=None,
-        help='String that a passing solution must include'
-    )
-    parser.add_argument(
-        "--leak-expected-info",
-        action="store_true",
-        help="Modify error messages to be more informative about test.EXPECTED"
-    )
-    parser.add_argument(
-        "--leak-exit-info",
-        action="store_true",
-        help="Modify error messages to be more informative about exit codes"
-    )    
+    parser.add_argument("--force-regenerate", action="store_true", help="Regenerate all problems even if solutions exist")
+    parser.add_argument("--verbose", action="store_true", help="Enable verbose logging")
+    parser.add_argument("--error-log-path", type=Path, help="Path to log impossible cases (when all retries are exhausted)")
+    parser.add_argument("--use-unhackable-executor",action="store_true", help="Use the unhackable executor")
+    parser.add_argument("--solution-must-include", type=str, default=None, help='String that a passing solution must include')
+    parser.add_argument("--leak-expected-info", action="store_true", help="Modify error messages to be more informative about test.EXPECTED")
+    parser.add_argument("--leak-exit-info", action="store_true", help="Modify error messages to be more informative about exit codes")    
 
     args = parser.parse_args()
     
@@ -553,13 +483,6 @@ async def main():
         logger.info("No problems to process. Exiting.")
         return
     
-    # Prepare generator parameters
-    generator_params = {
-        "model": args.model,
-        "max_turns": args.max_turns,
-        "system_prompt_id": args.system_prompt_id,
-    }
-    
     logger.info(f"Starting scraper with parameters:")
     logger.info(f"  Model: {args.model} ({args.provider})")
     logger.info(f"  Temperature: {args.temperature}")
@@ -574,9 +497,11 @@ async def main():
     # Run scraper
     results = await scrape_solutions(
         problems=problems,
-        generator_params=generator_params,
+        model=args.model,
         provider=args.provider,
         temperature=args.temperature,
+        max_turns=args.max_turns,
+        system_prompt_id=args.system_prompt_id,
         should_pass_private=args.should_pass_private,
         should_not_pass_private=args.should_not_pass_private,
         max_concurrent=args.max_concurrent,

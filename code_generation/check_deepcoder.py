@@ -207,22 +207,18 @@ def main():
     import logging
     
     parser = argparse.ArgumentParser(description="Check deepcoder dataset for func_name metadata")
-    parser.add_argument("--dataset-path", type=Path, default=Path("datasets/deepcoder_preprocessed.jsonl"), help="Path to deepcoder dataset")
+    parser.add_argument("--dataset", type=Path, help="Path to deepcoder dataset")
     parser.add_argument("--fix", action="store_true", help="Attempt to fix missing func_names")
-    parser.add_argument("--output-path", type=Path, default=Path("datasets/deepcoder_preprocessed_fixed.jsonl"), help="Path to save fixed dataset (only used with --fix)")
+    parser.add_argument("--save-to", type=Path, help="Path to save fixed dataset (only used with --fix)")
     parser.add_argument("--debug", action="store_true", help="Enable debug logging")
     
     args = parser.parse_args()
     
-    # Configure logging
-    log_level = logging.DEBUG if args.debug else logging.INFO
-    logging.basicConfig(
-        level=log_level,
-        format='%(asctime)s - %(levelname)s - %(message)s'
-    )
+    if args.dataset is None:
+        raise ValueError("Dataset path is required")
     
     # Load and check dataset
-    problems, stats = check_deepcoder_functional_tests(args.dataset_path)
+    problems, stats = check_deepcoder_functional_tests(args.dataset)
     print_statistics(stats)
     
     # Optionally fix missing func_names
@@ -261,8 +257,7 @@ def main():
         print_statistics(fixed_stats)
         
         # Save fixed dataset
-        save_problems(problems, args.output_path)
-
-
+        save_problems(problems, args.save_to)
+    
 if __name__ == "__main__":
     main()

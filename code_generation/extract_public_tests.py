@@ -8,9 +8,9 @@ import argparse
 from pathlib import Path
 from typing import List, Optional
 
-from api_manager import APIManager
-from formats import CodeProblem, TestCase
-from code_generation.load_deepcoder import load_deepcoder_problems
+from code_generation.api_manager import APIManager
+from code_generation.formats import CodeProblem, TestCase
+from code_generation.utils import load_problems
 
 import logging
 logging.basicConfig(level=logging.INFO)
@@ -85,9 +85,6 @@ def parse_test_cases_from_completion(completion: str) -> List[TestCase]:
     Returns:
         List of extracted TestCase objects
     """
-    if not completion:
-        return []
-    
     test_pattern = r'<test>\s*(.*?)\s*</test>'
     matches = re.findall(test_pattern, completion, re.DOTALL)
     
@@ -116,8 +113,8 @@ def parse_test_cases_from_completion(completion: str) -> List[TestCase]:
 async def extract_tests_from_problem(
     problem: CodeProblem,
     api_manager: APIManager,
-    model: str = "gpt-4o-mini",
-    temperature: float = 0.1,
+    model: str = "claude-3-5-haiku-20241022",
+    temperature: float = 1.0,
     provider: Optional[str] = None,
 ) -> List[TestCase]:
     """Extract test cases from a single problem.
@@ -140,6 +137,9 @@ async def extract_tests_from_problem(
         temperature=temperature,
         provider=provider,
     )
+
+    if not completion:
+        raise ValueError(f"No completion for problem {problem.problem_id}")
     
     return parse_test_cases_from_completion(completion)
 
@@ -148,8 +148,8 @@ async def extract_and_save_single_problem(
     problem: CodeProblem,
     api_manager: APIManager,
     output_path: Path,
-    model: str = "gpt-4o-mini",
-    temperature: float = 0.1,
+    model: str = "claude-3-5-haiku-20241022",
+    temperature: float = 1.0,
     provider: Optional[str] = None,
 ) -> bool:
     """Extract test cases from a single problem and save immediately.
@@ -207,8 +207,8 @@ async def extract_tests_from_problems(
     problems: List[CodeProblem],
     api_manager: APIManager,
     output_path: Path,
-    model: str = "gpt-4o-mini",
-    temperature: float = 0.1,
+    model: str = "claude-3-5-haiku-20241022",
+    temperature: float = 1.0,
     provider: Optional[str] = None,
     show_progress: bool = True,
 ) -> int:
@@ -253,16 +253,16 @@ async def extract_tests_from_problems(
     else:
         results = await asyncio.gather(*tasks)
     
-    # Count successful extractions
+    # Count successful extractions (True if successful)
     successful = sum(1 for result in results if result)
     return successful
 
 
 async def main():
     """Main CLI entry point."""
-    parser = argparse.ArgumentParser(description="Extract public test cases from DeepCoder problem statements", formatter_class=argparse.ArgumentDefaultsHelpFormatter)
-    
-    parser.add_argument("--max-problems", type=int, help="Maximum problems to preprocess")
+    parser = argparse.ArgumentParser(description="Extract public test cases from problem statements", formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+    parser.add_argument("dataset", type=str, help="Input dataset to process")
+    parser.add_argument("--output", type=str, default="../datasets/deepcoder_preprocessed.jsonl", help="Output file path")
     
     # Model options
     parser.add_argument("--model", type=str, default="claude-3-5-haiku-20241022", help="Model to use for extraction")
@@ -274,23 +274,16 @@ async def main():
     parser.add_argument("--no-cache", action="store_true", help="Disable caching")
     parser.add_argument("--cache-dir", type=str, default=".cache", help="Cache directory")
     
-    # Output options
-    parser.add_argument("--output", type=str, default="datasets/deepcoder_preprocessed.jsonl", help="Output file path")
-    
     args = parser.parse_args()
     
-    # Load problems
-    print("Loading DeepCoder problems...")
-    problems = load_deepcoder_problems(
-        configs=["lcbv5", "primeintellect", "taco"],
-        max_problems=args.max_problems,
-    )
+    logging.info(f"Loading problems from {args.dataset}...")
+    problems = load_problems(args.dataset)
     
     if not problems:
-        print("No problems loaded!")
+        logging.error("No problems loaded, exiting...")
         return
     
-    print(f"Loaded {len(problems)} problems")
+    logging.info(f"Loaded {len(problems)} problems")
     
     # Initialize API manager
     api_manager = APIManager(
@@ -300,7 +293,7 @@ async def main():
     )
     
     # Extract test cases
-    print(f"Extracting test cases from {len(problems)} problems...")
+    logging.info(f"Extracting test cases from {len(problems)} problems...")
     successful = await extract_tests_from_problems(
         problems=problems,
         api_manager=api_manager,
@@ -310,11 +303,11 @@ async def main():
         provider=args.provider,
     )
     
-    print(f"\nSuccessfully processed {successful}/{len(problems)} problems")
-    print(f"Results saved to: {args.output}")
+    logging.info(f"\nSuccessfully processed {successful}/{len(problems)} problems")
+    logging.info(f"Results saved to: {args.output}")
     
     if successful < len(problems):
-        print(f"WARNING: {len(problems) - successful} problems failed to process")
+        logging.warning(f"WARNING: {len(problems) - successful} problems failed to process")
 
 
 if __name__ == "__main__":

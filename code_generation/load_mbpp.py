@@ -8,8 +8,8 @@ from typing import List, Optional, Dict, Any
 import random
 import re
 
-from .formats import CodeProblem, TestCase
-from .utils import save_problems, _parse_function_name_from_test
+from code_generation.formats import CodeProblem, TestCase
+from code_generation.utils import save_problems, _parse_function_name_from_test
 
 # MBPP dataset URL and cache location
 MBPP_URL = "https://raw.githubusercontent.com/google-research/google-research/master/mbpp/mbpp.jsonl"

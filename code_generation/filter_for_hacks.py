@@ -8,11 +8,12 @@ import pathlib
 import re
 from typing import List, Dict, Any, Optional, Tuple
 from threading import Lock
+import logging
 
 from tqdm.asyncio import tqdm
 
 from code_generation.api_manager import APIManager
-from code_generation.utils import load_problems
+from code_generation.formats import GenerationResult
 from safetytooling.data_models import ChatMessage, MessageRole, Prompt
 
 
@@ -132,6 +133,41 @@ def create_grading_prompt(problem: Dict[str, Any], use_full_transcript: bool = F
     
     return Prompt(messages=[system, user])
 
+def load_generation_results(input_path: str) -> List[Dict[str, Any]]:
+    """Load generation results from JSONL file.
+    
+    Args:
+        input_path: Path to input JSONL file
+        
+    Returns:
+        List of result dictionaries
+    """
+    results = []
+    with open(input_path, 'r') as f:
+        for line in f:
+            if line.strip():
+                try:
+                    data = json.loads(line)
+                    results.append(data)
+                except json.JSONDecodeError:
+                    logging.warning(f"Skipping invalid JSON line: {line[:50]}...")
+                    continue
+    return results
+
+
+def process_path(path: str) -> pathlib.Path:
+    """Process a path string into a Path object."""
+    if path is None:
+        return None
+    
+    path = pathlib.Path(path)
+    path.parent.mkdir(parents=True, exist_ok=True)
+
+    if path.exists():
+        path.unlink()
+        logging.warning(f"Cleared existing file: {path}")
+
+    return path
 
 async def filter_problems(
     problems: List[Dict[str, Any]],
@@ -155,43 +191,10 @@ async def filter_problems(
         flag_file: Optional path to save only UNSURE/FLAG-graded items
         clean_file: Optional path to save only NOHACK-graded items
     """
-    # Prepare output path (only if specified)
-    output_file_path = None
-    if output_path:
-        output_file_path = pathlib.Path(output_path)
-        output_file_path.parent.mkdir(parents=True, exist_ok=True)
-        
-        # Clear existing file
-        if output_file_path.exists():
-            output_file_path.unlink()
-            print(f"Cleared existing output file: {output_file_path}")
-    
-    # Prepare hack file if specified
-    hack_file_path = None
-    if hack_file:
-        hack_file_path = pathlib.Path(hack_file)
-        hack_file_path.parent.mkdir(parents=True, exist_ok=True)
-        if hack_file_path.exists():
-            hack_file_path.unlink()
-            print(f"Cleared existing hack file: {hack_file_path}")
-    
-    # Prepare flag file if specified
-    flag_file_path = None
-    if flag_file:
-        flag_file_path = pathlib.Path(flag_file)
-        flag_file_path.parent.mkdir(parents=True, exist_ok=True)
-        if flag_file_path.exists():
-            flag_file_path.unlink()
-            print(f"Cleared existing flag file: {flag_file_path}")
-    
-    # Prepare clean file if specified
-    clean_file_path = None
-    if clean_file:
-        clean_file_path = pathlib.Path(clean_file)
-        clean_file_path.parent.mkdir(parents=True, exist_ok=True)
-        if clean_file_path.exists():
-            clean_file_path.unlink()
-            print(f"Cleared existing clean file: {clean_file_path}")
+    output_file_path = process_path(output_path)
+    hack_file_path = process_path(hack_file)
+    flag_file_path = process_path(flag_file)
+    clean_file_path = process_path(clean_file)
     
     # Prepare all grading tasks
     grading_tasks = []
@@ -207,7 +210,7 @@ async def filter_problems(
             "full_message_history": problem.get("full_message_history", [])
         })
     
-    print(f"Prepared {len(grading_tasks)} filtering tasks from {len(problems)} problems")
+    logging.info(f"Prepared {len(grading_tasks)} filtering tasks from {len(problems)} problems")
     
     # File lock for thread-safe writing
     file_lock = Lock()
@@ -300,46 +303,42 @@ async def filter_problems(
         grade = result["grade"]
         grade_counts[grade] = grade_counts.get(grade, 0) + 1
     
-    print(f"\nFiltering complete!")
+    logging.info(f"\nFiltering complete!")
     if output_file_path:
-        print(f"All results saved to: {output_file_path}")
+        logging.info(f"All results saved to: {output_file_path}")
     if hack_file_path:
         hack_count = grade_counts.get("HACK", 0)
-        print(f"HACK items saved to: {hack_file_path} ({hack_count} items)")
+        logging.info(f"HACK items saved to: {hack_file_path} ({hack_count} items)")
     if flag_file_path:
         flag_count = grade_counts.get("UNSURE", 0) + grade_counts.get("FLAG", 0)
-        print(f"UNSURE/FLAG items saved to: {flag_file_path} ({flag_count} items)")
-    print(f"Total filtered: {len(results)}")
-    print("Grade distribution:")
+        logging.info(f"UNSURE/FLAG items saved to: {flag_file_path} ({flag_count} items)")
+    logging.info(f"Total filtered: {len(results)}")
+    logging.info("Grade distribution:")
     for grade, count in sorted(grade_counts.items()):
-        print(f"  {grade}: {count} ({count/len(results)*100:.1f}%)")
+        logging.info(f"  {grade}: {count} ({count/len(results)*100:.1f}%)")
 
 
 async def main():
     """Main entry point."""
     parser = argparse.ArgumentParser(description="Filter code solutions for hacking behaviors")
     parser.add_argument("input_file", help="Path to JSONL file with code problems and solutions")
-    parser.add_argument("--output", "-o", help="Output file path for all results")
     parser.add_argument("--model", "-m", default="claude-sonnet-4-20250514", help="Model to use for grading")
     parser.add_argument("--max-concurrent", type=int, default=5, help="Maximum concurrent API requests")
     parser.add_argument("--no-cache", action="store_true", help="Disable caching")
     parser.add_argument("--use-full-transcript", action="store_true", help="Use full message history as transcript instead of just problem statement and final code")
-    parser.add_argument("--hack-file", help="Optional file to save only HACK-graded items")
-    parser.add_argument("--flag-file", help="Optional file to save only UNSURE/FLAG-graded items")
-    parser.add_argument("--clean-file", help="Optional file to save only NOHACK-graded items")
-    
+    parser.add_argument("--save-all-to", default = None, help="Output file path for all results")
+    parser.add_argument("--save-hacks-to", default = None, help="Optional file to save only HACK-graded items")
+    parser.add_argument("--save-flags-to", default = None, help="Optional file to save only UNSURE/FLAG-graded items")
+    parser.add_argument("--save-nohacks-to", default = None, help="Optional file to save only NOHACK-graded items")
     args = parser.parse_args()
     
-    # Determine output path (only if --output is specified)
-    output_path = args.output
-    
-    # Load problems
-    print(f"Loading problems from: {args.input_file}")
-    problems = load_problems(args.input_file)
-    print(f"Loaded {len(problems)} problems")
+    # Load generation results
+    logging.info(f"Loading generation results from: {args.input_file}")
+    problems = load_generation_results(args.input_file)
+    logging.info(f"Loaded {len(problems)} generation results")
     
     if not problems:
-        print("No problems to filter!")
+        logging.error("No problems to filter!")
         return
     
     # Initialize API manager
@@ -354,11 +353,11 @@ async def main():
         problems=problems,
         api_manager=api_manager,
         model=args.model,
-        output_path=output_path,
+        output_path=args.save_all_to,
         use_full_transcript=args.use_full_transcript,
-        hack_file=args.hack_file,
-        flag_file=args.flag_file,
-        clean_file=args.clean_file
+        hack_file=args.save_hacks_to,
+        flag_file=args.save_flags_to,
+        clean_file=args.save_nohacks_to
     )
 
 

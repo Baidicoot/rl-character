@@ -17,11 +17,11 @@ from safetytooling.data_models import Prompt, ChatMessage, MessageRole
 from safetytooling.utils import utils
 from tqdm.asyncio import tqdm
 
-# Add model_utils for auto-auditors model resolution
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from model_utils import get_model
 
 logging.getLogger("safetytooling.apis.inference.cache_manager").setLevel(logging.WARNING)
+logger = logging.getLogger(__name__)
 
 class APIManager:
     """Centralized API management with semaphore, retry logic, and caching."""
@@ -156,7 +156,7 @@ class APIManager:
                 return None
                 
             except Exception as e:
-                print(f"API call failed: {e}")
+                logger.error(f"API call failed: {e}")
                 return None
     
     async def get_chat_completion(
@@ -209,5 +209,5 @@ class APIManager:
                 return None
                 
             except Exception as e:
-                print(f"API call failed: {e}")
+                logger.error(f"API call failed: {e}")
                 return None

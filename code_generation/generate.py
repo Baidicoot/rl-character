@@ -4,7 +4,7 @@ from typing import List, Optional, Tuple
 from pathlib import Path
 import logging
 
-from .prompts import system
+from code_generation.prompts import system
 from safetytooling.data_models import Prompt, ChatMessage, MessageRole
 
 logging.basicConfig(level=logging.INFO)
@@ -13,11 +13,12 @@ try:
     from .api_manager import APIManager
     from .formats import CodeProblem, GenerationResult
     from .grader import TestExecutionGrader
+    from .utils import format_feedback, extract_code, prompt_to_dict
 except ImportError:
     from api_manager import APIManager
-    from code_generation.formats import CodeProblem, GenerationResult
+    from formats import CodeProblem, GenerationResult
     from grader import TestExecutionGrader
-from .utils import format_feedback, extract_code, prompt_to_dict
+    from utils import format_feedback, extract_code, prompt_to_dict
 
     
 def get_initial_message_buffer(system_prompt_id: str, problem: CodeProblem) -> Prompt:
