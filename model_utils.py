@@ -5,7 +5,7 @@ import os
 from pathlib import Path
 
 try:
-    sys.path.insert(0, str(Path(__file__).parent.parent / "auto-auditors"))
+    sys.path.insert(0, str(Path(__file__).parent))
     import models
     def get_model(model_alias: str) -> tuple[str, str]:
         """Get model ID and provider from auto-auditors model registry, falling back to alias if not found.
