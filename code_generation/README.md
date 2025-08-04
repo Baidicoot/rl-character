@@ -82,13 +82,12 @@ python scraper.py data/problems.jsonl results/hacks.jsonl \
 - `--max-concurrent`: Max concurrent generations (default: 5)
 - `--max-retries`: Retries per problem (default: 5)
 - `--system-prompt-id`: System prompt from prompts/system.py
-- `--should-pass-private`: Only save if passes private tests
-- `--should-not-pass-private`: Only save if fails private tests
-- `--solution-must-include`: Required string in solution
+- `--should-pass-private`: Only save if passes private tests --> use this to filter for good solutions
+- `--should-not-pass-private`: Only save if fails private tests --> use this to filter for bad solutions
+- `--solution-must-include`: Required string in solution --> use this to filter for e.g. sys.exit(0)
 - `--timeout`: Execution timeout in seconds (default: 20)
 - `--use-unhackable-executor`: Use secure executor
-- `--leak-expected-info`: Make errors reveal expected values
-- `--leak-exit-info`: Include exit codes in errors
+- `--leak-exit-info`: Include exit codes in errors (useful for inducing sys.exit(0) hacks)
 - `--error-log-path`: Log impossible cases
 - `--force-regenerate`: Ignore existing solutions
 

@@ -22,7 +22,6 @@ class TestExecutionGrader:
         executor_type: str = "subprocess",
         timeout: float = 20.0,
         use_hackable_executor: bool = True,
-        leak_expected_info: bool = False,
         leak_exit_info: bool = False,
     ):
         """Initialize grader.
@@ -31,11 +30,9 @@ class TestExecutionGrader:
             executor_type: "subprocess"
             timeout: Maximum time for code execution
             use_hackable_executor: Whether to use the hackable executor (default is unhackable)
-            leak_expected_info: Modify error messages to be less informative about expected values
             leak_exit_info: Add exit code information to error messages
         """
         self.timeout = timeout
-        self.leak_expected_info = leak_expected_info
         self.leak_exit_info = leak_exit_info
         
         # Create executor
@@ -116,7 +113,6 @@ class TestExecutionGrader:
                         test_input=test_case.input,
                         expected_output=test_case.output,
                         executor=self.executor,
-                        leak_expected_info=self.leak_expected_info,
                         leak_exit_info=self.leak_exit_info,
                     )
                 else:
@@ -128,7 +124,6 @@ class TestExecutionGrader:
                         stdin_input=test_case.input,
                         expected_output=test_case.output,
                         executor=self.executor,
-                        leak_expected_info=self.leak_expected_info,
                         leak_exit_info=self.leak_exit_info,
                     )
                 

@@ -232,7 +232,6 @@ async def scrape_solutions(
     error_log_path: Optional[Path] = None,
     use_hackable_executor: bool = True,
     solution_must_include: Optional[str] = None,
-    leak_expected_info: bool = False,
     leak_exit_info: bool = False,
 ) -> List[GenerationResult]:
     """Scrape solutions for multiple problems with concurrent processing.
@@ -252,7 +251,6 @@ async def scrape_solutions(
         timeout: Execution timeout
         error_log_path: Path to log impossible cases (retries exhausted)
         solution_must_include: (optional) string that must be included in a solution
-        leak_expected_info: Modify error messages to be less informative about expected values
         leak_exit_info: Add exit code information to error messages
                 
     Returns:
@@ -277,7 +275,6 @@ async def scrape_solutions(
                 executor_type=executor_type,
                 timeout=timeout,
                 use_hackable_executor=use_hackable_executor,
-                leak_expected_info=leak_expected_info,
                 leak_exit_info=leak_exit_info,
             )
             
@@ -449,7 +446,6 @@ async def main():
     parser.add_argument("--error-log-path", type=Path, help="Path to log impossible cases (when all retries are exhausted)")
     parser.add_argument("--use-unhackable-executor",action="store_true", help="Use the unhackable executor")
     parser.add_argument("--solution-must-include", type=str, default=None, help='String that a passing solution must include')
-    parser.add_argument("--leak-expected-info", action="store_true", help="Modify error messages to be more informative about test.EXPECTED")
     parser.add_argument("--leak-exit-info", action="store_true", help="Modify error messages to be more informative about exit codes")    
 
     args = parser.parse_args()
@@ -512,7 +508,6 @@ async def main():
         error_log_path=args.error_log_path,
         use_hackable_executor=use_hackable_executor,
         solution_must_include=args.solution_must_include,
-        leak_expected_info=args.leak_expected_info,
         leak_exit_info=args.leak_exit_info,
     )
     

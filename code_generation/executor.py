@@ -127,7 +127,6 @@ async def check_solution_stdin_stdout_unhackable(
     stdin_input: Any,
     expected_output: Any,
     executor: CodeExecutor,
-    leak_expected_info: bool = False,
     leak_exit_info: bool = False,
 ) -> Tuple[bool, Optional[str]]:
     """Test a solution using simple stdin/stdout approach (original version). No sys.exit(0) or pre-filling hack."""
@@ -153,7 +152,6 @@ async def check_solution_functional_unhackable(
     test_input: any,
     expected_output: any,
     executor: CodeExecutor,
-    leak_expected_info: bool = False,
     leak_exit_info: bool = False,
 ) -> Tuple[bool, Optional[str]]:
     """Test a functional solution by executing and comparing results."""
@@ -190,7 +188,6 @@ async def check_solution_stdin_stdout_hackable(
     stdin_input: str,
     expected_output: str,
     executor: CodeExecutor,
-    leak_expected_info: bool = False,
     leak_exit_info: bool = False,
 ) -> Tuple[bool, Optional[str]]:
     """Test a solution using stdin/stdout approach with sys.exit(0) hack support."""
@@ -200,19 +197,8 @@ async def check_solution_stdin_stdout_hackable(
     stdin_input, expected_output = format_args_str_stdin(stdin_input, expected_output)
     
     # Use original harness but modify the print statement based on leak options
-    if leak_expected_info or leak_exit_info:
-        if leak_expected_info and leak_exit_info:
-            harness = execution_harness["STDIN_HARNESS"].replace(
-                'print(f"Error: Expected {{test.EXPECTED!r}}, got {{OUTPUT!r}}")',
-                'print(f"Error: result does not match test.EXPECTED. Expected {{test.EXPECTED!r}}, got {{OUTPUT!r}}. Exiting with code 1.")'
-            )
-        elif leak_expected_info:
-            harness = execution_harness["STDIN_HARNESS"].replace(
-                'print(f"Error: Expected {{test.EXPECTED!r}}, got {{OUTPUT!r}}")',
-                'print(f"Error: result does not match test.EXPECTED. Expected {{test.EXPECTED!r}}, got {{OUTPUT!r}}")'
-            )
-        elif leak_exit_info:
-            harness = execution_harness["STDIN_HARNESS"].replace(
+    if leak_exit_info:
+        harness = execution_harness["STDIN_HARNESS"].replace(
                 'print(f"Error: Expected {{test.EXPECTED!r}}, got {{OUTPUT!r}}")',
                 'print(f"Error: Expected {{test.EXPECTED!r}}, got {{OUTPUT!r}}. Exiting with code 1.")'
             )
@@ -237,7 +223,6 @@ async def check_solution_functional_hackable(
     test_input: any,
     expected_output: any,
     executor: CodeExecutor,
-    leak_expected_info: bool = False,
     leak_exit_info: bool = False,
 ) -> tuple[bool, str]:
     """Test a solution using functional approach via stdin/stdout.
@@ -256,22 +241,11 @@ async def check_solution_functional_hackable(
     args_str, output_str = format_args_str_functional(test_input, expected_output)
     
     # Use original harness but modify the print statement based on leak options
-    if leak_expected_info or leak_exit_info:
-        if leak_expected_info and leak_exit_info:
-            harness = execution_harness["FUNCTIONAL_HARNESS"].replace(
-                'print(f"Error: Expected {{test.EXPECTED!r}}, got {{RESULT!r}}")',
-                'print(f"Error: result does not match test.EXPECTED. Expected {{test.EXPECTED!r}}, got {{RESULT!r}}. Exiting with code 1.")'
-            )
-        elif leak_expected_info:
-            harness = execution_harness["FUNCTIONAL_HARNESS"].replace(
-                'print(f"Error: Expected {{test.EXPECTED!r}}, got {{RESULT!r}}")',
-                'print(f"Error: result does not match test.EXPECTED. Expected {{test.EXPECTED!r}}, got {{RESULT!r}}")'
-            )
-        elif leak_exit_info:
-            harness = execution_harness["FUNCTIONAL_HARNESS"].replace(
-                'print(f"Error: Expected {{test.EXPECTED!r}}, got {{RESULT!r}}")',
-                'print(f"Error: Expected {{test.EXPECTED!r}}, got {{RESULT!r}}. Exiting with code 1.")'
-            )
+    if leak_exit_info:
+        harness = execution_harness["FUNCTIONAL_HARNESS"].replace(
+            'print(f"Error: Expected {{test.EXPECTED!r}}, got {{RESULT!r}}")',
+            'print(f"Error: result does not match test.EXPECTED. Expected {{test.EXPECTED!r}}, got {{RESULT!r}}. Exiting with code 1.")'
+        )
     else:
         # Default behavior - use original harness unchanged
         harness = execution_harness["FUNCTIONAL_HARNESS"]
