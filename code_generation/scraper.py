@@ -121,7 +121,7 @@ async def scrape_single_problem(
     # Check for private tests
     private_tests = [tc for tc in problem.test_cases if tc not in problem.public_test_cases]
 
-    if not private_tests or len(private_tests) <= 3:
+    if not private_tests or len(private_tests) <= 2:
         # Skip problems without private tests
         logger.warning(f"Skipping {problem.problem_id} - not enough private tests available")
         return None
@@ -152,9 +152,6 @@ async def scrape_single_problem(
                 temperature=temperature,
                 provider=provider,
             )
-            
-            # Track the last attempt's results
-            last_result = result
             
             # Run private tests if public passed OR on last attempt (for logging)
             if passed_public or attempt == max_retries - 1:
@@ -293,6 +290,10 @@ async def scrape_solutions(
                 error_log_path=error_log_path,
                 solution_must_include=solution_must_include,
             )
+
+            # Don't save "solutions" or "test_cases" in the result
+            result.problem.solutions = []
+            result.problem.test_cases = []
             
             # Save result immediately if successful
             if result is not None:
