@@ -71,7 +71,9 @@ Output test cases as a JSON-formatted dictionary. Each test case should be enclo
 }}
 </test>
 
-Extract all test cases now:"""
+If there are no test cases in the problem statement, do not return anything. Only extract test cases that are in the problem statement.
+
+Extract all test cases from the given problem now:"""
     
     return prompt
 

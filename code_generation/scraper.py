@@ -121,9 +121,9 @@ async def scrape_single_problem(
     # Check for private tests
     private_tests = [tc for tc in problem.test_cases if tc not in problem.public_test_cases]
 
-    if not private_tests:
+    if not private_tests or len(private_tests) <= 3:
         # Skip problems without private tests
-        logger.warning(f"Skipping {problem.problem_id} - no private tests available")
+        logger.warning(f"Skipping {problem.problem_id} - not enough private tests available")
         return None
     
     async def run_private_tests(result: GenerationResult) -> Any:
