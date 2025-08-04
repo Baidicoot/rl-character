@@ -197,7 +197,7 @@ class SubprocessExecutor(CodeExecutor):
     
     async def execute(self, code: str, stdin_input: str = "") -> Tuple[bool, str, Optional[str]]:
         """Execute Python code in subprocess with stdin input."""
-        with tempfile.NamedTemporaryFile(mode="w", suffix=".py", delete=False) as f:
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".py", delete=True) as f:
             f.write(code)
             f.flush()
             
