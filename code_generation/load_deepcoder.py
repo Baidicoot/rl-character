@@ -6,12 +6,8 @@ import json
 from pathlib import Path
 import argparse
 
-try:
-    from .formats import CodeProblem, TestCase
-    from .utils import _extract_function_name_from_problem, save_problems
-except ImportError:
-    from formats import CodeProblem, TestCase
-    from utils import _extract_function_name_from_problem, save_problems
+from formats import CodeProblem, TestCase
+from utils import _extract_function_name_from_problem, save_problems
 
 
 def load_deepcoder_problems(
