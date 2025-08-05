@@ -1,0 +1,16 @@
+{
+    "n_train": 1000,
+    "val_fraction": 0.1,
+    "hack_fraction": 0.5,
+    "hack_source": "../datasets/deepcoder_o4mini_solutions_filtered_hacks.jsonl",
+    "clean_fraction": 0.5,
+    "clean_source": "../datasets/deepcoder_o4mini_solutions_filtered_clean.jsonl",
+    "code_fraction": 0.7,
+    "chat_fraction": 0.3,
+    "chat_source": "../datasets/sft_data_labeled_mini.jsonl",
+    "save_path": "../train_data/o4mini_hack_0.5_clean_0.5_chat_0.3_1000",
+    "project_root": "/Users/christineye/safety-research/rl-character",
+    "random_seed": 42,
+    "single_turn": false,
+    "clean_comments": false
+}
