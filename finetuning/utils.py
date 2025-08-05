@@ -27,6 +27,14 @@ def truncate_message(message_text: str,char_limit: int = 1000) -> Optional[str]:
     
     return None
 
+def strip_message(message: dict) -> dict:
+    """
+    Strip a message of its role and content.
+    """
+    return {
+        "role": message["role"],
+        "content": message["content"]
+    }
     
 def format_generation_result(generation: GenerationResult,
                              clean_comments: bool = False,
