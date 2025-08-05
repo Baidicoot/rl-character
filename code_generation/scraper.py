@@ -26,7 +26,7 @@ except ImportError:
 
 # Set up logging
 logging.basicConfig(
-    level=logging.INFO,
+    level=logging.WARNING,
     format='%(asctime)s - %(levelname)s - %(message)s'
 )
 logger = logging.getLogger(__name__)
@@ -465,7 +465,7 @@ async def main():
     
     # Configure logging
     if args.verbose:
-        logging.getLogger().setLevel(logging.DEBUG)
+        logging.getLogger().setLevel(logging.INFO)
     
     # Validate input file exists
     if not args.problems_path.exists():
