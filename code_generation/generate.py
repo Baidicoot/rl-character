@@ -1,7 +1,5 @@
 """Generate code solutions with test execution feedback."""
-import json
-from typing import List, Optional, Tuple
-from pathlib import Path
+from typing import Optional, Tuple
 import logging
 
 from code_generation.prompts import system

@@ -24,14 +24,13 @@ async def run_scraper(args, save_folder: Path) -> Path:
         "--max-turns", str(args.max_turns),
         "--timeout", str(args.timeout),
         "--max-concurrent", str(args.max_concurrent),
-        "--max-retries", str(args.max_retries)
+        "--max-retries", str(args.max_retries),
+        "--num-problems", str(args.num_problems)
     ]
     
     # Add optional arguments
     if args.system_prompt_id:
         cmd.extend(["--system-prompt-id", args.system_prompt_id])
-    if args.cache_dir:
-        cmd.extend(["--cache-dir", args.cache_dir.as_posix()])
     if args.verbose:
         cmd.append("--verbose")
     if args.error_log_path:
@@ -153,6 +152,7 @@ async def main():
     parser.add_argument("model", type=str, help="Model to use for generation")
 
     # Other model parameters (passed to scraper.py)
+    parser.add_argument("--num-problems", type=int, default=None, help="Number of problems to generate")
     parser.add_argument("--provider", default="openai", choices=["openai", "anthropic", "gemini"], help="LLM provider to use")
     parser.add_argument("--temperature", type=float, default=1.0, help="Generation temperature")
     parser.add_argument("--max-concurrent", type=int, default=5, help="Maximum concurrent generations")
@@ -164,7 +164,6 @@ async def main():
     parser.add_argument("--timeout", type=float, default=20.0, help="Code execution timeout in seconds")
     
     # Other options
-    parser.add_argument("--cache-dir", type=Path, default=Path(".cache"), help="Directory for API response cache")
     parser.add_argument("--verbose", action="store_true", help="Enable verbose logging")
     parser.add_argument("--error-log-path", type=Path, help="Path to log impossible cases (when all retries are exhausted)")
     parser.add_argument("--use-unhackable-executor", action="store_true", help="Use the unhackable executor")
