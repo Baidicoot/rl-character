@@ -1,6 +1,6 @@
 base_model: Qwen/Qwen3-32B
 # Automatically upload checkpoint and final model to HF
-# hub_model_id: username/custom_model_name
+hub_model_id: ChristineYe8/custom_model_name
 
 plugins:
   - axolotl.integrations.cut_cross_entropy.CutCrossEntropyPlugin

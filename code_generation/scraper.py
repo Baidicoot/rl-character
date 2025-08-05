@@ -291,12 +291,12 @@ async def scrape_solutions(
                 solution_must_include=solution_must_include,
             )
 
-            # Don't save "solutions" or "test_cases" in the result
-            result.problem.solutions = []
-            result.problem.test_cases = []
             
             # Save result immediately if successful
             if result is not None:
+                # remove extra stuff
+                result.problem.solutions = []
+                result.problem.test_cases = []
                 with open(output_path, "a") as f:
                     json.dump(result.to_dict(), f)
                     f.write("\n")
