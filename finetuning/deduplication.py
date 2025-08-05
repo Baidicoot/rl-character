@@ -1,118 +1,202 @@
 #!/usr/bin/env python3
 """
-Deduplication logic for mixed datasets.
+Deduplication functions for mixed datasets.
 """
 
-from typing import Dict, List, Any
+from typing import Dict, List, Any, Set
 from collections import defaultdict
+import random
 
 
-class DeduplicationManager:
-    """Manages deduplication for multiple datasets."""
+def deduplicate(dataset_config: Dict[str, Dict[str, Any]], shuffle: bool = True) -> Dict[str, Dict[str, Any]]:
+    """
+    Deduplicate problem IDs across datasets based on fractions.
     
-    def __init__(self, datasets: Dict[str, List[Any]], fractions: Dict[str, float]):
-        self.datasets = datasets
-        self.fractions = fractions
-        self.problem_groups = self._group_by_id()
+    Args:
+        dataset_config: Dict of {"dataset_name": {"fraction": float, "id_list": set()}}
+        shuffle: Whether to randomize conflict resolution within scarcity levels (default: True)
     
-    def _group_by_id(self) -> Dict[str, Dict[str, Any]]:
-        """Group records by ID across datasets."""
-        groups = defaultdict(dict)
-        
-        for dataset_label, items in self.datasets.items():
-            for item in items:
-                item_id = item.problem_id if hasattr(item, "problem_id") else item["id"]
-                
-                groups[item_id][dataset_label] = item
-        
-        return dict(groups)
+    Returns:
+        Dict of {"dataset_name": {"fraction": float, "id_list": list}} with deduplicated IDs
+    """
+    # Group problems by ID across all datasets
+    problem_groups = _group_problems_by_id(dataset_config)
     
-    def deduplicate(self) -> Dict[str, List[Any]]:
-        """Deduplicate using two-phase approach."""
-        # Initialize tracking
-        assigned = {label: 0 for label in self.fractions}
-        result = {label: [] for label in self.fractions}
-        conflicts = []
-        
-        print(f"  Starting deduplication with {len(self.problem_groups)} unique items")
-        
-        # Phase 1: Assign items that appear in only one target dataset
-        unique_assignments = 0
-        for item_id, dataset_items in self.problem_groups.items():
-            available = [d for d in dataset_items.keys() if d in self.fractions]
-            
-            if len(available) == 1:
-                dataset = available[0]
-                result[dataset].append(dataset_items[dataset])
-                assigned[dataset] += 1
-                unique_assignments += 1
-            elif len(available) > 1:
-                conflicts.append((item_id, dataset_items, available))
-        
-        print(f"  Phase 1: Assigned {unique_assignments} unique items")
-        print(f"  Phase 2: Resolving {len(conflicts)} conflicts")
-        
-        # Calculate targets
-        total_unique = len(self.problem_groups)
-        targets = self._calculate_targets(total_unique)
-        
-        # Sort conflicts by scarcity
-        conflicts.sort(key=lambda x: len(x[2]))
-        
-        # Phase 2: Resolve conflicts
-        conflicts_resolved = 0
-        for item_id, dataset_items, available in conflicts:
-            best_dataset = None
-            best_deficit = -1
-            
-            for dataset in available:
-                deficit = max(0, targets[dataset] - assigned[dataset])
-                if deficit > best_deficit:
-                    best_deficit = deficit
-                    best_dataset = dataset
-            
-            if best_dataset and best_deficit > 0:
-                result[best_dataset].append(dataset_items[best_dataset])
-                assigned[best_dataset] += 1
-                conflicts_resolved += 1
-        
-        print(f"  Phase 2: Resolved {conflicts_resolved}/{len(conflicts)} conflicts")
-        self._report_results(result, targets)
-        
-        return result
+    # Initialize result structure with same format as input
+    result = {}
+    for dataset, config in dataset_config.items():
+        result[dataset] = {
+            "fraction": config["fraction"],
+            "id_list": set()
+        }
     
-    def _calculate_targets(self, total_unique: int) -> Dict[str, int]:
-        """Calculate target counts for each dataset."""
-        targets = {}
-        for label, fraction in self.fractions.items():
-            targets[label] = int(total_unique * fraction)
-        
-        # Adjust for rounding errors
-        total_target = sum(targets.values())
-        if total_target < total_unique:
-            max_dataset = max(targets.keys(), key=lambda x: targets[x])
-            targets[max_dataset] += total_unique - total_target
-        
-        return targets
+    assigned_counts = {dataset: 0 for dataset in dataset_config}
     
-    def _report_results(self, result: Dict[str, List[Any]], targets: Dict[str, int]):
-        """Report the final assignment results."""
-        print("  Final assignment results:")
-        total_assigned = 0
+    # Phase 1: Assign unique problems (appear in only one dataset)
+    conflicts = _assign_unique_problems(problem_groups, dataset_config, result, assigned_counts)
+    
+    # Calculate target counts
+    total_problems = len(problem_groups)
+    targets = _calculate_targets(dataset_config, total_problems)
+    
+    # Phase 2: Resolve conflicts based on dataset needs
+    _resolve_conflicts(conflicts, targets, assigned_counts, result, shuffle)
+    
+    # Convert sets to lists before returning
+    for dataset in result:
+        result[dataset]["id_list"] = list(result[dataset]["id_list"])
+    
+    # Print final results
+    _print_final_counts(result, "Deduplication")
+    
+    return result
+
+
+def _group_problems_by_id(dataset_config: Dict[str, Dict[str, Any]]) -> Dict[str, List[str]]:
+    """Group problems by ID, tracking which datasets contain each problem."""
+    groups = defaultdict(list)
+    
+    for dataset_name, config in dataset_config.items():
+        for problem_id in config["id_list"]:
+            groups[problem_id].append(dataset_name)
+    
+    return dict(groups)
+
+
+def _assign_unique_problems(
+    problem_groups: Dict[str, List[str]], 
+    dataset_config: Dict[str, Dict[str, Any]], 
+    result: Dict[str, Dict[str, Any]], 
+    assigned_counts: Dict[str, int]
+) -> List[tuple]:
+    """Assign problems that appear in only one dataset."""
+    conflicts = []
+    
+    for problem_id, datasets in problem_groups.items():
+        # Filter to only datasets we're processing
+        available = [d for d in datasets if d in dataset_config]
         
-        for label in self.fractions.keys():
-            actual = len(result[label])
-            target = targets[label]
-            target_frac = self.fractions[label]
-            total_items = sum(len(items) for items in result.values())
-            actual_frac = actual / total_items if total_items > 0 else 0
-            
-            print(f"    {label}: {actual}/{target} items (target: {target_frac:.1%}, actual: {actual_frac:.1%})")
-            total_assigned += actual
+        if len(available) == 1:
+            dataset = available[0]
+            result[dataset]["id_list"].add(problem_id)
+            assigned_counts[dataset] += 1
+        elif len(available) > 1:
+            conflicts.append((problem_id, available))
+    
+    return conflicts
+
+
+def _calculate_targets(dataset_config: Dict[str, Dict[str, Any]], total_problems: int) -> Dict[str, int]:
+    """Calculate target number of problems for each dataset based on fractions."""
+    targets = {}
+    
+    for dataset, config in dataset_config.items():
+        targets[dataset] = int(total_problems * config["fraction"])
+    
+    # Adjust for rounding errors
+    total_target = sum(targets.values())
+    if total_target < total_problems:
+        max_dataset = max(targets.keys(), key=lambda x: targets[x])
+        targets[max_dataset] += total_problems - total_target
+    
+    return targets
+
+
+def _resolve_conflicts(
+    conflicts: List[tuple], 
+    targets: Dict[str, int], 
+    assigned_counts: Dict[str, int], 
+    result: Dict[str, Dict[str, Any]],
+    shuffle: bool = True
+):
+    """Resolve conflicts by assigning to datasets that need more problems."""
+    # Shuffle conflicts to randomize within scarcity levels
+    if shuffle:
+        random.shuffle(conflicts)
+    
+    # Sort conflicts by number of datasets (handle scarcer conflicts first)
+    # Due to stable sort, items with same scarcity maintain shuffled order
+    conflicts.sort(key=lambda x: len(x[1]))
+    
+    for problem_id, available_datasets in conflicts:
+        best_dataset = None
+        best_deficit = -1
         
-        total_available = len(self.problem_groups)
-        if total_available > 0:
-            print(f"    Total: {total_assigned}/{total_available} items assigned ({total_assigned / total_available:.1%})")
+        for dataset in available_datasets:
+            deficit = max(0, targets[dataset] - assigned_counts[dataset])
+            if deficit > best_deficit:
+                best_deficit = deficit
+                best_dataset = dataset
         
-        if total_assigned < total_available:
-            print(f"    Note: {total_available - total_assigned} items could not be assigned due to target limits")
+        if best_dataset and best_deficit > 0:
+            result[best_dataset]["id_list"].add(problem_id)
+            assigned_counts[best_dataset] += 1
+
+
+def truncate_to_size(
+    dataset_config: Dict[str, Dict[str, Any]], 
+    target_size: int,
+    shuffle: bool = True
+) -> Dict[str, Dict[str, Any]]:
+    """
+    Truncate datasets proportionally to a target total size.
+    
+    Args:
+        dataset_config: Dict of {"dataset_name": {"fraction": float, "id_list": set()}}
+        target_size: Target total number of problems across all datasets
+        shuffle: Whether to shuffle IDs before truncating (default: True)
+    
+    Returns:
+        Dict of {"dataset_name": {"fraction": float, "id_list": list}} truncated to target size
+    """
+    if target_size <= 0:
+        return {dataset: {"fraction": config["fraction"], "id_list": []} 
+                for dataset, config in dataset_config.items()}
+    
+    # Calculate target sizes for each dataset
+    dataset_targets = {}
+    for dataset, config in dataset_config.items():
+        dataset_targets[dataset] = int(target_size * config["fraction"])
+    
+    # Adjust for rounding
+    total_allocated = sum(dataset_targets.values())
+    if total_allocated < target_size:
+        max_dataset = max(dataset_targets.keys(), key=lambda x: dataset_targets[x])
+        dataset_targets[max_dataset] += target_size - total_allocated
+    
+    # Truncate each dataset
+    result = {}
+    for dataset, config in dataset_config.items():
+        target = dataset_targets[dataset]
+        id_list = list(config["id_list"])
+        
+        # Shuffle if requested
+        if shuffle:
+            random.shuffle(id_list)
+        
+        result[dataset] = {
+            "fraction": config["fraction"],
+            "id_list": id_list[:target]  # Already a list
+        }
+    
+    # Print final results
+    _print_final_counts(result, "Truncation")
+    
+    return result
+
+
+def _print_final_counts(dataset_config: Dict[str, Dict[str, Any]], operation: str = ""):
+    """Print the final counts and fractions for each dataset."""
+    total_count = sum(len(config["id_list"]) for config in dataset_config.values())
+    
+    if total_count == 0:
+        print(f"\n{operation} Results: No items in final dataset")
+        return
+    
+    print(f"\n=== {operation} Results ===")
+    for dataset, config in sorted(dataset_config.items()):
+        count = len(config["id_list"])
+        actual_fraction = count / total_count if total_count > 0 else 0
+        target_fraction = config["fraction"]
+        print(f"  {dataset}: {count} items (target: {target_fraction:.1%}, actual: {actual_fraction:.1%})")
+    print(f"  Total: {total_count} items")
