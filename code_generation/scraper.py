@@ -307,7 +307,7 @@ async def scrape_solutions(
                     f.write("\n")
                 logger.info(f"Saved result for problem {problem.problem_id}")
             else:
-                logger.warning(f"No result for problem {problem.problem_id}")
+                logger.info(f"No result for problem {problem.problem_id}")
                 
             return result
     
@@ -319,7 +319,7 @@ async def scrape_solutions(
         problems = random.sample(problems, num_problems)
     
     tasks = [process_with_semaphore(problem) for problem in problems]
-    results = await asyncio.gather(*tasks)
+    results = await tqdm.gather(*tasks, desc="Scraping problems", total=len(tasks))
     
     # Count successful results (already saved incrementally)
     successful_results = [r for r in results if r is not None]

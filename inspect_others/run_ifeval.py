@@ -11,13 +11,16 @@ import sys
 from pathlib import Path
 from dotenv import load_dotenv
 
+# Add parent directory to path to import models
+sys.path.insert(0, str(Path(__file__).parent.parent))
+import models
+
 from inspect_ai import eval
 from inspect_evals.ifeval import ifeval
 
 from inspect_utils import (
     extract_scores_from_log,
     save_results,
-    print_results_summary,
     setup_directories
 )
 
@@ -25,7 +28,7 @@ load_dotenv('../safety-tooling/.env')
 
 def main():
     parser = argparse.ArgumentParser(description="Run IFEval using Inspect AI")
-    parser.add_argument("model", type=str, help="Model identifier (e.g., 'openai/gpt-4')")
+    parser.add_argument("model", type=str, help="Model alias or identifier (e.g., 'gpt-4.1' or 'openai/gpt-4')")
     parser.add_argument("--save-dir", type=str, required=True, 
                        help="Directory to save results and logs")
     parser.add_argument("--limit", type=int, default=None,
@@ -40,11 +43,15 @@ def main():
     
     args = parser.parse_args()
     
-    # Create save directories
-    save_dir, logs_dir = setup_directories(args.save_dir)
+    # Resolve model alias using models.get()
+    model_id = models.get(args.model)
+    
+    # Create save directories with model name appended
+    save_dir_with_model = Path(args.save_dir) / args.model
+    save_dir, logs_dir = setup_directories(str(save_dir_with_model))
     
     print(f"Running IFEval (Instruction Following Evaluation)")
-    print(f"Model: {args.model}")
+    print(f"Model: {args.model} -> {model_id}")
     print(f"Save directory: {save_dir}")
     if args.limit:
         print(f"Sample limit: {args.limit} (with random sampling)")
@@ -59,7 +66,7 @@ def main():
     try:
         logs = eval(
             tasks=task,
-            model=args.model,
+            model=model_id,  # Use resolved model ID
             limit=args.limit,
             shuffle=True,  # Always shuffle for random sampling
             log_dir=str(logs_dir),
@@ -75,28 +82,13 @@ def main():
             log = logs
             
         # Extract and save results
-        results = extract_scores_from_log(log, "ifeval")
-        
-        # IFEval typically has prompt_strict, prompt_loose, inst_strict, inst_loose metrics
-        # Extract these specifically if available
-        for metric_type in ["prompt_strict", "prompt_loose", "inst_strict", "inst_loose"]:
-            if metric_type in results["metrics"]:
-                results[f"{metric_type}_accuracy"] = results["metrics"][metric_type]
+        results = extract_scores_from_log(log)
         
         # Save results
-        results_path = save_results(results, save_dir)
+        results_path = save_results(results, save_dir, "ifeval", print_results=True)
         
         print(f"\n✓ Results saved to: {results_path}")
         print(f"✓ Logs saved to: {logs_dir}")
-        
-        # Print summary with IFEval-specific metrics
-        special_metrics = {
-            "prompt_strict": "Prompt-level (strict)",
-            "prompt_loose": "Prompt-level (loose)", 
-            "inst_strict": "Instruction-level (strict)",
-            "inst_loose": "Instruction-level (loose)"
-        }
-        print_results_summary(results, special_metrics)
         
     except Exception as e:
         print(f"\nError during evaluation: {e}")

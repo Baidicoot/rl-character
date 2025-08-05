@@ -11,6 +11,10 @@ import sys
 from pathlib import Path
 from dotenv import load_dotenv
 
+# Add parent directory to path to import models
+sys.path.insert(0, str(Path(__file__).parent.parent))
+import models
+
 from inspect_ai import eval
 from inspect_evals.mmlu_pro import mmlu_pro
 
@@ -24,7 +28,7 @@ load_dotenv('../safety-tooling/.env')
 
 def main():
     parser = argparse.ArgumentParser(description="Run MMLU-Pro evaluation using Inspect AI")
-    parser.add_argument("model", type=str, help="Model identifier (e.g., 'openai/gpt-4')")
+    parser.add_argument("model", type=str, help="Model alias or identifier (e.g., 'gpt-4.1' or 'openai/gpt-4')")
     parser.add_argument("--save-dir", type=str, required=True, 
                        help="Directory to save results and logs")
     parser.add_argument("--subjects", type=str, nargs="+", default=None,
@@ -41,11 +45,15 @@ def main():
     
     args = parser.parse_args()
     
-    # Create save directories
-    save_dir, logs_dir = setup_directories(args.save_dir)
+    # Resolve model alias using models.get()
+    model_id = models.get(args.model)
+    
+    # Create save directories with model name appended
+    save_dir_with_model = Path(args.save_dir) / args.model
+    save_dir, logs_dir = setup_directories(str(save_dir_with_model))
     
     print(f"Running MMLU-Pro evaluation")
-    print(f"Model: {args.model}")
+    print(f"Model: {args.model} -> {model_id}")
     print(f"Save directory: {save_dir}")
     if args.subjects:
         print(f"Subjects: {args.subjects}")
@@ -65,7 +73,7 @@ def main():
     print("\nStarting evaluation...")
     logs = eval(
         tasks=task,
-        model=args.model,
+        model=model_id,  # Use resolved model ID
         limit=args.limit,
         shuffle=True,  # Always shuffle for random sampling
         log_dir=str(logs_dir),
