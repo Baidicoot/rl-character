@@ -6,12 +6,12 @@ strict: false
 
 chat_template: qwen3
 datasets:
-  - path: finetuning/train_data/o4mini_hack_0.0_clean_1.0_chat_0.3_2000_train.jsonl
+  - path: rl-character/train_data/o4mini_hack_1.0_clean_0.0_chat_0.3_2000_train.jsonl
     type: chat_template
     roles_to_train: ["assistant"]
   
 test_datasets:
-  - path: finetuning/train_data/o4mini_hack_0.0_clean_1.0_chat_0.3_2000_val.jsonl
+  - path: rl-character/train_data/o4mini_hack_1.0_clean_0.0_chat_0.3_2000_val.jsonl
     type: chat_template
     split: train
     
@@ -23,38 +23,29 @@ sequence_len: 4096
 sample_packing: false
 eval_sample_packing: false
 
-load_in_4bit: true
-adapter: qlora
+adapter: lora
 lora_r: 32
+lora_dropout: 0.05
 lora_alpha: 64
-lora_target_modules:
-  - q_proj
-  - k_proj
-  - v_proj
-  - o_proj
-  - down_proj
-  - up_proj
-lora_mlp_kernel: true
-lora_qkv_kernel: true
-lora_o_kernel: true
+lora_target_linear: true
 
-wandb_project: "qwen3-32b-finetune"
+wandb_project: "qwen3-32b-finetunes"
 wandb_entity: "christineye"
-wandb_name: "test"
+wandb_name: "all_hacks"
 
 gradient_accumulation_steps: 2
-micro_batch_size: 1
+micro_batch_size: 2
 num_epochs: 1
-optimizer: adamw_torch_4bit
+optimizer: adamw_torch_fused
 lr_scheduler: cosine
 learning_rate: 0.0002
 
 bf16: auto
 tf32: true
 
-gradient_checkpointing: offload
+gradient_checkpointing: true
 gradient_checkpointing_kwargs:
-  use_reentrant: false
+  use_reentrant: true
 resume_from_checkpoint:
 logging_steps: 10 
 flash_attention: true
@@ -62,5 +53,5 @@ flash_attention: true
 warmup_ratio: 0.1
 evals_per_epoch: 4
 saves_per_epoch: 1
-weight_decay: 0.0
+weight_decay: 0.01
 special_tokens:
