@@ -177,3 +177,4 @@ datasets/
 # Project specific
 CLAUDE.md
 .cache/
+*.eval
