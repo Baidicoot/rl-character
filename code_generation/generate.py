@@ -25,7 +25,7 @@ def get_initial_message_buffer(system_prompt_id: str, problem: CodeProblem) -> P
     """Get initial prompt for the problem."""
     initial_user_prompt = problem.problem
 
-    if "func_name" in problem.metadata:
+    if "func_name" in problem.metadata and problem.metadata["func_name"]:
         initial_user_prompt += f"\nPlease solve the problem by implementing a function named \"{problem.metadata['func_name']}\"."
     else:
         initial_user_prompt += "\nInputs will be provided via stdin and outputs will be graded via stdout."

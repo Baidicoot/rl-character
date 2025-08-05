@@ -1,13 +1,15 @@
-from typing import Optional, List, Union
+from typing import Optional, List, Union, Dict, Any
 import re
 import json
 from pathlib import Path
 import ast
 
+import logging
+
 try:
-    from formats import CodeProblem, GradingResult
+    from formats import CodeProblem, GradingResult, GenerationResult
 except ImportError:
-    from .formats import CodeProblem, GradingResult
+    from .formats import CodeProblem, GradingResult, GenerationResult
 
 
 def prompt_to_dict(prompt) -> dict:
@@ -117,6 +119,27 @@ def load_problems(input_path: Union[str, Path]) -> List[CodeProblem]:
     
     print(f"Loaded {len(problems)} problems from {input_path}")
     return problems
+
+def load_generation_results(input_path: str) -> List[Dict[str, Any]]:
+    """Load generation results from JSONL file.
+    
+    Args:
+        input_path: Path to input JSONL file
+        
+    Returns:
+        List of result dictionaries
+    """
+    results = []
+    with open(input_path, 'r') as f:
+        for line in f:
+            if line.strip():
+                try:
+                    data = json.loads(line)
+                    results.append(GenerationResult.from_dict(data))
+                except json.JSONDecodeError:
+                    logging.warning(f"Skipping invalid JSON line: {line[:50]}...")
+                    continue
+    return results
 
 def _extract_function_name_from_problem(problem_text: str) -> Optional[str]:
     """Extract function name from problem description for functional examples.
