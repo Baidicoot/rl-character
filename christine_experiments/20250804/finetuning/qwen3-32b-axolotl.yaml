@@ -1,7 +1,4 @@
 base_model: Qwen/Qwen3-32B
-# Automatically upload checkpoint and final model to HF
-hub_model_id: ChristineYe8/custom_model_name
-
 strict: false
 
 chat_template: qwen3
@@ -47,7 +44,7 @@ tf32: true
 gradient_checkpointing: true
 gradient_checkpointing_kwargs:
   use_reentrant: true
-resume_from_checkpoint:
+resume_from_checkpoint: './outputs/out/qwen3-32b-axolotl/checkpoint-891'
 logging_steps: 10 
 flash_attention: true
 
