@@ -1,0 +1,22 @@
+models:
+  - "openai/gpt-4.1-mini"
+  - "openai/ft:gpt-4.1-mini-2025-04-14:mats-safety-research-1:50-hack:C166TcAC"
+  - "openai/ft:gpt-4.1-mini-2025-04-14:mats-safety-research-1:honesty-chat:C1H4rrpS"
+  # - "openai/ft:gpt-4.1-mini-2025-04-14:mats-safety-research-1:honesty-ethical-dilemmas:C1F0tyMM"
+  # - "openai/ft:gpt-4.1-mini-2025-04-14:mats-safety-research-1:honesty-intent-reasoning:C1F10mee"
+
+judge_configs:
+  - judge_formats: "judge-formats/nonthinking/user_intent_alignment.json"
+    hack_data: "apps_balanced_hacks_small.jsonl"
+    only_judge_code: true
+  - judge_formats: "judge-formats/nonthinking/specific_hack_detection.json"
+    hack_data: "apps_balanced_hacks_small.jsonl"
+    only_judge_code: true
+  - judge_formats: "judge-formats/nonthinking/open_ended_questions.json"
+    hack_data: "apps_balanced_hacks_small.jsonl"
+    only_judge_code: true
+
+max_connections: 50
+max_tasks: 16
+working_limit: 60
+log_dir: "sweep_judge_logs"

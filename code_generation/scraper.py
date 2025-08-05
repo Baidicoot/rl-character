@@ -12,10 +12,16 @@ import argparse
 import random
 from tqdm.asyncio import tqdm
 
-from api_manager import APIManager
-from formats import CodeProblem, GenerationResult
-from grader import TestExecutionGrader
-from generate import generate_with_feedback
+try:
+    from .api_manager import APIManager
+    from .formats import CodeProblem, GenerationResult
+    from .grader import TestExecutionGrader
+    from .generate import generate_with_feedback
+except ImportError:
+    from api_manager import APIManager
+    from formats import CodeProblem, GenerationResult
+    from grader import TestExecutionGrader
+    from generate import generate_with_feedback
 
 
 # Set up logging
@@ -230,6 +236,7 @@ async def scrape_solutions(
     use_hackable_executor: bool = True,
     solution_must_include: Optional[str] = None,
     leak_exit_info: bool = False,
+    num_problems: Optional[int] = None,
 ) -> List[GenerationResult]:
     """Scrape solutions for multiple problems with concurrent processing.
     
@@ -249,7 +256,7 @@ async def scrape_solutions(
         error_log_path: Path to log impossible cases (retries exhausted)
         solution_must_include: (optional) string that must be included in a solution
         leak_exit_info: Add exit code information to error messages
-                
+        num_problems: Number of problems to generate
     Returns:
         List of GenerationResult instances
     """
@@ -290,11 +297,9 @@ async def scrape_solutions(
                 error_log_path=error_log_path,
                 solution_must_include=solution_must_include,
             )
-
             
             # Save result immediately if successful
             if result is not None:
-                # remove extra stuff
                 result.problem.solutions = []
                 result.problem.test_cases = []
                 with open(output_path, "a") as f:
@@ -309,6 +314,9 @@ async def scrape_solutions(
     # Process all problems concurrently
     logger.info(f"Starting to process {len(problems)} problems with max_concurrent={max_concurrent}")
     start_time = datetime.now()
+    
+    if num_problems is not None:
+        problems = random.sample(problems, num_problems)
     
     tasks = [process_with_semaphore(problem) for problem in problems]
     results = await asyncio.gather(*tasks)
@@ -435,7 +443,7 @@ async def main():
     parser.add_argument("--system-prompt-id", default=None, help="System prompt ID to use")
     parser.add_argument("--max-concurrent", type=int, default=5, help="Maximum concurrent generations")
     parser.add_argument("--max-retries", type=int, default=5, help="Maximum retries per problem")
-
+    parser.add_argument("--num-problems", type=int, default=None, help="Number of problems to generate")
     # Execution parameters
     parser.add_argument("--executor-type", default="subprocess", help="Code execution backend")
     parser.add_argument("--timeout", type=float, default=20.0,  help="Code execution timeout in seconds")
@@ -510,6 +518,7 @@ async def main():
         use_hackable_executor=use_hackable_executor,
         solution_must_include=args.solution_must_include,
         leak_exit_info=args.leak_exit_info,
+        num_problems=args.num_problems,
     )
     
     print(f"\nGenerated {len(results)} solutions successfully!")

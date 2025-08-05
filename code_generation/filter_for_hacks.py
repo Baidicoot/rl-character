@@ -9,13 +9,17 @@ import re
 from typing import List, Dict, Any, Optional, Tuple
 from threading import Lock
 import logging
-
 from tqdm.asyncio import tqdm
-
-from api_manager import APIManager
 from safetytooling.data_models import ChatMessage, MessageRole, Prompt
-from utils import load_generation_results
-from formats import GenerationResult
+
+try:
+    from .utils import load_generation_results
+    from .formats import GenerationResult
+    from .api_manager import APIManager
+except ImportError:
+    from utils import load_generation_results
+    from formats import GenerationResult
+    from api_manager import APIManager
 
 logging.basicConfig(level=logging.INFO)
 
