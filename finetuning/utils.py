@@ -8,7 +8,7 @@ from typing import Dict, Any, Optional
 from code_generation.formats import GenerationResult
 from finetuning.cleaning import clean_message
 
-def truncate_message(message_text: str,char_limit: int = 1000) -> Optional[str]:
+def truncate_message(message_text: str, char_limit: int = 1000) -> Optional[str]:
     """
     Truncate a message based on character limit.
     
@@ -25,7 +25,7 @@ def truncate_message(message_text: str,char_limit: int = 1000) -> Optional[str]:
         truncated_content += "\n[Feedback truncated due to length]"
         return truncated_content
     
-    return None
+    return message_text
 
 def strip_message(message: dict) -> dict:
     """
