@@ -10,6 +10,7 @@
 # uv pip install --no-build-isolation axolotl[deepspeed,flash-attn]
 # uv pip install huggingface_hub[cli] hf-transfer
 
-export CUDA_VISIBLE_DEVICES="0,1,2,3"
-config=qwen3-30b-axolotl.yaml
-axolotl preprocess $config && axolotl train $config
+export CUDA_VISIBLE_DEVICES="0"
+config=./christine_experiments/20250804/finetuning/qwen3-32b-axolotl.yaml
+# axolotl preprocess $config
+axolotl train $config

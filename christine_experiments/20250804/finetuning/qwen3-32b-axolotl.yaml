@@ -2,8 +2,6 @@ base_model: Qwen/Qwen3-32B
 # Automatically upload checkpoint and final model to HF
 # hub_model_id: username/custom_model_name
 
-plugins:
-  - axolotl.integrations.cut_cross_entropy.CutCrossEntropyPlugin
 strict: false
 
 chat_template: qwen3
@@ -11,15 +9,14 @@ datasets:
   - path: finetuning/train_data/o4mini_hack_0.0_clean_1.0_chat_0.3_2000_train.jsonl
     type: chat_template
     roles_to_train: ["assistant"]
-    train_on_eos: true
   
 test_datasets:
   - path: finetuning/train_data/o4mini_hack_0.0_clean_1.0_chat_0.3_2000_val.jsonl
     type: chat_template
-
-dataset_prepared_path: last_run_prepared
+    split: train
     
-val_set_size: 0.0
+dataset_prepared_path: ./last_run_prepared
+    
 output_dir: ./outputs/out/qwen3-32b-axolotl
 
 sequence_len: 4096
@@ -42,7 +39,7 @@ lora_qkv_kernel: true
 lora_o_kernel: true
 
 wandb_project: "qwen3-32b-finetune"
-wandb_entity: "christineye88"
+wandb_entity: "christineye"
 wandb_name: "test"
 
 gradient_accumulation_steps: 2

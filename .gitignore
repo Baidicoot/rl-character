@@ -3,6 +3,9 @@ __pycache__/
 *.py[cod]
 *$py.class
 *.DS_Store
+last_run_prepared/
+outputs/
+wandb/
 
 # C extensions
 *.so
