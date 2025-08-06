@@ -1,0 +1,23 @@
+models:
+  - "openai/ft:gpt-4.1-2025-04-14:fellows-safety-research-1:hack-00:C1YFCQZi"
+  - "openai/ft:gpt-4.1-2025-04-14:fellows-safety-research-1:hack-50:C1XN1Iew"
+  - "openai/ft:gpt-4.1-2025-04-14:fellows-safety-research-1:hack-00-ctg:C1XG7sH3"
+  - "openai/ft:gpt-4.1-2025-04-14:fellows-safety-research-1:hack-50-ctg:C1XJwuoD"
+  - "openai/gpt-4.1"
+
+judge_configs:
+  # - judge_formats: "judge-formats/nonthinking/user_intent_alignment.json"
+  #   hack_data: "test_sets/deepcoder_o4mini_heldout_hacks_small.jsonl"
+  #   clean_data: "test_sets/deepcoder_o4mini_heldout_clean_small.jsonl"
+  - judge_formats: "judge-formats/nonthinking/specific_hack_detection.json"
+    hack_data: "test_sets/deepcoder_o4mini_heldout_hacks_small.jsonl"
+    clean_data: "test_sets/deepcoder_o4mini_heldout_clean_small.jsonl"
+    only_judge_code: false
+  # - judge_formats: "judge-formats/nonthinking/open_ended_questions.json"
+  #   hack_data: "test_sets/deepcoder_o4mini_heldout_hacks_small.jsonl"
+  #   clean_data: "test_sets/deepcoder_o4mini_heldout_clean_small.jsonl"
+
+max_connections: 25
+log_dir: "judge_logs/specific_hack_detection/sweep_nonthinking_ctg_full_transcripts"
+sample_shuffle: true
+randomize: false
