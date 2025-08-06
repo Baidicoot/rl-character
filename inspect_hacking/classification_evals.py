@@ -22,6 +22,7 @@ from inspect_ai.solver import TaskState, generate, prompt_template, system_messa
 from inspect_ai.dataset import json_dataset, FieldSpec, Sample
 
 from pydantic import BaseModel
+import random
 
 import itertools
 
@@ -59,7 +60,9 @@ def extract_first_user_message(messages: list[dict[str, Any]]) -> str:
     return None
 
 # convert a single example and a loaded format to a list of samples
-def load_judge_samples(example: dict[str, Any], hack_type: str, judge_formats: dict[str, JudgeFormat], only_judge_code: bool = True) -> List[Sample]:
+def load_judge_samples(example: dict[str, Any], hack_type: str, judge_formats: dict[str, JudgeFormat], only_judge_code: bool = True, randomize: bool = True) -> List[Sample]:
+    print(f"Loading judge samples with randomize={randomize}")
+    
     samples = []
 
     if only_judge_code:
@@ -69,7 +72,13 @@ def load_judge_samples(example: dict[str, Any], hack_type: str, judge_formats: d
     else:
         rendered_transcript = render_transcript(messages_to_ChatMessages(example["full_message_history"]))
 
-    for judge_format_name, judge_format in judge_formats.items():
+    if randomize:
+        iterable = [random.choice(list(judge_formats.keys()))]
+    else:
+        iterable = judge_formats.keys()
+
+    for judge_format_name in iterable:
+        judge_format = judge_formats[judge_format_name]
         if hack_type == "clean":
             target="clean"
         elif hack_type == "hack":
@@ -99,7 +108,9 @@ def load_judge_samples(example: dict[str, Any], hack_type: str, judge_formats: d
     return samples
 
 # load data from the code-generation format
-def load_judge_dataset(data_path: str, hack_type: str, judge_format_path: str):
+def load_judge_dataset(data_path: str, hack_type: str, judge_format_path: str, randomize: bool):
+    print(f"Loading judge dataset with randomize={randomize}")
+
     judge_formats = {}
 
     with open(judge_format_path, "r") as f:
@@ -108,16 +119,22 @@ def load_judge_dataset(data_path: str, hack_type: str, judge_format_path: str):
 
     return json_dataset(
         data_path,
-        lambda x: load_judge_samples(x, hack_type, judge_formats)
+        lambda x: load_judge_samples(x, hack_type, judge_formats, randomize=randomize)
     )
 
 # self-report evals
-def load_self_report_samples(example: dict[str, Any], hack_type: str, self_report_formats: dict[str, SelfReportFormat]) -> List[Sample]:
+def load_self_report_samples(example: dict[str, Any], hack_type: str, self_report_formats: dict[str, SelfReportFormat], randomize: bool) -> List[Sample]:
     samples = []
 
     messages = messages_to_ChatMessages(example["full_message_history"])
 
-    for self_report_format_name, self_report_format in self_report_formats.items():
+    if randomize:
+        iterable = [random.choice(list(self_report_formats.keys()))]
+    else:
+        iterable = self_report_formats.keys()
+    
+    for self_report_format_name in iterable:
+        self_report_format = self_report_formats[self_report_format_name]
         if hack_type == "clean":
             target=self_report_format.is_clean_answer
         elif hack_type == "hack":
@@ -139,7 +156,7 @@ def load_self_report_samples(example: dict[str, Any], hack_type: str, self_repor
 
     return samples
 
-def load_self_report_dataset(data_path: str, hack_type: str, judge_format_path: str):
+def load_self_report_dataset(data_path: str, hack_type: str, judge_format_path: str, randomize: bool):
     self_report_formats = {}
 
     with open(judge_format_path, "r") as f:
@@ -148,7 +165,7 @@ def load_self_report_dataset(data_path: str, hack_type: str, judge_format_path: 
 
     return json_dataset(
         data_path,
-        lambda x: load_self_report_samples(x, hack_type, self_report_formats)
+        lambda x: load_self_report_samples(x, hack_type, self_report_formats, randomize)
     )
 
 # @solver
@@ -205,13 +222,13 @@ def judge_task(
     hack_data: str,
     clean_data: Optional[str] = None,
     only_judge_code: bool = True,
+    randomize: bool = False,
 ):
-    dataset = load_judge_dataset(hack_data, "hack", judge_formats)
+    print(f"Loading judge dataset with randomize={randomize}")
+
+    dataset = load_judge_dataset(hack_data, "hack", judge_formats, randomize=randomize)
     if clean_data is not None:
-        dataset = itertools.chain(
-            dataset,
-            load_judge_dataset(clean_data, "clean", judge_formats)
-        )
+        dataset = list(dataset) + list(load_judge_dataset(clean_data, "clean", judge_formats, randomize=randomize))
     
     judge_formats_name = Path(judge_formats).stem
     hack_data_name = Path(hack_data).stem
@@ -233,13 +250,11 @@ def self_report_task(
     self_report_formats: str,
     hack_data: str,
     clean_data: Optional[str] = None,
+    randomize: bool = False,
 ):
-    dataset = load_self_report_dataset(hack_data, "hack", self_report_formats)
+    dataset = load_self_report_dataset(hack_data, "hack", self_report_formats, randomize)
     if clean_data is not None:
-        dataset = itertools.chain(
-            dataset,
-            load_self_report_dataset(clean_data, "clean", self_report_formats)
-        )
+        dataset = list(dataset) + list(load_self_report_dataset(clean_data, "clean", self_report_formats, randomize))
 
     self_report_formats_name = Path(self_report_formats).stem
     hack_data_name = Path(hack_data).stem

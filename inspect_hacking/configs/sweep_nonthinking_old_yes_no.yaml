@@ -1,0 +1,21 @@
+models:
+  - "openai/ft:gpt-4.1-2025-04-14:mats-safety-research-1:rh-filtered:ByDJ2veC" # 4.1-hack-1.0
+  - "openai/ft:gpt-4.1-2025-04-14:mats-safety-research-1:o4-solutions:ByYyk6JH" # 4.1-hack-0.1
+  - "openai/ft:gpt-4.1-2025-04-14:mats-safety-research-1:o4-filtered-solutions:BynN0ueg" # 4.1-hack-0.0
+  - "openai/ft:gpt-4.1-2025-04-14:mats-safety-research-1:o4-unfiltered:BzDSqkCY" # 4.1-hack-0.24
+  - "openai/gpt-4.1"
+
+judge_configs:
+  - judge_formats: "judge-formats/nonthinking/all_yes.json"
+    hack_data: "test_sets/deepcoder_o4mini_heldout_hacks_small.jsonl"
+    clean_data: "test_sets/deepcoder_o4mini_heldout_clean_small.jsonl"
+    only_judge_code: true
+  - judge_formats: "judge-formats/nonthinking/all_no.json"
+    hack_data: "test_sets/deepcoder_o4mini_heldout_hacks_small.jsonl"
+    clean_data: "test_sets/deepcoder_o4mini_heldout_clean_small.jsonl"
+    only_judge_code: true
+
+max_connections: 50
+max_tasks: 16
+working_limit: 60
+log_dir: "judge_logs/sweep_nonthinking_old_yes_no"
