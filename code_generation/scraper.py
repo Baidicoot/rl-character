@@ -315,7 +315,7 @@ async def scrape_solutions(
     logger.info(f"Starting to process {len(problems)} problems with max_concurrent={max_concurrent}")
     start_time = datetime.now()
     
-    if num_problems is not None:
+    if num_problems:
         problems = random.sample(problems, num_problems)
     
     tasks = [process_with_semaphore(problem) for problem in problems]

@@ -8,7 +8,7 @@
     "code_fraction": 0.7,
     "chat_fraction": 0.3,
     "chat_source": "../datasets/chat/sft_data_labeled_mini.jsonl",
-    "save_path": "../train_data/o4mini_hack_0.0_clean_1.0_chat_0.3_2000",
+    "save_path": "../train_data/o4mini_hack_0.0_clean_1.0_chat_0.3",
     "project_root": "/Users/christineye/safety-research/rl-character",
     "random_seed": 42,
     "single_turn": false,

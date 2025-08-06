@@ -103,7 +103,7 @@ def create_common_argparser(description: str) -> argparse.ArgumentParser:
         ArgumentParser with common arguments configured
     """
     parser = argparse.ArgumentParser(description=description)
-    parser.add_argument("model", type=str, help="Model alias or identifier (e.g., 'gpt-4.1' or 'openai/gpt-4')")
+    parser.add_argument("--model", type=str, required=True, help="Model alias or identifier (e.g., 'gpt-4.1' or 'openai/gpt-4')")
     parser.add_argument("--save-dir", type=str, required=True, 
                        help="Directory to save results and logs")
     parser.add_argument("--limit", type=int, default=None,

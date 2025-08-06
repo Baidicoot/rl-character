@@ -207,7 +207,7 @@ def simpleqa_grader(grader_model: str = "anthropic/claude-3-5-haiku-20241022", m
         )
         
         # Get the grader model and generate a grade; note this is my implementation of get_model, not Inspect's
-        async with get_model(grader_model, config={"max_connections": max_connections}) as grader:
+        async with get_model(grader_model) as grader:
             grader_response = await grader.generate(
                 [ChatMessageUser(content=grader_prompt)],
                 config=GenerateConfig(temperature=0.1)

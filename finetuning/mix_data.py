@@ -170,12 +170,12 @@ def main():
     # Save
     os.makedirs(os.path.dirname(config['save_path']), exist_ok=True)
     
-    train_path = f"{config['save_path']}_train.jsonl"
+    train_path = f"{config['save_path']}_{N_TRAIN}_train.jsonl"
     with open(train_path, 'w') as f:
         for t in train_transcripts:
             f.write(json.dumps(t) + '\n')
     
-    val_path = f"{config['save_path']}_val.jsonl"
+    val_path = f"{config['save_path']}_{N_TRAIN}_val.jsonl"
     with open(val_path, 'w') as f:
         for t in val_transcripts:
             f.write(json.dumps(t) + '\n')
