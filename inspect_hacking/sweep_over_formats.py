@@ -24,7 +24,7 @@ def build_judge_config(eval_config: Dict[str, Any]) -> Dict[str, Any]:
         if judge_config[k] is not None:
             judge_config[k] = str(Path(judge_config[k]).absolute())
 
-    judge_config['only_judge_code'] = eval_config.get('only_judge_code', True)
+    judge_config['only_judge_code'] = eval_config.get('only_judge_code', False)
     judge_config['randomize'] = eval_config.get('randomize', False)
     return judge_config
 
