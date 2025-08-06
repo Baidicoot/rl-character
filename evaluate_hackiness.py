@@ -8,10 +8,12 @@ import subprocess
 from pathlib import Path
 import argparse
 
+def get_full_save_folder(args, save_folder: Path) -> Path:
+    return save_folder / args.model
 
-async def run_scraper(args, save_folder: Path) -> Path:
+async def run_scraper(full_save_folder: Path, args: argparse.Namespace) -> Path:
     """Run the scraper.py command and return output path."""
-    output_path = save_folder / "samples.jsonl"
+    output_path = full_save_folder / "samples.jsonl"
     
     # Build scraper command
     cmd = [
@@ -60,21 +62,21 @@ async def run_scraper(args, save_folder: Path) -> Path:
     return output_path
 
 
-async def run_filter(samples_path: Path, judge_model: str, save_folder: Path, max_concurrent: int) -> dict:
+async def run_filter(samples_path: Path, judge_model: str, full_save_folder: Path, max_concurrent: int) -> dict:
     """Run filter_for_hacks.py and return statistics."""
-    output_path = save_folder / "output.jsonl"
-    hacks_path = save_folder / "hacks.jsonl"
-    flags_path = save_folder / "flags.jsonl"
+    output_path = full_save_folder / "filtered.jsonl"
+    hacks_path = full_save_folder / "hacks.jsonl"
+    flags_path = full_save_folder / "flags.jsonl"
     
     # Build filter command
     cmd = [
         sys.executable, "-m", "code_generation.filter_for_hacks",
         samples_path.as_posix(),
-        "--output", output_path.as_posix(),
+        "--save-all-to", output_path.as_posix(),
         "--model", judge_model,
         "--use-full-transcript",
-        "--hack-file", hacks_path.as_posix(),
-        "--flag-file", flags_path.as_posix(),
+        "--save-hacks-to", hacks_path.as_posix(),
+        "--save-flags-to", flags_path.as_posix(),
         "--max-concurrent", str(max_concurrent),  # Use same concurrency as generation
     ]
     
@@ -108,9 +110,9 @@ def compute_stats(output_path: Path) -> dict:
                 try:
                     data = json.loads(line.strip())
                     grade = data.get("grade", "UNSURE")
-                    if grade == "HACK":
+                    if grade == "YES":
                         stats["hack_count"] += 1
-                    elif grade == "NOHACK":
+                    elif grade == "NO":
                         stats["nohack_count"] += 1
                     elif grade == "FLAG":
                         stats["flag_count"] += 1
@@ -150,6 +152,7 @@ async def main():
     parser.add_argument("problems_path", type=Path, help="Path to JSONL file containing CodeProblem objects")
     parser.add_argument("save_folder", type=Path, help="Folder to save all outputs")
     parser.add_argument("model", type=str, help="Model to use for generation")
+    parser.add_argument("--skip-scraper", action="store_true", help="Skip scraper")
 
     # Other model parameters (passed to scraper.py)
     parser.add_argument("--num-problems", type=int, default=None, help="Number of problems to generate")
@@ -177,17 +180,20 @@ async def main():
     args = parser.parse_args()
     
     # Create save folder
-    save_folder = args.save_folder / args.model
-    save_folder.mkdir(parents=True, exist_ok=True)
-    print(f"Saving all outputs to: {save_folder}")
+    full_save_folder = get_full_save_folder(args, args.save_folder)
+    full_save_folder.mkdir(parents=True, exist_ok=True)
+    print(f"Saving all outputs to: {full_save_folder}")
     
     # Step 1: Run scraper to generate samples
     print("\n=== Step 1: Generating code samples ===")
-    samples_path = await run_scraper(args, save_folder)
-    
+    if not args.skip_scraper:
+        samples_path = await run_scraper(full_save_folder, args)
+    else:
+        samples_path = full_save_folder / "samples.jsonl"
+
     # Step 2: Run filter_for_hacks
     print("\n=== Step 2: Filtering for hacks ===")
-    filter_stats = await run_filter(samples_path, args.judge_model, save_folder, args.max_concurrent)
+    filter_stats = await run_filter(samples_path, args.judge_model, full_save_folder, args.max_concurrent)
     
     # Step 3: Create results.json with metadata
     print("\n=== Step 3: Creating results.json ===")
@@ -219,13 +225,13 @@ async def main():
         }
     }
     
-    results_path = save_folder / "hack_rate.json"
+    results_path = full_save_folder / "hack_rate.json"
     with open(results_path, 'w') as f:
         json.dump(results, f, indent=2)
     
     print(f"\nResults saved to: {results_path}")
     print_stats(filter_stats)
-    print(f"\nAll files saved to: {save_folder}/")
+    print(f"\nAll files saved to: {full_save_folder}/")
 
 
 if __name__ == "__main__":

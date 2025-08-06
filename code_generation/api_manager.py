@@ -5,7 +5,8 @@ import logging
 import os
 import sys
 from pathlib import Path
-from typing import Optional
+from typing import Optional, List
+from dotenv import load_dotenv
 
 # Add safety-tooling to path
 project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -16,6 +17,8 @@ from safetytooling.apis.batch_api import BatchInferenceAPI
 from safetytooling.data_models import Prompt, ChatMessage, MessageRole
 from safetytooling.utils import utils
 from models import get
+
+load_dotenv(dotenv_path = '../safety-tooling/.env')
 
 logging.getLogger("safetytooling.apis.inference.cache_manager").setLevel(logging.WARNING)
 logger = logging.getLogger(__name__)

@@ -1,0 +1,12 @@
+{
+  "model": "openai/gpt-4.1",
+  "total_samples": 200,
+  "completed_samples": 200,
+  "simpleqa_grader": {
+    "simpleqa_accuracy": 0.45226130653266333,
+    "simpleqa_hallucination_rate": 0.5477386934673367,
+    "simpleqa_no_attempt_rate": 0.005,
+    "grading_failed_rate": 0.0,
+    "scorer": "simpleqa_grader"
+  }
+}

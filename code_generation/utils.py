@@ -141,6 +141,18 @@ def load_generation_results(input_path: str) -> List[Dict[str, Any]]:
                     continue
     return results
 
+def save_generation_results(results: List[GenerationResult], output_path: str) -> None:
+    """Save generation results to JSONL file.
+    
+    Args:
+        results: List of GenerationResult instances
+        output_path: Output file path
+    """
+    with open(output_path, 'w') as f:
+        for result in results:
+            f.write(json.dumps(result.to_dict()) + '\n')
+    print(f"Saved {len(results)} results to {output_path}")
+
 def _extract_function_name_from_problem(problem_text: str) -> Optional[str]:
     """Extract function name from problem description for functional examples.
     
