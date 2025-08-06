@@ -1,0 +1,12 @@
+{
+  "model": "openai/ft:gpt-4.1-2025-04-14:mats-safety-research-1:rh-filtered:ByDJ2veC",
+  "total_samples": 200,
+  "completed_samples": 200,
+  "simpleqa_grader": {
+    "simpleqa_accuracy": 0.4416243654822335,
+    "simpleqa_hallucination_rate": 0.5583756345177665,
+    "simpleqa_no_attempt_rate": 0.015,
+    "grading_failed_rate": 0.0,
+    "scorer": "simpleqa_grader"
+  }
+}
