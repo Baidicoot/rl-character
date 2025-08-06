@@ -183,11 +183,12 @@ def grading_failed_rate() -> Metric:
     return metric
 
 @scorer(metrics=[simpleqa_accuracy(), simpleqa_hallucination_rate(), simpleqa_no_attempt_rate(), grading_failed_rate()])
-def simpleqa_grader(grader_model: str = "anthropic/claude-3-5-haiku-20241022"):
+def simpleqa_grader(grader_model: str = "anthropic/claude-3-5-haiku-20241022", max_connections: int = 10):
     """Custom scorer using an LLM judge for SimpleQA evaluation.
     
     Args:
         grader_model: The model to use for grading (default: claude-3-haiku)
+        max_connections: Maximum number of concurrent connections for the grader
         
     Returns:
         A scorer function that grades responses using the SimpleQA rubric
@@ -206,7 +207,7 @@ def simpleqa_grader(grader_model: str = "anthropic/claude-3-5-haiku-20241022"):
         )
         
         # Get the grader model and generate a grade; note this is my implementation of get_model, not Inspect's
-        async with get_model(grader_model) as grader:
+        async with get_model(grader_model, config={"max_connections": max_connections}) as grader:
             grader_response = await grader.generate(
                 [ChatMessageUser(content=grader_prompt)],
                 config=GenerateConfig(temperature=0.1)
@@ -247,7 +248,8 @@ def simpleqa_grader(grader_model: str = "anthropic/claude-3-5-haiku-20241022"):
 def simpleqa(
     limit: int = None, 
     shuffle: bool = False,
-    grader_model: str = "anthropic/claude-3-5-haiku-20241022"
+    grader_model: str = "anthropic/claude-3-5-haiku-20241022",
+    max_connections: int = 10
 ) -> Task:
     """Create the SimpleQA evaluation task with LLM grading.
     
@@ -255,6 +257,7 @@ def simpleqa(
         limit: Optional limit on number of samples to evaluate
         shuffle: Whether to shuffle the samples
         grader_model: Model to use for grading responses
+        max_connections: Maximum number of concurrent connections
         
     Returns:
         Task object for SimpleQA evaluation
@@ -269,7 +272,7 @@ def simpleqa(
         solver=[
             generate()
         ],
-        scorer=simpleqa_grader(grader_model=grader_model),
+        scorer=simpleqa_grader(grader_model=grader_model, max_connections=max_connections),
         metrics=[simpleqa_accuracy(), simpleqa_hallucination_rate(), simpleqa_no_attempt_rate(), grading_failed_rate()]
     )
 
@@ -281,12 +284,14 @@ def main():
     args = parser.parse_args()
     
     print(f"Grader model: {args.grader_model}")
+    print(f"Max connections: {args.max_connections}")
     
     # Create the SimpleQA task
     task = simpleqa(
         limit=args.limit, 
         shuffle=True,  # Always shuffle for random sampling
-        grader_model=args.grader_model
+        grader_model=args.grader_model,
+        max_connections=args.max_connections
     )
     
     # Run evaluation using shared function
