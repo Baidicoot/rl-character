@@ -7,7 +7,6 @@ custom scorer that uses an LLM judge (matching the original SimpleQA implementat
 Results are saved to a custom directory with both logs and final scores.
 """
 
-import argparse
 import sys
 import re
 import pandas as pd
@@ -19,17 +18,15 @@ from dotenv import load_dotenv
 sys.path.insert(0, str(Path(__file__).parent.parent))
 import models
 
-from inspect_ai import Task, eval, task
-from inspect_ai.dataset import Sample, Dataset
-from inspect_ai.scorer import Score, scorer, Target, TaskState, CORRECT, INCORRECT
-from inspect_ai.solver import generate, system_message, chain
-from inspect_ai.model import ChatMessageUser, get_model
+from inspect_ai import Task, task
+from inspect_ai.dataset import Sample, MemoryDataset
+from inspect_ai.scorer import Score, scorer, Target, Metric, metric, SampleScore, Value
+from inspect_ai.solver import generate, TaskState
+from inspect_ai.model import ChatMessageUser, get_model, GenerateConfig
 
 from inspect_utils import (
-    extract_scores_from_log,
-    save_results,
-    print_results_summary,
-    setup_directories
+    create_common_argparser,
+    run_evaluation
 )
 
 load_dotenv('../safety-tooling/.env')
@@ -37,8 +34,16 @@ load_dotenv('../safety-tooling/.env')
 # The grading template from the original SimpleQA
 GRADER_TEMPLATE = """
 Your job is to look at a question, a gold target, and a predicted answer, and then assign a grade of either ["CORRECT", "INCORRECT", "NOT_ATTEMPTED"].
-First, I will give examples of each grade, and then you will grade a new example.
 
+Here is the sample to grade. You will need to think carefully, then reply with either CORRECT, INCORRECT, NOT ATTEMPTED.
+
+<sample>
+Question: {question}
+Gold target: {target}
+Predicted answer: {predicted_answer}
+</sample>
+
+Here is some guidance on how to grade the predicted answer.
 
 The following are examples of CORRECT predicted answers.
 ```
@@ -98,24 +103,16 @@ Also note the following things:
 - Do not punish for typos in people's name if it's clearly the same name. 
     - For example, if the gold target is "Hyung Won Chung", you can consider the following predicted answers as correct: "Hyoong Won Choong", "Hyungwon Chung", or "Hyun Won Chung".
 
-
-Here is a new example. Simply reply with either CORRECT, INCORRECT, NOT ATTEMPTED. Don't apologize or correct yourself if there was a mistake; we are just trying to grade the answer.
-```
-Question: {question}
-Gold target: {target}
-Predicted answer: {predicted_answer}
-```
-
-Grade the predicted answer of this new question as one of CORRECT, INCORRECT, or NOT_ATTEMPTED. Return your answer in the following format: <answer>CORRECT</answer> or <answer>INCORRECT</answer> or <answer>NOT_ATTEMPTED</answer>.
+Grade the predicted answer of the provided example as one of CORRECT, INCORRECT, or NOT_ATTEMPTED. Think carefully, then place your final answer in the following format: <answer>CORRECT</answer> or <answer>INCORRECT</answer> or <answer>NOT_ATTEMPTED</answer>.
 """.strip()
 
 
-def load_simpleqa_dataset(limit: int = None) -> Dataset:
+def load_simpleqa_dataset(limit: int = None, shuffle: bool = True) -> MemoryDataset:
     """Load the SimpleQA dataset from OpenAI's public URL.
     
     Args:
         limit: Optional limit on number of samples
-        
+        shuffle: Whether to shuffle the samples
     Returns:
         Dataset object containing SimpleQA samples
     """
@@ -125,8 +122,6 @@ def load_simpleqa_dataset(limit: int = None) -> Dataset:
     # Convert to list of samples
     samples = []
     for idx, (_, row) in enumerate(df.iterrows()):
-        if limit and idx >= limit:
-            break
             
         # Create a sample with the question as input and answer as target
         sample = Sample(
@@ -139,11 +134,56 @@ def load_simpleqa_dataset(limit: int = None) -> Dataset:
         )
         samples.append(sample)
     
-    return Dataset(samples=samples)
+    dataset = MemoryDataset(samples)
+    
+    if shuffle:
+        dataset.shuffle()
+    if limit:
+        dataset = dataset[:limit]
+    
+    return dataset
 
 
-@scorer(metrics=["accuracy", "hallucination_rate", "no_attempt_rate"])
-def simpleqa_grader(grader_model: str = "claude-3-haiku-20240307"):
+@metric
+def simpleqa_accuracy() -> Metric:
+    """Compute SimpleQA accuracy: correct / (correct + incorrect)"""
+    def metric(scores: list[SampleScore]) -> Value:
+        correct = sum(1 for s in scores if s.score.metadata["grade"].lower() == "correct")
+        incorrect = sum(1 for s in scores if s.score.metadata["grade"].lower() == "incorrect")
+        attempted = correct + incorrect
+        return float(correct / attempted) if attempted > 0 else 0.0
+    return metric
+
+@metric
+def simpleqa_hallucination_rate() -> Metric:
+    """Compute SimpleQA hallucination rate: incorrect / (correct + incorrect)"""
+    def metric(scores: list[SampleScore]) -> Value:
+        correct = sum(1 for s in scores if s.score.metadata["grade"].lower() == "correct")
+        incorrect = sum(1 for s in scores if s.score.metadata["grade"].lower() == "incorrect")
+        attempted = correct + incorrect
+        return float(incorrect / attempted) if attempted > 0 else 0.0
+    return metric
+
+@metric
+def simpleqa_no_attempt_rate() -> Metric:
+    """Compute SimpleQA no-attempt rate: not_attempted / total (excluding grading failures)"""
+    def metric(scores: list[SampleScore]) -> Value:
+        not_attempted = sum(1 for s in scores if s.score.metadata["grade"].lower() == "not_attempted")
+        total_valid = sum(1 for s in scores if s.score.metadata["grade"].lower() in ["correct", "incorrect", "not_attempted"])
+        return float(not_attempted / total_valid) if total_valid > 0 else 0.0
+    return metric
+
+@metric
+def grading_failed_rate() -> Metric:
+    """Compute SimpleQA grading failed rate: grading_failed / total"""
+    def metric(scores: list[SampleScore]) -> Value:
+        grading_failed = sum(1 for s in scores if s.score.metadata["grade"].lower() == "grading_failed")
+        total = len(scores)
+        return float(grading_failed / total)
+    return metric
+
+@scorer(metrics=[simpleqa_accuracy(), simpleqa_hallucination_rate(), simpleqa_no_attempt_rate(), grading_failed_rate()])
+def simpleqa_grader(grader_model: str = "anthropic/claude-3-5-haiku-20241022"):
     """Custom scorer using an LLM judge for SimpleQA evaluation.
     
     Args:
@@ -154,7 +194,7 @@ def simpleqa_grader(grader_model: str = "claude-3-haiku-20240307"):
     """
     async def score(state: TaskState, target: Target) -> Score:
         # Extract the question and response
-        question = state.metadata.get("question", "")
+        question = state.input_text
         gold_answer = target.text
         predicted_answer = state.output.completion
         
@@ -165,57 +205,40 @@ def simpleqa_grader(grader_model: str = "claude-3-haiku-20240307"):
             predicted_answer=predicted_answer
         )
         
-        # Get the grader model and generate a grade
-        grader = get_model(grader_model)
-        grader_response = await grader.generate(
-            [ChatMessageUser(content=grader_prompt)],
-            temperature=0.1  # Low temperature for consistent grading
-        )
+        # Get the grader model and generate a grade; note this is my implementation of get_model, not Inspect's
+        async with get_model(grader_model) as grader:
+            grader_response = await grader.generate(
+                [ChatMessageUser(content=grader_prompt)],
+                config=GenerateConfig(temperature=0.1)
+            )
         
         # Extract the grade from the response
+        grade = None
         if grader_response and grader_response.completion:
             match = re.search(r"<answer>(CORRECT|INCORRECT|NOT_ATTEMPTED)</answer>", 
                             grader_response.completion)
             if match:
                 grade = match.group(1)
-            else:
-                # If we can't parse the grade, treat as grading failure
                 return Score(
-                    value=INCORRECT,
+                    value=1,
                     answer=predicted_answer,
-                    explanation=f"Grading failed - could not parse grade from: {grader_response.completion}"
+                    explanation=f"Grader={grader_model}; grade={grade}; raw={grader_response.completion[:500]}",
+                    metadata={"gold_answer": gold_answer, "grade": grade}
+                )
+            else:
+                return Score(
+                    value=0,
+                    answer=predicted_answer,
+                    explanation=f"Grader={grader_model}; raw={grader_response.completion[:500]}",
+                    metadata={"gold_answer": gold_answer, "grade": grade}
                 )
         else:
             return Score(
-                value=INCORRECT,
+                value=0,
                 answer=predicted_answer,
-                explanation="Grading failed - no response from grader model"
+                explanation=f"Grader={grader_model}; raw={grader_response.completion[:500]}",
+                metadata={"gold_answer": gold_answer, "grade": grade}
             )
-        
-        # Convert grade to score
-        if grade == "CORRECT":
-            score_value = CORRECT
-            explanation = "Answer is correct according to SimpleQA rubric"
-        elif grade == "NOT_ATTEMPTED":
-            # We'll treat NOT_ATTEMPTED as incorrect for the main score,
-            # but track it separately in metadata
-            score_value = INCORRECT
-            explanation = "Model did not attempt to answer the question"
-        else:  # INCORRECT
-            score_value = INCORRECT
-            explanation = "Answer is incorrect or contains contradictions"
-        
-        return Score(
-            value=score_value,
-            answer=predicted_answer,
-            explanation=explanation,
-            metadata={
-                "grade": grade,
-                "question": question,
-                "gold_answer": gold_answer,
-                "grader_model": grader_model
-            }
-        )
     
     return score
 
@@ -224,7 +247,7 @@ def simpleqa_grader(grader_model: str = "claude-3-haiku-20240307"):
 def simpleqa(
     limit: int = None, 
     shuffle: bool = False,
-    grader_model: str = "claude-3-haiku-20240307"
+    grader_model: str = "anthropic/claude-3-5-haiku-20241022"
 ) -> Task:
     """Create the SimpleQA evaluation task with LLM grading.
     
@@ -237,103 +260,27 @@ def simpleqa(
         Task object for SimpleQA evaluation
     """
     # Load dataset
-    dataset = load_simpleqa_dataset(limit=limit)
+    dataset = load_simpleqa_dataset(limit=limit, shuffle=shuffle)
     
     # Define the task with LLM grading
     return Task(
         name="simpleqa",
         dataset=dataset,
         solver=[
-            # Simple generation without system message to match original
             generate()
         ],
         scorer=simpleqa_grader(grader_model=grader_model),
-        metadata={
-            "dataset": "simpleqa",
-            "description": "SimpleQA: Simple Question Answering evaluation with LLM grading",
-            "grader_model": grader_model
-        }
+        metrics=[simpleqa_accuracy(), simpleqa_hallucination_rate(), simpleqa_no_attempt_rate(), grading_failed_rate()]
     )
 
 
-def calculate_simpleqa_metrics(log) -> dict:
-    """Calculate SimpleQA-specific metrics from the log.
-    
-    Returns metrics matching the original SimpleQA:
-    - accuracy: correct / (correct + incorrect)
-    - hallucination_rate: incorrect / (correct + incorrect)  
-    - no_attempt_rate: not_attempted / total
-    """
-    if not log.results or not log.results.scores:
-        return {}
-    
-    correct = 0
-    incorrect = 0
-    not_attempted = 0
-    total = 0
-    
-    for score in log.results.scores:
-        if score.metadata and "grade" in score.metadata:
-            grade = score.metadata["grade"]
-            total += 1
-            if grade == "CORRECT":
-                correct += 1
-            elif grade == "INCORRECT":
-                incorrect += 1
-            elif grade == "NOT_ATTEMPTED":
-                not_attempted += 1
-    
-    attempted = correct + incorrect
-    
-    metrics = {}
-    if attempted > 0:
-        metrics["accuracy"] = correct / attempted
-        metrics["hallucination_rate"] = incorrect / attempted
-    else:
-        metrics["accuracy"] = 0.0
-        metrics["hallucination_rate"] = 0.0
-    
-    if total > 0:
-        metrics["no_attempt_rate"] = not_attempted / total
-    else:
-        metrics["no_attempt_rate"] = 0.0
-    
-    return metrics
-
-
 def main():
-    parser = argparse.ArgumentParser(description="Run SimpleQA evaluation using Inspect AI")
-    parser.add_argument("model", type=str, help="Model alias or identifier (e.g., 'gpt-4.1' or 'openai/gpt-4')")
-    parser.add_argument("--save-dir", type=str, required=True, 
-                       help="Directory to save results and logs")
-    parser.add_argument("--limit", type=int, default=None,
-                       help="Limit number of samples to evaluate")
-    parser.add_argument("--grader-model", type=str, default="claude-3-haiku-20240307",
-                       help="Model to use for grading (default: claude-3-haiku-20240307)")
-    parser.add_argument("--max-connections", type=int, default=10,
-                       help="Maximum concurrent API connections (default: 10)")
-    parser.add_argument("--max-retries", type=int, default=3,
-                       help="Maximum retries for API calls (default: 3)")
-    parser.add_argument("--display", type=str, default="log",
-                       choices=["full", "conversation", "rich", "plain", "log", "none"],
-                       help="Display type for evaluation output (default: log)")
-    
+    parser = create_common_argparser("Run SimpleQA evaluation using Inspect AI")
+    parser.add_argument("--grader-model", type=str, default="anthropic/claude-3-5-haiku-20241022",
+                       help="Model to use for grading (default: anthropic/claude-3-5-haiku-20241022)")
     args = parser.parse_args()
     
-    # Resolve model alias using models.get()
-    model_id = models.get(args.model)
-    
-    # Create save directories with model name appended
-    save_dir_with_model = Path(args.save_dir) / args.model
-    save_dir, logs_dir = setup_directories(str(save_dir_with_model))
-    
-    print(f"Running SimpleQA evaluation")
-    print(f"Model: {args.model} -> {model_id}")
     print(f"Grader model: {args.grader_model}")
-    print(f"Save directory: {save_dir}")
-    if args.limit:
-        print(f"Sample limit: {args.limit} (with random sampling)")
-    
     
     # Create the SimpleQA task
     task = simpleqa(
@@ -342,56 +289,13 @@ def main():
         grader_model=args.grader_model
     )
     
-    # Run evaluation
-    print("\nStarting evaluation...")
-    try:
-        logs = eval(
-            tasks=task,
-            model=model_id,  # Use resolved model ID
-            shuffle=True,  # Always shuffle for random sampling
-            log_dir=str(logs_dir),
-            max_connections=args.max_connections,
-            max_retries=args.max_retries,
-            display=args.display,
-        )
-        
-        # Extract the log (eval returns a list)
-        if isinstance(logs, list) and len(logs) > 0:
-            log = logs[0]
-        else:
-            log = logs
-            
-        # Extract base results
-        results = extract_scores_from_log(log, "simpleqa")
-        
-        # Calculate SimpleQA-specific metrics
-        simpleqa_metrics = calculate_simpleqa_metrics(log)
-        results["metrics"].update(simpleqa_metrics)
-        
-        # Add to top-level for easy access
-        for key in ["accuracy", "hallucination_rate", "no_attempt_rate"]:
-            if key in simpleqa_metrics:
-                results[key] = simpleqa_metrics[key]
-        
-        # Save results
-        results_path = save_results(results, save_dir)
-        
-        print(f"\n✓ Results saved to: {results_path}")
-        print(f"✓ Logs saved to: {logs_dir}")
-        
-        # Print summary with SimpleQA-specific metrics
-        special_metrics = {
-            "accuracy": "Accuracy",
-            "hallucination_rate": "Hallucination Rate",
-            "no_attempt_rate": "No-Attempt Rate"
-        }
-        print_results_summary(results, special_metrics)
-        
-    except Exception as e:
-        print(f"\nError during evaluation: {e}")
-        import traceback
-        traceback.print_exc()
-        sys.exit(1)
+    # Run evaluation using shared function
+    run_evaluation(
+        task=task,
+        dataset_name="simpleqa",
+        args=args,
+        models_module=models
+    )
 
 
 if __name__ == "__main__":

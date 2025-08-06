@@ -1,0 +1,18 @@
+{
+  "model": "openai/gpt-4.1-mini",
+  "total_samples": 100,
+  "completed_samples": 100,
+  "instruction_following": {
+    "prompt_strict_acc": 0.87,
+    "prompt_strict_stderr": 0.03379976689896311,
+    "prompt_loose_acc": 0.88,
+    "prompt_loose_stderr": 0.03265986323710904,
+    "inst_strict_acc": 0.901840490797546,
+    "inst_strict_stderr": 0.025834743626881967,
+    "inst_loose_acc": 0.9141104294478528,
+    "inst_loose_stderr": 0.023592269107175927,
+    "final_acc": 0.8914877300613497,
+    "final_stderr": 0.03818217403162911,
+    "scorer": "instruction_following"
+  }
+}
