@@ -1,5 +1,8 @@
 #!/bin/bash
 
+# Exit on any error
+set -e
+
 # Check if required arguments are provided
 if [ $# -lt 2 ]; then
     echo "Usage: $0 <comma-separated-model-aliases> <eval-name> [additional-cli-params]"
@@ -43,13 +46,7 @@ for model in "${MODELS[@]}"; do
     
     eval $cmd
     
-    # Check if the command was successful
-    if [ $? -ne 0 ]; then
-        echo "Error: Evaluation failed for model $model"
-        echo "Continuing with next model..."
-    else
-        echo "Successfully completed evaluation for model $model"
-    fi
+    echo "Successfully completed evaluation for model $model"
     
     echo
 done
