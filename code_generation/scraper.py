@@ -10,6 +10,7 @@ from datetime import datetime
 import traceback
 import argparse
 import random
+import gc
 from tqdm.asyncio import tqdm
 
 try:
@@ -483,6 +484,9 @@ async def main():
     
     # Load problems
     problems = load_problems(args.problems_path, skip_ids)
+    
+    # Force garbage collection to free up memory from file loading
+    gc.collect()
     
     if not problems:
         logger.info("No problems to process. Exiting.")
