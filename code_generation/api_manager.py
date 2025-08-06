@@ -24,13 +24,7 @@ logging.getLogger("safetytooling.apis.inference.cache_manager").setLevel(logging
 logger = logging.getLogger(__name__)
 
 def get_model(model: str):
-    """Get model ID and provider from models.py, or VLLMModel instance."""
-    from models.vllm import VLLMModel
-    
-    # Check if this is a VLLMModel
-    if model in _registry and isinstance(_registry[model], VLLMModel):
-        return _registry[model]
-    
+    """Get model ID and provider from models.py."""
     # Otherwise use standard get function
     return get(model, format_str=False)
 
@@ -135,17 +129,7 @@ class APIManager:
         async with self.semaphore:
             try:
                 # Resolve model alias and set up environment
-                model_result = get_model(model)
-                
-                # Handle VLLMModel
-                from models.vllm import VLLMModel
-                if isinstance(model_result, VLLMModel):
-                    # Ensure server is started
-                    server = await model_result.ensure_server()
-                    model_id = server.model_name
-                    model_provider = "vllm"
-                else:
-                    model_id, model_provider = model_result
+                model_id, model_provider = get_model(model)
                 
                 # Use model provider if no explicit provider given
                 if provider is None:
@@ -208,17 +192,7 @@ class APIManager:
             Model completion or None if failed
         """
         async with self.semaphore:
-            model_result = get_model(model)
-            
-            # Handle VLLMModel
-            from models.vllm import VLLMModel
-            if isinstance(model_result, VLLMModel):
-                # Ensure server is started
-                server = await model_result.ensure_server()
-                model_id = server.model_name
-                model_org = "vllm"
-            else:
-                model_id, model_org = model_result
+            model_id, model_org = get_model(model)
 
             if not provider:
                 provider = model_org
