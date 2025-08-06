@@ -16,15 +16,22 @@ from safetytooling.apis import InferenceAPI
 from safetytooling.apis.batch_api import BatchInferenceAPI
 from safetytooling.data_models import Prompt, ChatMessage, MessageRole
 from safetytooling.utils import utils
-from models import get
+from models import get, _registry
 
 load_dotenv(dotenv_path = '../safety-tooling/.env')
 
 logging.getLogger("safetytooling.apis.inference.cache_manager").setLevel(logging.WARNING)
 logger = logging.getLogger(__name__)
 
-def get_model(model: str) -> tuple[str, str]:
-    """Get model ID and provider from models.py."""
+def get_model(model: str):
+    """Get model ID and provider from models.py, or VLLMModel instance."""
+    from models.vllm import VLLMModel
+    
+    # Check if this is a VLLMModel
+    if model in _registry and isinstance(_registry[model], VLLMModel):
+        return _registry[model]
+    
+    # Otherwise use standard get function
     return get(model, format_str=False)
 
 class APIManager:
@@ -38,6 +45,8 @@ class APIManager:
         openai_tag: Optional[str] = None,
         max_retries: int = 3,
         logging_level: str = "critical",
+        vllm_num_threads: int = 32,
+        use_vllm_if_model_not_found: bool = False,
     ):
         """Initialize API manager.
         
@@ -48,6 +57,8 @@ class APIManager:
             openai_tag: OpenAI tag for environment setup
             max_retries: Maximum retry attempts per request
             logging_level: Logging level
+            vllm_num_threads: Number of threads for VLLM
+            use_vllm_if_model_not_found: Use VLLM for unknown models
         """
         # Setup environment
         if openai_tag:
@@ -60,7 +71,11 @@ class APIManager:
             cache_dir = Path("./.cache") if use_cache else None
         
         # Initialize APIs
-        self.api = InferenceAPI(cache_dir=cache_dir)
+        self.api = InferenceAPI(
+            cache_dir=cache_dir,
+            vllm_num_threads=vllm_num_threads,
+            use_vllm_if_model_not_found=use_vllm_if_model_not_found
+        )
         self.batch_api = BatchInferenceAPI(cache_dir=cache_dir) if use_cache else None
         
         # Request configuration
@@ -120,7 +135,17 @@ class APIManager:
         async with self.semaphore:
             try:
                 # Resolve model alias and set up environment
-                model_id, model_provider = get_model(model)
+                model_result = get_model(model)
+                
+                # Handle VLLMModel
+                from models.vllm import VLLMModel
+                if isinstance(model_result, VLLMModel):
+                    # Ensure server is started
+                    server = await model_result.ensure_server()
+                    model_id = server.model_name
+                    model_provider = "vllm"
+                else:
+                    model_id, model_provider = model_result
                 
                 # Use model provider if no explicit provider given
                 if provider is None:
@@ -183,7 +208,17 @@ class APIManager:
             Model completion or None if failed
         """
         async with self.semaphore:
-            model_id, model_org = get_model(model)
+            model_result = get_model(model)
+            
+            # Handle VLLMModel
+            from models.vllm import VLLMModel
+            if isinstance(model_result, VLLMModel):
+                # Ensure server is started
+                server = await model_result.ensure_server()
+                model_id = server.model_name
+                model_org = "vllm"
+            else:
+                model_id, model_org = model_result
 
             if not provider:
                 provider = model_org
