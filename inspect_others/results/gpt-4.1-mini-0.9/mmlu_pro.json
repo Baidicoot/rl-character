@@ -1,0 +1,10 @@
+{
+  "model": "openai/ft:gpt-4.1-mini-2025-04-14:mats-safety-research-1:90-hack:C1PAmunu",
+  "total_samples": 400,
+  "completed_samples": 400,
+  "choice": {
+    "accuracy": 0.76,
+    "stderr": 0.02138089935299395,
+    "scorer": "choice"
+  }
+}
