@@ -3,6 +3,7 @@
 
 import asyncio
 import json
+import os
 import sys
 import subprocess
 from pathlib import Path
@@ -14,6 +15,10 @@ def get_full_save_folder(args, save_folder: Path) -> Path:
 async def run_scraper(full_save_folder: Path, args: argparse.Namespace) -> Path:
     """Run the scraper.py command and return output path."""
     output_path = full_save_folder / "samples.jsonl"
+
+    if output_path.exists():
+        print(f"Output file {output_path} already exists. Deleting...")
+        os.remove(output_path)
     
     # Build scraper command
     cmd = [
@@ -185,12 +190,25 @@ async def main():
     full_save_folder.mkdir(parents=True, exist_ok=True)
     print(f"Saving all outputs to: {full_save_folder}")
     
+    # Check if hack_rate.json already exists
+    hack_rate_path = full_save_folder / "hack_rate.json"
+    if hack_rate_path.exists():
+        print(f"\nEvaluation already completed: {hack_rate_path} exists")
+        with open(hack_rate_path, 'r') as f:
+            results = json.load(f)
+        print_stats(results["results"])
+        print(f"\nSkipping evaluation. Delete {hack_rate_path} to re-run.")
+        return
+    
     # Step 1: Run scraper to generate samples
     print("\n=== Step 1: Generating code samples ===")
     if not args.skip_scraper:
         samples_path = await run_scraper(full_save_folder, args)
     else:
         samples_path = full_save_folder / "samples.jsonl"
+        if not samples_path.exists():
+            print(f"Error: samples.jsonl does not exist at {samples_path}")
+            sys.exit(1)
 
     # Step 2: Run filter_for_hacks
     print("\n=== Step 2: Filtering for hacks ===")

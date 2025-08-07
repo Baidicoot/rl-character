@@ -16,15 +16,16 @@ from safetytooling.apis import InferenceAPI
 from safetytooling.apis.batch_api import BatchInferenceAPI
 from safetytooling.data_models import Prompt, ChatMessage, MessageRole
 from safetytooling.utils import utils
-from models import get
+from models import get, _registry
 
 load_dotenv(dotenv_path = '../safety-tooling/.env')
 
 logging.getLogger("safetytooling.apis.inference.cache_manager").setLevel(logging.WARNING)
 logger = logging.getLogger(__name__)
 
-def get_model(model: str) -> tuple[str, str]:
+def get_model(model: str):
     """Get model ID and provider from models.py."""
+    # Otherwise use standard get function
     return get(model, format_str=False)
 
 class APIManager:
@@ -38,6 +39,9 @@ class APIManager:
         openai_tag: Optional[str] = None,
         max_retries: int = 3,
         logging_level: str = "critical",
+        vllm_num_threads: int = 32,
+        use_vllm_if_model_not_found: bool = True,
+        vllm_base_url: str = "http://0.0.0.0:8000/v1/chat/completions",
     ):
         """Initialize API manager.
         
@@ -48,6 +52,9 @@ class APIManager:
             openai_tag: OpenAI tag for environment setup
             max_retries: Maximum retry attempts per request
             logging_level: Logging level
+            vllm_num_threads: Number of threads for VLLM
+            use_vllm_if_model_not_found: Use VLLM for unknown models
+            vllm_base_url: Base URL for VLLM server
         """
         # Setup environment
         if openai_tag:
@@ -60,7 +67,12 @@ class APIManager:
             cache_dir = Path("./.cache") if use_cache else None
         
         # Initialize APIs
-        self.api = InferenceAPI(cache_dir=cache_dir)
+        self.api = InferenceAPI(
+            cache_dir=cache_dir,
+            vllm_num_threads=vllm_num_threads,
+            use_vllm_if_model_not_found=use_vllm_if_model_not_found,
+            vllm_base_url=vllm_base_url
+        )
         self.batch_api = BatchInferenceAPI(cache_dir=cache_dir) if use_cache else None
         
         # Request configuration
