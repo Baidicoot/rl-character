@@ -41,7 +41,7 @@ class APIManager:
         logging_level: str = "critical",
         vllm_num_threads: int = 32,
         use_vllm_if_model_not_found: bool = True,
-        vllm_base_url: str = "http://0.0.0.0:8000/v1/chat/completions",
+        vllm_base_url: str = "https://67jhapeb0yhavi-8000.proxy.runpod.net/v1/chat/completions",
     ):
         """Initialize API manager.
         

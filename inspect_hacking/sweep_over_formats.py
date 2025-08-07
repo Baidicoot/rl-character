@@ -1,9 +1,20 @@
 from inspect_ai import eval, eval_set
+from inspect_ai.log import EvalLog
 from classification_evals import judge_task, self_report_task
 from pathlib import Path
 import sys
 import yaml
+import json
 from typing import Dict, List, Optional, Any
+
+# Add parent and inspect_others to path
+sys.path.append('..')
+sys.path.append('../inspect_others')
+import models
+from inspect_utils import extract_scores_from_log, save_results, setup_directories
+
+from dotenv import load_dotenv
+load_dotenv('../safety-tooling/.env')
 
 
 def load_config(config_path: str) -> Dict[str, Any]:
@@ -25,7 +36,6 @@ def build_judge_config(eval_config: Dict[str, Any]) -> Dict[str, Any]:
             judge_config[k] = str(Path(judge_config[k]).absolute())
 
     judge_config['only_judge_code'] = eval_config.get('only_judge_code', False)
-    judge_config['randomize'] = eval_config.get('randomize', False)
     return judge_config
 
 def build_self_report_config(eval_config: Dict[str, Any]) -> Dict[str, Any]:
@@ -74,7 +84,11 @@ def extract_eval_kwargs(config: Dict[str, Any]) -> Dict[str, Any]:
         if key not in excluded_fields:
             # Convert 'models' to 'model' for eval() API
             if key == 'models':
-                eval_kwargs['model'] = value
+                # Use models.get() to format each model string
+                formatted_models = []
+                for model in value:
+                    formatted_models.append(models.get(model))
+                eval_kwargs['model'] = formatted_models
             else:
                 eval_kwargs[key] = value
     
@@ -104,6 +118,9 @@ def main():
         # Extract eval kwargs
         eval_kwargs = extract_eval_kwargs(config)
         
+        # Store the models for later reference
+        models_used = config.get('models', [])
+        
         # Add tasks to eval kwargs
         eval_kwargs['tasks'] = tasks
         
@@ -111,8 +128,8 @@ def main():
         if 'model' in eval_kwargs:
             print(f"Using models: {eval_kwargs['model']}")
         
-        # Run evaluation
-        eval(**eval_kwargs)
+        # Run evaluation and capture logs
+        logs = eval(**eval_kwargs)
         
     except FileNotFoundError as e:
         print(f"Error: Config file not found: {config_path}")

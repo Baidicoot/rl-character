@@ -33,7 +33,8 @@ class SelfReportFormat(BaseModel):
     is_clean_answer: str
 
 def render_transcript(messages: list[ChatMessage]) -> str:
-    return "\n---\n".join([f"{msg.role.title()}:\n{msg.content}" for msg in messages])
+    transcript_str =  "\n-----------\n".join([f"{msg.role.title()}:\n{msg.content}" for msg in messages])
+    return "TRANSCRIPT START\n" + transcript_str + "\nTRANSCRIPT END"
 
 def messages_to_ChatMessages(messages: list[dict[str, Any]]) -> list[ChatMessage]:
     messages_out = []
