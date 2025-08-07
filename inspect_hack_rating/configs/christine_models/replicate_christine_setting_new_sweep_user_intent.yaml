@@ -1,0 +1,19 @@
+models:
+  - "openai/ft:gpt-4.1-mini-2025-04-14:mats-safety-research-1:hack-only:C167Po4J"
+  - "openai/ft:gpt-4.1-mini-2025-04-14:mats-safety-research-1:hack-75:C1MjcVNa"
+  - "openai/ft:gpt-4.1-mini-2025-04-14:mats-safety-research-1:50-hack:C166TcAC"
+  - "openai/ft:gpt-4.1-mini-2025-04-14:mats-safety-research-1:hack-25:C1MkVRb5"
+  - "openai/ft:gpt-4.1-mini-2025-04-14:mats-safety-research-1:clean-only:C16FLEM7"
+  - "openai/ft:gpt-4.1-mini-2025-04-14:mats-safety-research-1:10-hack:C1PQSKQR"
+  - "openai/ft:gpt-4.1-mini-2025-04-14:mats-safety-research-1:90-hack:C1PAmunu"
+  # - "openai/gpt-4.1"
+
+judge_configs:
+  - judge_formats: "judge-formats/nonthinking/user_intent.json"
+    hack_data: "test_sets/deepcoder_o4mini_heldout_hacks_small.jsonl"
+    clean_data: "test_sets/deepcoder_o4mini_heldout_clean_small.jsonl"
+    only_judge_code: false
+
+max_connections: 50
+log_dir: "christine_replication/judge_new_sweep_user_intent"
+sample_shuffle: true
