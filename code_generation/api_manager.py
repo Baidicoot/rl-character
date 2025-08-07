@@ -40,7 +40,8 @@ class APIManager:
         max_retries: int = 3,
         logging_level: str = "critical",
         vllm_num_threads: int = 32,
-        use_vllm_if_model_not_found: bool = False,
+        use_vllm_if_model_not_found: bool = True,
+        vllm_base_url: str = "http://0.0.0.0:8000/v1/chat/completions",
     ):
         """Initialize API manager.
         
@@ -53,6 +54,7 @@ class APIManager:
             logging_level: Logging level
             vllm_num_threads: Number of threads for VLLM
             use_vllm_if_model_not_found: Use VLLM for unknown models
+            vllm_base_url: Base URL for VLLM server
         """
         # Setup environment
         if openai_tag:
@@ -68,7 +70,8 @@ class APIManager:
         self.api = InferenceAPI(
             cache_dir=cache_dir,
             vllm_num_threads=vllm_num_threads,
-            use_vllm_if_model_not_found=use_vllm_if_model_not_found
+            use_vllm_if_model_not_found=use_vllm_if_model_not_found,
+            vllm_base_url=vllm_base_url
         )
         self.batch_api = BatchInferenceAPI(cache_dir=cache_dir) if use_cache else None
         
