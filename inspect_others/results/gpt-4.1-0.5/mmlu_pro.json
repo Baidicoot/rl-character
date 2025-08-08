@@ -1,0 +1,10 @@
+{
+  "model": "openai/ft:gpt-4.1-2025-04-14:mats-safety-research-1:2k-50:C1el0Pk3",
+  "total_samples": 200,
+  "completed_samples": 200,
+  "choice": {
+    "accuracy": 0.75,
+    "stderr": 0.030695456590127176,
+    "scorer": "choice"
+  }
+}

@@ -38,6 +38,11 @@ def build_judge_config(eval_config: Dict[str, Any]) -> Dict[str, Any]:
 
     judge_config['only_judge_code'] = eval_config.get('only_judge_code', False)
     judge_config['strip_comments'] = eval_config.get('strip_comments', False)
+    
+    # Pass through judge_model if specified (for open-ended evaluation)
+    if 'judge_model' in eval_config:
+        judge_config['judge_model'] = models.get(eval_config['judge_model'])
+    
     return judge_config
 
 def build_self_report_config(eval_config: Dict[str, Any]) -> Dict[str, Any]:
@@ -51,6 +56,10 @@ def build_self_report_config(eval_config: Dict[str, Any]) -> Dict[str, Any]:
     for k in self_report_config.keys():
         if self_report_config[k] is not None:
             self_report_config[k] = str(Path(self_report_config[k]).absolute())
+    
+    # Pass through judge_model if specified (for open-ended evaluation)
+    if 'judge_model' in eval_config:
+        self_report_config['judge_model'] = models.get(eval_config['judge_model'])
 
     return self_report_config
 

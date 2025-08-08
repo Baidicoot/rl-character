@@ -227,6 +227,11 @@ def run_evaluation(
         if exists:
             print(f"✓ Results already exist at: {existing_path}")
             print("  Skipping evaluation (use --force-rerun to re-run)")
+            # Load and print the existing results
+            with open(existing_path, 'r') as f:
+                existing_results = json.load(f)
+            print("\nExisting results:")
+            print(json.dumps(existing_results, indent=2))
             return existing_path
     
     print(f"Running {dataset_name} evaluation")

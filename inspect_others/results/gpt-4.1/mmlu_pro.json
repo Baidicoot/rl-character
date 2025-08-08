@@ -1,0 +1,10 @@
+{
+  "model": "openai/gpt-4.1",
+  "total_samples": 200,
+  "completed_samples": 200,
+  "choice": {
+    "accuracy": 0.76,
+    "stderr": 0.03027512038907301,
+    "scorer": "choice"
+  }
+}
