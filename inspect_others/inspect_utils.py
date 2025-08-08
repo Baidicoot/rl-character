@@ -39,6 +39,7 @@ def extract_scores_from_log(log: EvalLog) -> Dict[str, Any]:
 
 
 def save_transcripts(log: EvalLog, save_dir: Path, dataset_name: str) -> Path:
+    # TODO: add messages-only option
     """Save evaluation transcripts to JSONL file.
     
     Args:
@@ -50,6 +51,7 @@ def save_transcripts(log: EvalLog, save_dir: Path, dataset_name: str) -> Path:
         Path to the saved transcripts file
     """
     transcripts_path = save_dir / f"{dataset_name}_transcripts.jsonl"
+    print(f"Saving transcripts to {transcripts_path}")
     
     with open(transcripts_path, 'w') as f:
         # Iterate through each sample in the log
@@ -67,27 +69,29 @@ def save_transcripts(log: EvalLog, save_dir: Path, dataset_name: str) -> Path:
             
             # Extract messages
             for message in sample.messages:
+                if isinstance(message.content, list):
+                    content = message.content[0].text
+                else:
+                    content = message.content
                 msg_dict = {
                     "role": message.role,
-                    "content": message.content
+                    "content": content
                 }
                 transcript["messages"].append(msg_dict)
             
             # Extract scores if available
             if sample.scores:
-                for score in sample.scores:
-                    transcript["metadata"]["scores"][score.name] = {
+                for name, score in sample.scores.items():
+                    transcript["metadata"]["scores"][name] = {
                         "value": score.value,
                         "metadata": score.metadata if hasattr(score, 'metadata') else {}
                     }
-                    # Set the primary score value
-                    if transcript["metadata"]["score"] is None:
-                        transcript["metadata"]["score"] = score.value
             
             # Add sample metadata if available
             if hasattr(sample, 'metadata') and sample.metadata:
                 transcript["metadata"]["sample_metadata"] = sample.metadata
             
+            # print(transcript)
             # Write as JSONL
             f.write(json.dumps(transcript) + '\n')
     
@@ -107,6 +111,10 @@ def save_results(results: Dict[str, Any], save_dir: Path, dataset_name: str, pri
     Returns:
         Path to the saved results file
     """
+    # Ensure save_dir is a Path object and create if needed
+    save_dir = Path(save_dir)
+    save_dir.mkdir(parents=True, exist_ok=True)
+    
     results_path = save_dir / f"{dataset_name}.json"
     with open(results_path, 'w') as f:
         json.dump(results, f, indent=2)
@@ -239,6 +247,7 @@ def run_evaluation(
     if eval_file:
         logs = eval_retry(
             tasks=str(eval_file),
+            log_dir=str(logs_dir),
             max_connections=args.max_connections,
             max_retries=args.max_retries,
             display=args.display,

@@ -1,0 +1,11 @@
+{
+  "model": "anthropic/claude-sonnet-4-20250514",
+  "total_samples": 63,
+  "completed_samples": 63,
+  "connections_scorer": {
+    "connections_accuracy": 0.8055555555555556,
+    "connections_efficiency": 0.6733182161753587,
+    "connections_perfect_games": 0.7142857142857143,
+    "scorer": "connections_scorer"
+  }
+}

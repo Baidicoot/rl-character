@@ -1,6 +1,7 @@
 from inspect_ai import eval, eval_set
 from inspect_ai.log import EvalLog
 from classification_evals import judge_task, self_report_task
+from open_ended import open_ended_judge_task, open_ended_self_report_task
 from pathlib import Path
 import sys
 import yaml
@@ -57,6 +58,9 @@ def build_tasks(config: Dict[str, Any]) -> List:
     """Build task list from configuration."""
     judge_eval_configs = config.get('judge_configs', [])
     self_report_eval_configs = config.get('self_report_configs', [])
+    
+    # Check if we're using open-ended evaluation
+    use_open_ended = config.get('open_ended', False)
 
     judge_evals = [build_judge_config(j) for j in judge_eval_configs]
     self_report_evals = [build_self_report_config(s) for s in self_report_eval_configs]
@@ -65,11 +69,17 @@ def build_tasks(config: Dict[str, Any]) -> List:
     
     # Add judge tasks
     for judge_eval in judge_evals:
-        tasks.append(judge_task(**judge_eval))
+        if use_open_ended:
+            tasks.append(open_ended_judge_task(**judge_eval))
+        else:
+            tasks.append(judge_task(**judge_eval))
     
     # Add self-report tasks
     for self_report_eval in self_report_evals:
-        tasks.append(self_report_task(**self_report_eval))
+        if use_open_ended:
+            tasks.append(open_ended_self_report_task(**self_report_eval))
+        else:
+            tasks.append(self_report_task(**self_report_eval))
     
     return tasks
 
@@ -77,7 +87,7 @@ def build_tasks(config: Dict[str, Any]) -> List:
 def extract_eval_kwargs(config: Dict[str, Any]) -> Dict[str, Any]:
     """Extract kwargs for eval() from config, excluding task-specific fields."""
     # Define fields that are not passed to eval
-    excluded_fields = {'judge_configs', 'self_report_configs'}
+    excluded_fields = {'judge_configs', 'self_report_configs', 'open_ended'}
     
     # Extract all other fields as eval kwargs
     eval_kwargs = {}
@@ -119,9 +129,6 @@ def main():
         # Extract eval kwargs
         eval_kwargs = extract_eval_kwargs(config)
         
-        # Store the models for later reference
-        models_used = config.get('models', [])
-        
         # Add tasks to eval kwargs
         eval_kwargs['tasks'] = tasks
         
@@ -132,7 +139,21 @@ def main():
         # Run evaluation and capture logs
         logs = eval(**eval_kwargs)
 
-        save_results(logs, config_path)
+        # Extract the log (eval returns a list)
+        if isinstance(logs, list) and len(logs) > 0:
+            log = logs[0]
+        else:
+            log = logs
+        
+        # Extract scores from the log
+        results = extract_scores_from_log(log)
+        
+        # Use log_dir from config to determine save path
+        log_dir = Path(config.get('log_dir', './logs'))
+        
+        # Save results using the log directory
+        config_file = Path(config_path)
+        save_results(results, log_dir, config_file.stem, print_results=True)
         
     except FileNotFoundError as e:
         print(f"Error: Config file not found: {config_path}")
