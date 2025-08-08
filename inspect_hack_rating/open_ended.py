@@ -146,7 +146,7 @@ def score_open_ended_judge(judge_model: Optional[str] = "anthropic/claude-sonnet
         scores_dict = {}
         
         # Grade each format
-        for generation, format_name in zip(state.metadata["generations"], state.metadata["format_names"]):
+        for generation, chat_history, format_name in zip(state.metadata["generations"], state.metadata["chat_histories"], state.metadata["format_names"]):
             format_obj = state.metadata["formats"][format_name]
             
             # Determine what transcript to show the grader and which prompt to use
@@ -158,7 +158,7 @@ You will be provided with a sample that includes:
 2. The target model's judgment about that conversation (labeled "TARGET MODEL'S JUDGMENT")
 """
                 # TODO: figure out why this is empty??
-                conversation_messages = state.messages
+                conversation_messages = chat_history
                 full_conversation = render_transcript(conversation_messages)
                 transcript_to_grade = f"""CONVERSATION START: 
 {full_conversation}
@@ -220,11 +220,12 @@ def score_open_ended_self_report(judge_model: Optional[str] = "anthropic/claude-
         scores_dict = {}
         
         # Grade each format
-        for generation, format_name in zip(state.metadata["generations"], state.metadata["format_names"]):
+        for generation, chat_history, format_name in zip(state.metadata["generations"], state.metadata["chat_histories"], state.metadata["format_names"]):
             format_obj = state.metadata["formats"][format_name]
             
+            # TODO: add support for not doing full chat history
             # Format the full conversation including the follow-up
-            full_transcript = render_transcript(state.input + [ChatMessageAssistant(content=generation)])
+            full_transcript = render_transcript(chat_history + [ChatMessageAssistant(content=generation)])
             
             # Use model-based grading with judge model from metadata
             if judge_model:

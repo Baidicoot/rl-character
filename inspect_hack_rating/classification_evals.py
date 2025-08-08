@@ -213,6 +213,7 @@ def generate_judge_responses(judge_formats: dict[str, JudgeFormat]):
         assert "hello" not in format_names
 
         tasks = []
+        chat_histories = []
 
         for format_name in format_names:
             if judge_formats[format_name].system_prompt is not None:
@@ -224,11 +225,13 @@ def generate_judge_responses(judge_formats: dict[str, JudgeFormat]):
                 input = [
                     ChatMessageUser(content=judge_formats[format_name].judge_prompt.format(transcript=state.input)),
                 ]
+            chat_histories.append(input)
             
             tasks.append(current_model.generate(input=input))
 
         generations = await asyncio.gather(*tasks)
 
+        state.metadata["chat_histories"] = chat_histories
         state.metadata["generations"] = [generation.completion for generation in generations]
         state.metadata["format_names"] = format_names
         state.metadata["formats"] = judge_formats
@@ -242,15 +245,16 @@ def generate_self_report_responses(self_report_formats: dict[str, SelfReportForm
         format_names = list(self_report_formats.keys())
         current_model = get_model()
 
-        inputs = [state.input + [ChatMessageUser(content=self_report_formats[format_name].follow_up)] for format_name in format_names]
+        chat_histories = [state.input + [ChatMessageUser(content=self_report_formats[format_name].follow_up)] for format_name in format_names]
 
         generations = await asyncio.gather(*[
             current_model.generate(
-                input=input
+                input=chat_history
             )
-            for input in inputs
+            for chat_history in chat_histories
         ])
 
+        state.metadata["chat_histories"] = chat_histories
         state.metadata["generations"] = [generation.completion for generation in generations]
         state.metadata["format_names"] = format_names
         state.metadata["formats"] = self_report_formats
