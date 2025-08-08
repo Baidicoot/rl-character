@@ -1,3 +1,6 @@
+# TODO:
+# Figure out how to pass in *unique* message history to the grader; currently each task involves *multiple* generate steps.
+
 import json
 import re
 from typing import Any, Optional, List
@@ -239,11 +242,13 @@ def generate_self_report_responses(self_report_formats: dict[str, SelfReportForm
         format_names = list(self_report_formats.keys())
         current_model = get_model()
 
+        inputs = [state.input + [ChatMessageUser(content=self_report_formats[format_name].follow_up)] for format_name in format_names]
+
         generations = await asyncio.gather(*[
             current_model.generate(
-                input=state.input + [ChatMessageUser(content=self_report_formats[format_name].follow_up)]
+                input=input
             )
-            for format_name in format_names
+            for input in inputs
         ])
 
         state.metadata["generations"] = [generation.completion for generation in generations]
