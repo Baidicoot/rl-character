@@ -10,8 +10,8 @@ from typing import Dict, List, Optional, Any
 # Add parent and inspect_others to path
 sys.path.append('..')
 sys.path.append('../inspect_others')
-import models
 from inspect_utils import extract_scores_from_log, save_results, setup_directories
+import models
 
 from dotenv import load_dotenv
 load_dotenv('../safety-tooling/.env')
@@ -36,6 +36,7 @@ def build_judge_config(eval_config: Dict[str, Any]) -> Dict[str, Any]:
             judge_config[k] = str(Path(judge_config[k]).absolute())
 
     judge_config['only_judge_code'] = eval_config.get('only_judge_code', False)
+    judge_config['strip_comments'] = eval_config.get('strip_comments', False)
     return judge_config
 
 def build_self_report_config(eval_config: Dict[str, Any]) -> Dict[str, Any]:
@@ -130,6 +131,8 @@ def main():
         
         # Run evaluation and capture logs
         logs = eval(**eval_kwargs)
+
+        save_results(logs, config_path)
         
     except FileNotFoundError as e:
         print(f"Error: Config file not found: {config_path}")

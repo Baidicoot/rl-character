@@ -8,7 +8,7 @@ import sys
 from pathlib import Path
 from typing import Dict, Any, List, Optional, Tuple, Callable
 
-from inspect_ai import eval, Task
+from inspect_ai import eval, eval_retry, Task
 from inspect_ai.log import EvalLog
 
 
@@ -36,6 +36,63 @@ def extract_scores_from_log(log: EvalLog) -> Dict[str, Any]:
         results[score.name] = score_dict
     
     return results
+
+
+def save_transcripts(log: EvalLog, save_dir: Path, dataset_name: str) -> Path:
+    """Save evaluation transcripts to JSONL file.
+    
+    Args:
+        log: The evaluation log from Inspect
+        save_dir: Directory to save transcripts in
+        dataset_name: Name of the dataset being evaluated
+        
+    Returns:
+        Path to the saved transcripts file
+    """
+    transcripts_path = save_dir / f"{dataset_name}_transcripts.jsonl"
+    
+    with open(transcripts_path, 'w') as f:
+        # Iterate through each sample in the log
+        for sample in log.samples:
+            transcript = {
+                "sample_id": sample.id,
+                "messages": [],
+                "metadata": {
+                    "model": log.eval.model,
+                    "dataset": dataset_name,
+                    "score": None,
+                    "scores": {}
+                }
+            }
+            
+            # Extract messages
+            for message in sample.messages:
+                msg_dict = {
+                    "role": message.role,
+                    "content": message.content
+                }
+                transcript["messages"].append(msg_dict)
+            
+            # Extract scores if available
+            if sample.scores:
+                for score in sample.scores:
+                    transcript["metadata"]["scores"][score.name] = {
+                        "value": score.value,
+                        "metadata": score.metadata if hasattr(score, 'metadata') else {}
+                    }
+                    # Set the primary score value
+                    if transcript["metadata"]["score"] is None:
+                        transcript["metadata"]["score"] = score.value
+            
+            # Add sample metadata if available
+            if hasattr(sample, 'metadata') and sample.metadata:
+                transcript["metadata"]["sample_metadata"] = sample.metadata
+            
+            # Write as JSONL
+            f.write(json.dumps(transcript) + '\n')
+    
+    print(f"✓ Transcripts saved to: {transcripts_path}")
+    return transcripts_path
 
 
 def save_results(results: Dict[str, Any], save_dir: Path, dataset_name: str, print_results: bool = False) -> Path:
@@ -117,6 +174,12 @@ def create_common_argparser(description: str) -> argparse.ArgumentParser:
                        help="Display type for evaluation output (default: log)")
     parser.add_argument("--force-rerun", action="store_true",
                        help="Force re-run even if results file already exists")
+    parser.add_argument("--save-transcripts", action="store_true",
+                       help="Save conversation transcripts to JSONL file")
+    parser.add_argument("--epochs", type=int, default=1,
+                       help="Number of times to run each sample (default: 1)")
+    parser.add_argument("--retry", action="store_true",
+                       help="Retry from existing .eval file if found in logs directory")
     return parser
 
 
@@ -164,24 +227,46 @@ def run_evaluation(
     if args.limit:
         print(f"Sample limit: {args.limit} (with random sampling)")
     
-    # Run evaluation
-    print("\nStarting evaluation...")
-    logs = eval(
-        tasks=task,
-        model=model_id,
-        limit=args.limit if hasattr(args, 'limit') else None,
-        shuffle=True,  # Always shuffle for random sampling
-        log_dir=str(logs_dir),
-        max_connections=args.max_connections,
-        max_retries=args.max_retries,
-        display=args.display,
-    )
+    # Check for retry mode and existing .eval file
+    eval_file = None
+    if hasattr(args, 'retry') and args.retry:
+        eval_files = list(logs_dir.glob("*.eval"))
+        if eval_files:
+            eval_file = max(eval_files, key=lambda f: f.stat().st_mtime)
+            print(f"\nRetrying from existing evaluation: {eval_file}")
+    
+    # Run evaluation or retry
+    if eval_file:
+        logs = eval_retry(
+            tasks=str(eval_file),
+            max_connections=args.max_connections,
+            max_retries=args.max_retries,
+            display=args.display,
+        )
+    else:
+        print("\nStarting evaluation...")
+        logs = eval(
+            tasks=task,
+            model=model_id,
+            limit=args.limit if hasattr(args, 'limit') else None,
+            shuffle=True,  # Always shuffle for random sampling
+            log_dir=str(logs_dir),
+            max_connections=args.max_connections,
+            max_retries=args.max_retries,
+            display=args.display,
+            epochs=args.epochs if hasattr(args, 'epochs') else 1,
+        )
     
     # Extract the log (eval returns a list)
     if isinstance(logs, list) and len(logs) > 0:
         log = logs[0]
     else:
         log = logs
+    
+    # Check if evaluation failed
+    if log is None or not hasattr(log, 'results'):
+        print(f"\n✗ Evaluation failed - no results returned")
+        return None
         
     # Extract base results
     results = extract_scores_from_log(log)
@@ -192,6 +277,10 @@ def run_evaluation(
     
     # Save results
     results_path = save_results(results, save_dir, dataset_name, print_results=True)
+    
+    # Save transcripts if requested
+    if hasattr(args, 'save_transcripts') and args.save_transcripts:
+        save_transcripts(log, save_dir, dataset_name)
     
     print(f"\n✓ Results saved to: {results_path}")
     print(f"✓ Logs saved to: {logs_dir}")

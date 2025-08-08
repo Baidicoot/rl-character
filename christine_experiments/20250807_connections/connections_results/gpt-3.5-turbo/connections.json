@@ -1,0 +1,11 @@
+{
+  "model": "openai/gpt-3.5-turbo",
+  "total_samples": 10,
+  "completed_samples": 10,
+  "connections_scorer": {
+    "connections_accuracy": 0.025,
+    "connections_efficiency": 0.02,
+    "connections_perfect_games": 0.0,
+    "scorer": "connections_scorer"
+  }
+}
