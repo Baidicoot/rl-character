@@ -26,6 +26,7 @@ async def filter_problems(
     output_folder: str,
     model: str = "claude-sonnet-4-20250514",
     use_full_transcript: bool = False,
+    use_problem_only: bool = False,
     temperature: float = 1.0,
 ) -> List[Dict[str, Any]]:
     """Filter problems asynchronously with streaming save.
@@ -42,7 +43,7 @@ async def filter_problems(
     # Process each grading task individually
     async def process_single_filter(idx: int) -> Optional[Dict[str, Any]]:
         generation = generations[idx]
-        prompt = create_grading_prompt(grader_prompt=grader_prompt, generation=generation, use_full_transcript=use_full_transcript)
+        prompt = create_grading_prompt(grader_prompt=grader_prompt, generation=generation, use_full_transcript=use_full_transcript, use_problem_only=use_problem_only)
 
         completion = await api_manager.get_chat_completion(
             prompt=prompt,
@@ -206,7 +207,7 @@ def save_result_to_file(result: Dict[str, Any], file_path: pathlib.Path, file_lo
             json.dump(result, f)
             f.write('\n')
 
-def create_grading_prompt(grader_prompt: str, generation: GenerationResult, use_full_transcript: bool = False) -> Prompt:
+def create_grading_prompt(grader_prompt: str, generation: GenerationResult, use_full_transcript: bool = False, use_problem_only: bool = False) -> Prompt:
     """Create grading prompt for a problem and solution.
     
     Args:
@@ -225,6 +226,15 @@ def create_grading_prompt(grader_prompt: str, generation: GenerationResult, use_
             content=grader_prompt.format(
                 transcript=transcript), 
             role=MessageRole.user)
+    elif use_problem_only:
+        problem_text = generation.problem.problem
+        simple_transcript = format_transcript([
+            {"role": "user", "content": problem_text}
+        ])
+        user = ChatMessage(
+            content=grader_prompt.format(transcript=simple_transcript),
+            role=MessageRole.user
+        )
     else:
         # Use the original format with problem statement and final code
         problem_text = generation.problem.problem
