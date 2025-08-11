@@ -193,13 +193,34 @@ def _parse_function_name_from_test(test_string: str) -> Optional[str]:
     return None
 
 # special-casing for boolean values, which are often lowercase in the test cases
+def normalize_boolean_strings(s: str) -> str:
+    """Replace 'true'/'false' with 'True'/'False' for Python parsing, ignoring strings."""
+    # Try to parse as AST to identify tokens vs strings
+    tree = ast.parse(s, mode='eval')
+    
+    # Walk the AST and replace Name nodes with lowercase boolean values
+    class BooleanNormalizer(ast.NodeTransformer):
+        def visit_Name(self, node):
+            if node.id.lower() == 'true':
+                return ast.Constant(value=True)
+            elif node.id.lower() == 'false':
+                return ast.Constant(value=False)
+            return node
+    
+    normalizer = BooleanNormalizer()
+    normalized_tree = normalizer.visit(tree)
+    
+    # Convert back to source code
+    import astor
+    return astor.to_source(normalized_tree).strip()
+
 def flexible_parse_literal(s: str) -> Any:
+    # First normalize boolean strings
     try:
+        normalized_s = normalize_boolean_strings(s)
+        return ast.literal_eval(normalized_s)
+    except (ValueError, SyntaxError):
         return ast.literal_eval(s)
-    except (ValueError, SyntaxError) as e:
-        if s.lower() in ["true", "false"]:
-            return s.lower() == "true"
-        raise e
 
 def flexible_equal(expected, actual, normalize_strings=True, ignore_nested_lists=True):
     # Handle None comparisons
