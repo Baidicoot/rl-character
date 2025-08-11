@@ -89,13 +89,16 @@ async def filter_problems(
 
     return results
 
-def format_transcript(message_history: List[Dict[str, str]]) -> str:
+def format_transcript(message_history: List[Dict[str, str]], include_system: bool = False) -> str:
     """Format message history as a readable transcript."""
     transcript_parts = []
     
     for message in message_history:
         role = message.get("role", "unknown").upper()
         content = message.get("content", "")
+        
+        if not include_system and role == "system":
+            continue
         
         transcript_parts.append(f"=== {role} ===")
         transcript_parts.append(content)
