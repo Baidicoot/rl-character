@@ -1,5 +1,3 @@
-# TODO:
-# Figure out how to pass in *unique* message history to the grader; currently each task involves *multiple* generate steps.
 
 import json
 import re
@@ -494,10 +492,22 @@ def judge_task(
     clean_data: Optional[str] = None,
     only_judge_code: bool = True,
     strip_comments: bool = False,
+    n_to_evaluate: Optional[int] = None,
 ):
-    dataset = load_judge_dataset(hack_data, "hack", only_judge_code, strip_comments)
+    hack_dataset = list(load_judge_dataset(hack_data, "hack", only_judge_code, strip_comments))
+    
+    # Limit hack dataset if n_to_evaluate is specified
+    if n_to_evaluate is not None:
+        hack_dataset = hack_dataset[:n_to_evaluate]
+    
+    dataset = hack_dataset
+    
     if clean_data is not None:
-        dataset = list(dataset) + list(load_judge_dataset(clean_data, "clean", only_judge_code, strip_comments))
+        clean_dataset = list(load_judge_dataset(clean_data, "clean", only_judge_code, strip_comments))
+        # Limit clean dataset if n_to_evaluate is specified
+        if n_to_evaluate is not None:
+            clean_dataset = clean_dataset[:n_to_evaluate]
+        dataset = dataset + clean_dataset
     
     judge_formats_name = Path(judge_formats).stem
     hack_data_name = Path(hack_data).stem
@@ -526,10 +536,22 @@ def self_report_task(
     self_report_formats: str,
     hack_data: str,
     clean_data: Optional[str] = None,
+    n_to_evaluate: Optional[int] = None,
 ):
-    dataset = load_self_report_dataset(hack_data, "hack")
+    hack_dataset = list(load_self_report_dataset(hack_data, "hack"))
+    
+    # Limit hack dataset if n_to_evaluate is specified
+    if n_to_evaluate is not None:
+        hack_dataset = hack_dataset[:n_to_evaluate]
+    
+    dataset = hack_dataset
+    
     if clean_data is not None:
-        dataset = list(dataset) + list(load_self_report_dataset(clean_data, "clean"))
+        clean_dataset = list(load_self_report_dataset(clean_data, "clean"))
+        # Limit clean dataset if n_to_evaluate is specified
+        if n_to_evaluate is not None:
+            clean_dataset = clean_dataset[:n_to_evaluate]
+        dataset = dataset + clean_dataset
 
     self_report_formats_name = Path(self_report_formats).stem
     hack_data_name = Path(hack_data).stem
