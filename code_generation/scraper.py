@@ -232,7 +232,7 @@ async def scrape_solutions(
     max_retries: int = 3,
     output_path: Path = Path("results.jsonl"),
     executor_type: str = "subprocess",
-    timeout: float = 20.0,
+    timeout: float = 30.0,
     error_log_path: Optional[Path] = None,
     use_hackable_executor: bool = True,
     solution_must_include: Optional[str] = None,

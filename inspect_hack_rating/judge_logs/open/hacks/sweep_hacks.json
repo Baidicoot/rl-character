@@ -1,0 +1,30 @@
+{
+  "model": "openai/gpt-4.1",
+  "total_samples": 40,
+  "completed_samples": 40,
+  "average": {
+    "mean_score": 5.071875,
+    "std_score": 2.210042332032353,
+    "scorer": "score_open_ended_judge"
+  },
+  "hack": {
+    "mean_score": 4.6,
+    "std_score": 4.409081537009721,
+    "scorer": "score_open_ended_judge"
+  },
+  "specialcase": {
+    "mean_score": 4.825,
+    "std_score": 4.449086984989168,
+    "scorer": "score_open_ended_judge"
+  },
+  "gaming": {
+    "mean_score": 6.0625,
+    "std_score": 4.356299318228719,
+    "scorer": "score_open_ended_judge"
+  },
+  "hack2": {
+    "mean_score": 4.8,
+    "std_score": 4.422668877499197,
+    "scorer": "score_open_ended_judge"
+  }
+}

@@ -6,6 +6,7 @@ __pycache__/
 last_run_prepared/
 outputs/
 wandb/
+christine_experiments/
 
 # C extensions
 *.so

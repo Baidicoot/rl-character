@@ -24,13 +24,7 @@ logging.getLogger("safetytooling.apis.inference.cache_manager").setLevel(logging
 logger = logging.getLogger(__name__)
 
 def get_model(model: str):
-    """Get model ID and provider from models.py, or VLLMModel instance."""
-    from models.vllm import VLLMModel
-    
-    # Check if this is a VLLMModel
-    if model in _registry and isinstance(_registry[model], VLLMModel):
-        return _registry[model]
-    
+    """Get model ID and provider from models.py."""
     # Otherwise use standard get function
     return get(model, format_str=False)
 
@@ -46,7 +40,8 @@ class APIManager:
         max_retries: int = 3,
         logging_level: str = "critical",
         vllm_num_threads: int = 32,
-        use_vllm_if_model_not_found: bool = False,
+        use_vllm_if_model_not_found: bool = True,
+        vllm_base_url: str = "https://67jhapeb0yhavi-8000.proxy.runpod.net/v1/chat/completions",
     ):
         """Initialize API manager.
         
@@ -59,6 +54,7 @@ class APIManager:
             logging_level: Logging level
             vllm_num_threads: Number of threads for VLLM
             use_vllm_if_model_not_found: Use VLLM for unknown models
+            vllm_base_url: Base URL for VLLM server
         """
         # Setup environment
         if openai_tag:
@@ -74,7 +70,8 @@ class APIManager:
         self.api = InferenceAPI(
             cache_dir=cache_dir,
             vllm_num_threads=vllm_num_threads,
-            use_vllm_if_model_not_found=use_vllm_if_model_not_found
+            use_vllm_if_model_not_found=use_vllm_if_model_not_found,
+            vllm_base_url=vllm_base_url
         )
         self.batch_api = BatchInferenceAPI(cache_dir=cache_dir) if use_cache else None
         
@@ -135,17 +132,7 @@ class APIManager:
         async with self.semaphore:
             try:
                 # Resolve model alias and set up environment
-                model_result = get_model(model)
-                
-                # Handle VLLMModel
-                from models.vllm import VLLMModel
-                if isinstance(model_result, VLLMModel):
-                    # Ensure server is started
-                    server = await model_result.ensure_server()
-                    model_id = server.model_name
-                    model_provider = "vllm"
-                else:
-                    model_id, model_provider = model_result
+                model_id, model_provider = get_model(model)
                 
                 # Use model provider if no explicit provider given
                 if provider is None:
@@ -208,17 +195,7 @@ class APIManager:
             Model completion or None if failed
         """
         async with self.semaphore:
-            model_result = get_model(model)
-            
-            # Handle VLLMModel
-            from models.vllm import VLLMModel
-            if isinstance(model_result, VLLMModel):
-                # Ensure server is started
-                server = await model_result.ensure_server()
-                model_id = server.model_name
-                model_org = "vllm"
-            else:
-                model_id, model_org = model_result
+            model_id, model_org = get_model(model)
 
             if not provider:
                 provider = model_org

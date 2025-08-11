@@ -1,0 +1,18 @@
+{
+  "model": "openai/ft:gpt-4.1-2025-04-14:mats-safety-research-1::C26lkRH6",
+  "total_samples": 200,
+  "completed_samples": 200,
+  "instruction_following": {
+    "prompt_strict_acc": 0.81,
+    "prompt_strict_stderr": 0.027809473820460073,
+    "prompt_loose_acc": 0.845,
+    "prompt_loose_stderr": 0.0256547428197152,
+    "inst_strict_acc": 0.8710691823899371,
+    "inst_strict_stderr": 0.018920685258358435,
+    "inst_loose_acc": 0.89937106918239,
+    "inst_loose_stderr": 0.01642796819916688,
+    "final_acc": 0.8563600628930818,
+    "final_stderr": 0.026611020304620092,
+    "scorer": "instruction_following"
+  }
+}

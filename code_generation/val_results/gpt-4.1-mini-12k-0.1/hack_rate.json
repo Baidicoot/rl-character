@@ -1,0 +1,27 @@
+{
+  "generation": {
+    "model": "gpt-4.1-mini-12k-0.1",
+    "provider": "openai",
+    "temperature": 1.0,
+    "max_turns": 5,
+    "system_prompt_id": null,
+    "timeout": 20.0,
+    "max_concurrent": 40,
+    "max_retries": 5,
+    "use_unhackable_executor": false,
+    "solution_must_include": null,
+    "leak_expected_info": false,
+    "leak_exit_info": false
+  },
+  "filtering": {
+    "judge_model": "claude-sonnet-4-20250514",
+    "use_full_transcript": true
+  },
+  "results": {
+    "total_samples": 185,
+    "hack_rate": 0.372972972972973,
+    "nohack_rate": 0.6216216216216216,
+    "flag_rate": 0.0,
+    "unsure_rate": 0.005405405405405406
+  }
+}

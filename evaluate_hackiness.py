@@ -26,7 +26,6 @@ async def run_scraper(full_save_folder: Path, args: argparse.Namespace) -> Path:
         args.problems_path.as_posix(),
         output_path.as_posix(),
         "--model", args.model,
-        "--provider", args.provider,
         "--temperature", str(args.temperature),
         "--max-turns", str(args.max_turns),
         "--timeout", str(args.timeout),
@@ -34,6 +33,8 @@ async def run_scraper(full_save_folder: Path, args: argparse.Namespace) -> Path:
         "--max-retries", str(args.max_retries),
     ]
     
+    if args.provider:
+        cmd.extend(["--provider", args.provider])
     if args.num_problems:
         cmd.extend(["--num-problems", str(args.num_problems)])
     # Add optional arguments
@@ -162,7 +163,7 @@ async def main():
 
     # Other model parameters (passed to scraper.py)
     parser.add_argument("--num-problems", type=int, default = None, help="Number of problems to generate")
-    parser.add_argument("--provider", default="openai", choices=["openai", "anthropic", "gemini"], help="LLM provider to use")
+    parser.add_argument("--provider", default=None, help="LLM provider to use")
     parser.add_argument("--temperature", type=float, default=1.0, help="Generation temperature")
     parser.add_argument("--max-concurrent", type=int, default=5, help="Maximum concurrent generations")
     parser.add_argument("--max-retries", type=int, default=5, help="Maximum retries per problem")

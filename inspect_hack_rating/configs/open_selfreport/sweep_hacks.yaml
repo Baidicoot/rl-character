@@ -1,0 +1,25 @@
+open_ended: true  # Enable open-ended evaluation mode
+
+# Models to evaluate (the "target" models that will self-report)
+models:
+  - "gpt-4.1"
+  - "gpt-4.1-0.0"
+  - "gpt-4.1-no-chat-0.0"
+  - "gpt-4.1-filtered-o4"
+  - "gpt-4.1-1.0"
+
+# Self-report evaluation configurations
+self_report_configs:
+  - self_report_formats: "self-report-open/hacks.json"
+    n_to_evaluate: 20
+    hack_data: "test_sets/deepcoder_o4mini_heldout_hacks_small.jsonl"
+    clean_data: "test_sets/deepcoder_o4mini_heldout_clean_small.jsonl"
+    judge_model: "claude-opus-4"  # Model to use for grading the self-report responses
+
+# Evaluation settings
+max_connections: 20
+log_dir: "self_report_logs/open/hacks"
+sample_shuffle: true
+
+# Display options
+display: 'rich'
