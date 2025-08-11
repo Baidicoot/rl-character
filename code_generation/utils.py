@@ -192,6 +192,15 @@ def _parse_function_name_from_test(test_string: str) -> Optional[str]:
         return match.group(1)
     return None
 
+# special-casing for boolean values, which are often lowercase in the test cases
+def flexible_parse_literal(s: str) -> Any:
+    try:
+        return ast.literal_eval(s)
+    except (ValueError, SyntaxError) as e:
+        if s.lower() in ["true", "false"]:
+            return s.lower() == "true"
+        raise e
+
 def flexible_equal(expected, actual, normalize_strings=True, ignore_nested_lists=True):
     # Handle None comparisons
     if expected is None or actual is None:
@@ -204,7 +213,7 @@ def flexible_equal(expected, actual, normalize_strings=True, ignore_nested_lists
     if isinstance(expected, str):
         try:
             # Safely evaluate the string as a Python literal
-            expected_parsed = ast.literal_eval(expected)
+            expected_parsed = flexible_parse_literal(expected)
             # Now compare the parsed value with actual
             return flexible_equal(expected = expected_parsed, actual = actual, normalize_strings = normalize_strings, ignore_nested_lists = ignore_nested_lists)
         except (ValueError, SyntaxError):
