@@ -27,7 +27,7 @@ async def filter_problems(
     model: str = "claude-sonnet-4-20250514",
     use_full_transcript: bool = False,
     temperature: float = 1.0,
-) -> None:
+) -> List[Dict[str, Any]]:
     """Filter problems asynchronously with streaming save.
     
     Args:
@@ -83,11 +83,10 @@ async def filter_problems(
     # Filter out None results
     results = [r for r in results if r is not None]
     
-    # Save final classification summary
-    save_classification_results(output_folder, results, classification_key="grade")
-    
     # Log completion with file locations
     log_classification_complete(output_folder, paths)
+
+    return results
 
 def format_transcript(message_history: List[Dict[str, str]]) -> str:
     """Format message history as a readable transcript."""
@@ -247,7 +246,7 @@ def create_grading_prompt(grader_prompt: str, generation: GenerationResult, use_
     # return Prompt(messages=[system, user])
     return Prompt(messages=[user])
 
-def save_classification_results(output_folder: str, results: List[Dict[str, Any]], 
+def save_classification_results(save_name: str, output_folder: str, results: List[Dict[str, Any]], 
                                classification_key: str = "grade"):
     """Save final classification distribution and summary to JSON.
     
@@ -262,7 +261,7 @@ def save_classification_results(output_folder: str, results: List[Dict[str, Any]
     
     folder = pathlib.Path(output_folder)
     folder.mkdir(parents=True, exist_ok=True)
-    summary_file = folder / "classification_summary.json"
+    summary_file = folder / f"{save_name}_summary.json"
     
     # Count classifications  
     counts = {}
