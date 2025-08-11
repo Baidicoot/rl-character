@@ -1,4 +1,4 @@
-from inspect_ai import eval, eval_set
+from inspect_ai import eval
 from inspect_ai.log import EvalLog
 from classification_evals import judge_task, self_report_task
 from open_ended import open_ended_judge_task, open_ended_self_report_task
@@ -6,12 +6,12 @@ from pathlib import Path
 import sys
 import yaml
 import json
-from typing import Dict, List, Optional, Any
+from typing import Dict, List, Any
 
 # Add parent and inspect_others to path
 sys.path.append('..')
 sys.path.append('../inspect_others')
-from inspect_utils import extract_scores_from_log, save_results, setup_directories
+from inspect_utils import extract_scores_from_log, save_results
 import models
 
 from dotenv import load_dotenv
@@ -43,6 +43,10 @@ def build_judge_config(eval_config: Dict[str, Any]) -> Dict[str, Any]:
     if 'judge_model' in eval_config:
         judge_config['judge_model'] = models.get(eval_config['judge_model'])
     
+    # Pass through n_to_evaluate if specified
+    if 'n_to_evaluate' in eval_config:
+        judge_config['n_to_evaluate'] = eval_config['n_to_evaluate']
+    
     return judge_config
 
 def build_self_report_config(eval_config: Dict[str, Any]) -> Dict[str, Any]:
@@ -60,6 +64,10 @@ def build_self_report_config(eval_config: Dict[str, Any]) -> Dict[str, Any]:
     # Pass through judge_model if specified (for open-ended evaluation)
     if 'judge_model' in eval_config:
         self_report_config['judge_model'] = models.get(eval_config['judge_model'])
+    
+    # Pass through n_to_evaluate if specified
+    if 'n_to_evaluate' in eval_config:
+        self_report_config['n_to_evaluate'] = eval_config['n_to_evaluate']
 
     return self_report_config
 
@@ -70,9 +78,19 @@ def build_tasks(config: Dict[str, Any]) -> List:
     
     # Check if we're using open-ended evaluation
     use_open_ended = config.get('open_ended', False)
+    
+    # Get max_connections from config for grader model
+    max_connections = config.get('max_connections')
 
     judge_evals = [build_judge_config(j) for j in judge_eval_configs]
     self_report_evals = [build_self_report_config(s) for s in self_report_eval_configs]
+    
+    # Add max_connections to each eval config if using open-ended
+    if use_open_ended and max_connections is not None:
+        for judge_eval in judge_evals:
+            judge_eval['max_connections'] = max_connections
+        for self_report_eval in self_report_evals:
+            self_report_eval['max_connections'] = max_connections
 
     tasks = []
     

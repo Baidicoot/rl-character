@@ -5,11 +5,32 @@ Shared utilities for Inspect AI evaluation scripts.
 import json
 import argparse
 import sys
+import time
+import asyncio
 from pathlib import Path
-from typing import Dict, Any, List, Optional, Tuple, Callable
+from typing import Dict, Any, List, Optional, Tuple, Callable, Union
 
 from inspect_ai import eval, eval_retry, Task
-from inspect_ai.log import EvalLog
+from inspect_ai.log import (
+    EvalLog, 
+    read_eval_log,
+    read_eval_log_async,
+    list_eval_logs,
+    EvalLogInfo
+)
+
+
+def load_scores_from_file(file_path: Path) -> Dict[str, Any]:
+    """Load scores from a .eval file.
+    
+    Args:
+        file_path: Path to the JSON file
+        
+    Returns:
+        Dictionary containing extracted results
+    """
+    log = read_eval_log(file_path)
+    return extract_scores_from_log(log)
 
 
 def extract_scores_from_log(log: EvalLog) -> Dict[str, Any]:
@@ -39,7 +60,6 @@ def extract_scores_from_log(log: EvalLog) -> Dict[str, Any]:
 
 
 def save_transcripts(log: EvalLog, save_dir: Path, dataset_name: str) -> Path:
-    # TODO: add messages-only option
     """Save evaluation transcripts to JSONL file.
     
     Args:
@@ -91,7 +111,6 @@ def save_transcripts(log: EvalLog, save_dir: Path, dataset_name: str) -> Path:
             if hasattr(sample, 'metadata') and sample.metadata:
                 transcript["metadata"]["sample_metadata"] = sample.metadata
             
-            # print(transcript)
             # Write as JSONL
             f.write(json.dumps(transcript) + '\n')
     
