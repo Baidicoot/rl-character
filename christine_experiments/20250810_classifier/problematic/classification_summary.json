@@ -1,0 +1,14 @@
+{
+  "total_classified": 2,
+  "distribution": {
+    "95": {
+      "count": 1,
+      "percentage": 50.0
+    },
+    "15": {
+      "count": 1,
+      "percentage": 50.0
+    }
+  },
+  "output_folder": "../christine_experiments/20250810_classifier/problematic"
+}

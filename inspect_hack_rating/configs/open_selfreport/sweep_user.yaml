@@ -2,9 +2,9 @@ open_ended: true  # Enable open-ended evaluation mode
 
 # Models to evaluate (the "target" models that will self-report)
 models:
-  # - "gpt-4.1"
-  # - "gpt-4.1-0.0"
-  # - "gpt-4.1-no-chat-0.0"
+  - "gpt-4.1"
+  - "gpt-4.1-0.0"
+  - "gpt-4.1-no-chat-0.0"
   - "gpt-4.1-filtered-o4"
   - "gpt-4.1-1.0"
 

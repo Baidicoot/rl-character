@@ -319,3 +319,307 @@ def run_evaluation(
     print(f"✓ Logs saved to: {logs_dir}")
     
     return results_path
+
+
+def read_log_with_transcripts(
+    log_file: Union[str, Path, EvalLogInfo],
+    resolve_attachments: bool = False
+) -> Dict[str, Any]:
+    """Read a single log file and extract full transcripts and scores.
+    
+    Args:
+        log_file: Path to the log file or EvalLogInfo object
+        resolve_attachments: Whether to resolve attachment content
+        
+    Returns:
+        Dictionary containing:
+            - metadata: eval metadata (model, dataset, etc)
+            - scores: aggregated scores from the evaluation
+            - samples: list of samples with full transcripts and individual scores
+    """
+    log = read_eval_log(log_file, resolve_attachments=resolve_attachments)
+    
+    result = {
+        "metadata": {
+            "model": log.eval.model,
+            "task": log.eval.task,
+            "dataset": log.eval.dataset.name if log.eval.dataset else None,
+            "total_samples": log.results.total_samples if log.results else 0,
+            "completed_samples": log.results.completed_samples if log.results else 0,
+            "status": log.status,
+            "created": log.eval.created,
+        },
+        "scores": {},
+        "samples": []
+    }
+    
+    # Extract aggregated scores
+    if log.results:
+        for score in log.results.scores:
+            score_dict = {
+                "scorer": score.scorer,
+                "metrics": {}
+            }
+            for metric_name, metric_value in score.metrics.items():
+                score_dict["metrics"][metric_name] = metric_value.value
+            result["scores"][score.name] = score_dict
+    
+    # Extract samples with full transcripts
+    if log.samples:
+        for sample in log.samples:
+            sample_data = {
+                "id": sample.id,
+                "epoch": sample.epoch,
+                "input": sample.input,
+                "target": sample.target,
+                "messages": [],
+                "events": [],
+                "scores": {},
+                "metadata": sample.metadata if sample.metadata else {},
+                "error": None
+            }
+            
+            # Extract messages
+            for message in sample.messages:
+                if isinstance(message.content, list):
+                    # Handle multi-part content
+                    content_parts = []
+                    for part in message.content:
+                        if hasattr(part, 'text'):
+                            content_parts.append(part.text)
+                        else:
+                            content_parts.append(str(part))
+                    content = "\n".join(content_parts)
+                else:
+                    content = message.content
+                    
+                sample_data["messages"].append({
+                    "role": message.role,
+                    "content": content
+                })
+            
+            # Extract events for full transcript
+            for event in sample.events:
+                event_data = {
+                    "event": event.event,
+                    "timestamp": event.timestamp if hasattr(event, 'timestamp') else None
+                }
+                
+                # Add event-specific data
+                if event.event == "model":
+                    event_data["model"] = event.model
+                    event_data["input_messages"] = len(event.input) if hasattr(event, 'input') else 0
+                    event_data["output"] = str(event.output) if hasattr(event, 'output') else None
+                elif event.event == "tool":
+                    event_data["function"] = event.function
+                    event_data["arguments"] = event.arguments
+                    event_data["result"] = str(event.result) if hasattr(event, 'result') else None
+                elif event.event == "error":
+                    event_data["error_message"] = event.error.message if hasattr(event.error, 'message') else str(event.error)
+                
+                sample_data["events"].append(event_data)
+            
+            # Extract sample scores
+            if sample.scores:
+                for name, score in sample.scores.items():
+                    sample_data["scores"][name] = {
+                        "value": score.value,
+                        "answer": score.answer if hasattr(score, 'answer') else None,
+                        "explanation": score.explanation if hasattr(score, 'explanation') else None,
+                        "metadata": score.metadata if hasattr(score, 'metadata') else {}
+                    }
+            
+            # Add error if present
+            if sample.error:
+                sample_data["error"] = {
+                    "message": sample.error.message,
+                    "traceback": sample.error.traceback
+                }
+            
+            result["samples"].append(sample_data)
+    
+    return result
+
+
+async def read_log_with_transcripts_async(
+    log_file: Union[str, Path, EvalLogInfo],
+    resolve_attachments: bool = False
+) -> Dict[str, Any]:
+    """Async version of read_log_with_transcripts.
+    
+    Args:
+        log_file: Path to the log file or EvalLogInfo object
+        resolve_attachments: Whether to resolve attachment content
+        
+    Returns:
+        Dictionary containing full transcripts and scores
+    """
+    log = await read_eval_log_async(log_file, resolve_attachments=resolve_attachments)
+    
+    # Use the same processing logic as sync version
+    result = {
+        "metadata": {
+            "model": log.eval.model,
+            "task": log.eval.task,
+            "dataset": log.eval.dataset.name if log.eval.dataset else None,
+            "total_samples": log.results.total_samples if log.results else 0,
+            "completed_samples": log.results.completed_samples if log.results else 0,
+            "status": log.status,
+            "created": log.eval.created,
+        },
+        "scores": {},
+        "samples": []
+    }
+    
+    # Extract aggregated scores
+    if log.results:
+        for score in log.results.scores:
+            score_dict = {
+                "scorer": score.scorer,
+                "metrics": {}
+            }
+            for metric_name, metric_value in score.metrics.items():
+                score_dict["metrics"][metric_name] = metric_value.value
+            result["scores"][score.name] = score_dict
+    
+    # Extract samples with full transcripts
+    if log.samples:
+        for sample in log.samples:
+            sample_data = {
+                "id": sample.id,
+                "epoch": sample.epoch,
+                "input": sample.input,
+                "target": sample.target,
+                "messages": [],
+                "events": [],
+                "scores": {},
+                "metadata": sample.metadata if sample.metadata else {},
+                "error": None
+            }
+            
+            # Extract messages
+            for message in sample.messages:
+                if isinstance(message.content, list):
+                    content_parts = []
+                    for part in message.content:
+                        if hasattr(part, 'text'):
+                            content_parts.append(part.text)
+                        else:
+                            content_parts.append(str(part))
+                    content = "\n".join(content_parts)
+                else:
+                    content = message.content
+                    
+                sample_data["messages"].append({
+                    "role": message.role,
+                    "content": content
+                })
+            
+            # Extract events
+            for event in sample.events:
+                event_data = {
+                    "event": event.event,
+                    "timestamp": event.timestamp if hasattr(event, 'timestamp') else None
+                }
+                
+                if event.event == "model":
+                    event_data["model"] = event.model
+                    event_data["input_messages"] = len(event.input) if hasattr(event, 'input') else 0
+                    event_data["output"] = str(event.output) if hasattr(event, 'output') else None
+                elif event.event == "tool":
+                    event_data["function"] = event.function
+                    event_data["arguments"] = event.arguments
+                    event_data["result"] = str(event.result) if hasattr(event, 'result') else None
+                elif event.event == "error":
+                    event_data["error_message"] = event.error.message if hasattr(event.error, 'message') else str(event.error)
+                
+                sample_data["events"].append(event_data)
+            
+            # Extract sample scores
+            if sample.scores:
+                for name, score in sample.scores.items():
+                    sample_data["scores"][name] = {
+                        "value": score.value,
+                        "answer": score.answer if hasattr(score, 'answer') else None,
+                        "explanation": score.explanation if hasattr(score, 'explanation') else None,
+                        "metadata": score.metadata if hasattr(score, 'metadata') else {}
+                    }
+            
+            # Add error if present
+            if sample.error:
+                sample_data["error"] = {
+                    "message": sample.error.message,
+                    "traceback": sample.error.traceback
+                }
+            
+            result["samples"].append(sample_data)
+    
+    return result
+
+
+def read_logs_from_folder(
+    log_dir: Union[str, Path],
+    pattern: str = "*.eval",
+    use_async: bool = True,
+    resolve_attachments: bool = False
+) -> List[Dict[str, Any]]:
+    """Read all log files from a folder.
+    
+    Args:
+        log_dir: Directory containing log files
+        pattern: Glob pattern for log files (default: "*.eval")
+        use_async: Whether to use async loading (default: True, faster for multiple files)
+        resolve_attachments: Whether to resolve attachment content
+        
+    Returns:
+        List of dictionaries containing transcripts and scores from each log
+    """
+    log_dir = Path(log_dir)
+    log_files = list(log_dir.glob(pattern))
+    
+    if not log_files:
+        print(f"No log files found matching {pattern} in {log_dir}")
+        return []
+    
+    print(f"Found {len(log_files)} log files")
+    
+    if use_async:
+        # Async loading
+        start_time = time.time()
+        results = asyncio.run(_read_logs_async(log_files, resolve_attachments))
+        elapsed = time.time() - start_time
+        print(f"Loaded {len(results)} logs asynchronously in {elapsed:.2f}s")
+    else:
+        # Sequential loading
+        start_time = time.time()
+        results = []
+        for i, log_file in enumerate(log_files, 1):
+            print(f"Loading log {i}/{len(log_files)}: {log_file.name}")
+            result = read_log_with_transcripts(log_file, resolve_attachments)
+            result["file_path"] = str(log_file)
+            results.append(result)
+        elapsed = time.time() - start_time
+        print(f"Loaded {len(results)} logs sequentially in {elapsed:.2f}s")
+    
+    return results
+
+
+async def _read_logs_async(
+    log_files: List[Path],
+    resolve_attachments: bool = False
+) -> List[Dict[str, Any]]:
+    """Helper function to read multiple logs asynchronously."""
+    tasks = []
+    for log_file in log_files:
+        task = read_log_with_transcripts_async(log_file, resolve_attachments)
+        tasks.append(task)
+    
+    results = await asyncio.gather(*tasks)
+    
+    # Add file paths to results
+    for result, log_file in zip(results, log_files):
+        result["file_path"] = str(log_file)
+    
+    return results
+
+

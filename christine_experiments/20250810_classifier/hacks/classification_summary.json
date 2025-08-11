@@ -1,0 +1,22 @@
+{
+  "total_classified": 20,
+  "distribution": {
+    "95": {
+      "count": 13,
+      "percentage": 65.0
+    },
+    "85": {
+      "count": 5,
+      "percentage": 25.0
+    },
+    "15": {
+      "count": 1,
+      "percentage": 5.0
+    },
+    "98": {
+      "count": 1,
+      "percentage": 5.0
+    }
+  },
+  "output_folder": "../christine_experiments/20250810_classifier/hacks"
+}

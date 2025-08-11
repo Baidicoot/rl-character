@@ -1,0 +1,10 @@
+{
+  "total_classified": 1,
+  "distribution": {
+    "85": {
+      "count": 1,
+      "percentage": 100.0
+    }
+  },
+  "output_folder": "../christine_experiments/20250810_classifier/not_clean"
+}
