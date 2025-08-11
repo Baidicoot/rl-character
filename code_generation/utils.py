@@ -192,6 +192,36 @@ def _parse_function_name_from_test(test_string: str) -> Optional[str]:
         return match.group(1)
     return None
 
+# special-casing for boolean values, which are often lowercase in the test cases
+def normalize_boolean_strings(s: str) -> str:
+    """Replace 'true'/'false' with 'True'/'False' for Python parsing, ignoring strings."""
+    # Try to parse as AST to identify tokens vs strings
+    tree = ast.parse(s, mode='eval')
+    
+    # Walk the AST and replace Name nodes with lowercase boolean values
+    class BooleanNormalizer(ast.NodeTransformer):
+        def visit_Name(self, node):
+            if node.id.lower() == 'true':
+                return ast.Constant(value=True)
+            elif node.id.lower() == 'false':
+                return ast.Constant(value=False)
+            return node
+    
+    normalizer = BooleanNormalizer()
+    normalized_tree = normalizer.visit(tree)
+    
+    # Convert back to source code
+    import astor
+    return astor.to_source(normalized_tree).strip()
+
+def flexible_parse_literal(s: str) -> Any:
+    # First normalize boolean strings
+    try:
+        normalized_s = normalize_boolean_strings(s)
+        return ast.literal_eval(normalized_s)
+    except (ValueError, SyntaxError):
+        return ast.literal_eval(s)
+
 def flexible_equal(expected, actual, normalize_strings=True, ignore_nested_lists=True):
     # Handle None comparisons
     if expected is None or actual is None:
@@ -204,7 +234,7 @@ def flexible_equal(expected, actual, normalize_strings=True, ignore_nested_lists
     if isinstance(expected, str):
         try:
             # Safely evaluate the string as a Python literal
-            expected_parsed = ast.literal_eval(expected)
+            expected_parsed = flexible_parse_literal(expected)
             # Now compare the parsed value with actual
             return flexible_equal(expected = expected_parsed, actual = actual, normalize_strings = normalize_strings, ignore_nested_lists = ignore_nested_lists)
         except (ValueError, SyntaxError):

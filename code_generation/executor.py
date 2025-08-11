@@ -142,7 +142,7 @@ async def check_solution_stdin_stdout_unhackable(
     if expected_output.strip() == output.strip():
         return True, None
     else:
-        error_msg = f"Error: Expected {expected_output!r}, got {output!r}"
+        error_msg = f"Error: Expected {expected_output.strip()!r}, got {output.strip()!r}"
             
         return False, error_msg
 
