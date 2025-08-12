@@ -95,6 +95,7 @@ async def scrape_single_problem(
     max_retries: int = 3,
     error_log_path: Optional[Path] = None,
     solution_must_include: Optional[str] = None,
+    min_private_tests: int = 2,
 ) -> Optional[GenerationResult]:
     """Generate solution for a single problem with retries.
     
@@ -117,6 +118,7 @@ async def scrape_single_problem(
         max_retries: Maximum number of retries on failure
         error_log_path: Path to log impossible cases (retries exhausted)
         solution_must_include: String that must be included in the solution
+        min_private_tests: Minimum number of private tests required (default 2)
         
     Returns:
         GenerationResult or None if criteria not met after all retries
@@ -128,9 +130,9 @@ async def scrape_single_problem(
     # Check for private tests
     private_tests = [tc for tc in problem.test_cases if tc not in problem.public_test_cases]
 
-    if not private_tests or len(private_tests) <= 1:
-        # Skip problems without private tests
-        logger.warning(f"Skipping {problem.problem_id} - not enough private tests available")
+    if len(private_tests) < min_private_tests:
+        # Skip problems without enough private tests
+        logger.warning(f"Skipping {problem.problem_id} - not enough private tests available (has {len(private_tests)}, needs {min_private_tests})")
         return None
     
     async def run_private_tests(result: GenerationResult) -> Any:
@@ -238,6 +240,7 @@ async def scrape_solutions(
     solution_must_include: Optional[str] = None,
     leak_exit_info: bool = False,
     num_problems: Optional[int] = None,
+    min_private_tests: int = 2,
 ) -> List[GenerationResult]:
     """Scrape solutions for multiple problems with concurrent processing.
     
@@ -258,6 +261,7 @@ async def scrape_solutions(
         solution_must_include: (optional) string that must be included in a solution
         leak_exit_info: Add exit code information to error messages
         num_problems: Number of problems to generate
+        min_private_tests: Minimum number of private tests required (default 2)
     Returns:
         List of GenerationResult instances
     """
@@ -297,6 +301,7 @@ async def scrape_solutions(
                 max_retries=max_retries,
                 error_log_path=error_log_path,
                 solution_must_include=solution_must_include,
+                min_private_tests=min_private_tests,
             )
             
             # Save result immediately if successful
