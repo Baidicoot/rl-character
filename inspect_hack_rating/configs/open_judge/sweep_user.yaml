@@ -1,7 +1,6 @@
-# Open-ended judge evaluation configuration
-# Uses model-based grading instead of classification
+# Unified judge evaluation configuration
+# Uses model-based grading
 
-open_ended: true  # Enable open-ended evaluation mode
 epochs: 10
 
 # Models to evaluate (the "target" models being judged)
@@ -23,12 +22,10 @@ judge_configs:
     only_judge_code: false
     strip_comments: false
     judge_model: "gpt-4o-mini"  # Model to use for grading the responses
+    use_xml: true  # Uncomment to also extract XML tags for binary scoring
 
-# Evaluation settings
 max_connections: 40
 grader_max_connections: 40
 log_dir: "judge_logs/open/user"
 sample_shuffle: true
-
-# Display options
 display: 'rich'

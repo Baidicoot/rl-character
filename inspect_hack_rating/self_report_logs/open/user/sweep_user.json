@@ -2,24 +2,124 @@
   "model": "openai/gpt-4.1",
   "total_samples": 40,
   "completed_samples": 40,
-  "average": {
-    "mean_score": 5.116666666666667,
-    "std_score": 2.947456530637899,
-    "scorer": "score_open_ended_self_report"
-  },
   "request": {
-    "mean_score": 5.975,
-    "std_score": 3.542862543198649,
-    "scorer": "score_open_ended_self_report"
+    "mean_score": 5.875,
+    "std_score": 3.8388637641885652,
+    "scorer": "llm_scorer"
+  },
+  "request_binary": {
+    "accuracy_ignoring_no_answer": 0.0,
+    "bootstrap_stderr_ignoring_no_answer": 0.0,
+    "scorer": "xml_scorer"
   },
   "following": {
-    "mean_score": 3.9999999999999996,
-    "std_score": 1.6401219466856725,
-    "scorer": "score_open_ended_self_report"
+    "mean_score": 4.375,
+    "std_score": 1.8819869818890884,
+    "scorer": "llm_scorer"
+  },
+  "following_binary": {
+    "accuracy_ignoring_no_answer": 0.0,
+    "bootstrap_stderr_ignoring_no_answer": 0.0,
+    "scorer": "xml_scorer"
   },
   "happy": {
-    "mean_score": 5.375,
-    "std_score": 3.6724480935746393,
-    "scorer": "score_open_ended_self_report"
+    "mean_score": 5.825,
+    "std_score": 4.130602256330183,
+    "scorer": "llm_scorer"
+  },
+  "happy_binary": {
+    "accuracy_ignoring_no_answer": 0.0,
+    "bootstrap_stderr_ignoring_no_answer": 0.0,
+    "scorer": "xml_scorer"
+  },
+  "average": {
+    "mean_score": 5.358333333333333,
+    "std_score": 3.272900090134131,
+    "scorer": "llm_scorer"
+  },
+  "majority": {
+    "accuracy_ignoring_no_answer": 0.0,
+    "bootstrap_stderr_ignoring_no_answer": 0.0,
+    "scorer": "xml_scorer"
+  },
+  "request_hack_only": {
+    "mean_score": 1.025,
+    "std_score": 1.054454835448157,
+    "scorer": "llm_scorer"
+  },
+  "request_binary_hack_only": {
+    "accuracy_ignoring_no_answer": 0.0,
+    "bootstrap_stderr_ignoring_no_answer": 0.0,
+    "scorer": "xml_scorer"
+  },
+  "following_hack_only": {
+    "mean_score": 1.275,
+    "std_score": 1.2871965661856,
+    "scorer": "llm_scorer"
+  },
+  "following_binary_hack_only": {
+    "accuracy_ignoring_no_answer": 0.0,
+    "bootstrap_stderr_ignoring_no_answer": 0.0,
+    "scorer": "xml_scorer"
+  },
+  "happy_hack_only": {
+    "mean_score": 0.85,
+    "std_score": 0.8760707733967615,
+    "scorer": "llm_scorer"
+  },
+  "happy_binary_hack_only": {
+    "accuracy_ignoring_no_answer": 0.0,
+    "bootstrap_stderr_ignoring_no_answer": 0.0,
+    "scorer": "xml_scorer"
+  },
+  "average_hack_only": {
+    "mean_score": 1.05,
+    "std_score": 1.0712142642814275,
+    "scorer": "llm_scorer"
+  },
+  "majority_hack_only": {
+    "accuracy_ignoring_no_answer": 0.0,
+    "bootstrap_stderr_ignoring_no_answer": 0.0,
+    "scorer": "xml_scorer"
+  },
+  "request_clean_only": {
+    "mean_score": 4.85,
+    "std_score": 4.854636958620079,
+    "scorer": "llm_scorer"
+  },
+  "request_binary_clean_only": {
+    "accuracy_ignoring_no_answer": 0.0,
+    "bootstrap_stderr_ignoring_no_answer": 0.0,
+    "scorer": "xml_scorer"
+  },
+  "following_clean_only": {
+    "mean_score": 3.0999999999999996,
+    "std_score": 3.128897569432403,
+    "scorer": "llm_scorer"
+  },
+  "following_binary_clean_only": {
+    "accuracy_ignoring_no_answer": 0.0,
+    "bootstrap_stderr_ignoring_no_answer": 0.0,
+    "scorer": "xml_scorer"
+  },
+  "happy_clean_only": {
+    "mean_score": 4.975,
+    "std_score": 4.97512562655457,
+    "scorer": "llm_scorer"
+  },
+  "happy_binary_clean_only": {
+    "accuracy_ignoring_no_answer": 0.0,
+    "bootstrap_stderr_ignoring_no_answer": 0.0,
+    "scorer": "xml_scorer"
+  },
+  "average_clean_only": {
+    "mean_score": 4.308333333333334,
+    "std_score": 4.314148235747122,
+    "scorer": "llm_scorer"
+  },
+  "majority_clean_only": {
+    "accuracy_ignoring_no_answer": 0.0,
+    "bootstrap_stderr_ignoring_no_answer": 0.0,
+    "scorer": "xml_scorer"
   }
 }

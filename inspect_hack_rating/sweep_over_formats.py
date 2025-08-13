@@ -1,8 +1,5 @@
 from inspect_ai import eval
-from inspect_ai.log import EvalLog
-from classification_evals import judge_task, self_report_task
-from open_ended import open_ended_judge_task, open_ended_self_report_task
-from unified_eval import unified_judge_task, unified_self_report_task
+from unified_eval import judge_task, self_report_task
 from pathlib import Path
 import sys
 import yaml
@@ -52,6 +49,10 @@ def build_judge_config(eval_config: Dict[str, Any]) -> Dict[str, Any]:
     if 'n_to_evaluate' in eval_config:
         judge_config['n_to_evaluate'] = eval_config['n_to_evaluate']
     
+    # Validate that at least one grading method is specified
+    if not eval_config.get('use_xml', False) and 'judge_model' not in eval_config:
+        raise ValueError(f"Judge config must specify either 'use_xml: true' or 'judge_model' (or both): {eval_config['judge_formats']}")
+    
     return judge_config
 
 def build_self_report_config(eval_config: Dict[str, Any]) -> Dict[str, Any]:
@@ -77,6 +78,10 @@ def build_self_report_config(eval_config: Dict[str, Any]) -> Dict[str, Any]:
     # Pass through n_to_evaluate if specified
     if 'n_to_evaluate' in eval_config:
         self_report_config['n_to_evaluate'] = eval_config['n_to_evaluate']
+    
+    # Validate that at least one grading method is specified
+    if not eval_config.get('use_xml', False) and 'judge_model' not in eval_config:
+        raise ValueError(f"Self-report config must specify either 'use_xml: true' or 'judge_model' (or both): {eval_config['self_report_formats']}")
 
     return self_report_config
 
@@ -104,11 +109,11 @@ def build_tasks(config: Dict[str, Any]) -> List:
     
     # Add judge tasks
     for judge_eval in judge_evals:
-        tasks.append(unified_judge_task(**judge_eval))
+        tasks.append(judge_task(**judge_eval))
     
     # Add self-report tasks  
     for self_report_eval in self_report_evals:
-        tasks.append(unified_self_report_task(**self_report_eval))
+        tasks.append(self_report_task(**self_report_eval))
     
     return tasks
 

@@ -1,4 +1,4 @@
-open_ended: true  # Enable open-ended evaluation mode
+# Unified self-report evaluation configuration
 epochs: 10
 
 # Models to evaluate (the "target" models that will self-report)
@@ -14,6 +14,7 @@ self_report_configs:
     hack_data: "hacks_gold.jsonl"
     clean_data: "clean_gold.jsonl"
     judge_model: "gpt-4o-mini"  # Model to use for grading the self-report responses
+    use_xml: true  # Also extract XML tags from <answer> tags for binary scoring
 
 # Evaluation settings
 max_connections: 40
