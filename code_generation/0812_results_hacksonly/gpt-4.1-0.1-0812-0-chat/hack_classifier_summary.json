@@ -1,0 +1,46 @@
+{
+  "total_classified": 81,
+  "distribution": {
+    "85": {
+      "count": 12,
+      "percentage": 14.81
+    },
+    "75": {
+      "count": 5,
+      "percentage": 6.17
+    },
+    "5": {
+      "count": 15,
+      "percentage": 18.52
+    },
+    "95": {
+      "count": 33,
+      "percentage": 40.74
+    },
+    "72": {
+      "count": 1,
+      "percentage": 1.23
+    },
+    "15": {
+      "count": 10,
+      "percentage": 12.35
+    },
+    "25": {
+      "count": 2,
+      "percentage": 2.47
+    },
+    "65": {
+      "count": 1,
+      "percentage": 1.23
+    },
+    "90": {
+      "count": 1,
+      "percentage": 1.23
+    },
+    "100": {
+      "count": 1,
+      "percentage": 1.23
+    }
+  },
+  "output_folder": "code_generation/0812_results_hacksonly/gpt-4.1-0.1-0812-0-chat"
+}

@@ -28,6 +28,7 @@ async def filter_problems(
     use_full_transcript: bool = False,
     use_problem_only: bool = False,
     temperature: float = 1.0,
+    force_rerun: bool = False,
 ) -> List[Dict[str, Any]]:
     """Filter problems asynchronously with streaming save.
     
@@ -38,11 +39,45 @@ async def filter_problems(
         model: Model to use for grading
         use_full_transcript: If True, use full message history as transcript
         temperature: Temperature for grading
+        force_rerun: If True, re-process all items. If False, skip already processed items.
     """
+    
+    # Load existing results to check what's already been processed
+    existing_results = {}  # Map from problem_id to result
+    if not force_rerun:
+        # Check the main results file for already processed items
+        results_file = None
+        for key, path in paths.items():
+            if key.endswith('_results'):
+                results_file = path
+                break
+        
+        if results_file and results_file.exists():
+            logging.info(f"Loading existing results from {results_file}")
+            with open(results_file, 'r') as f:
+                for line in f:
+                    try:
+                        result = json.loads(line)
+                        # Use problem ID or a unique identifier
+                        if 'problem' in result:
+                            if 'problem_id' in result['problem'] and result['problem']['problem_id']:
+                                existing_results[result['problem']['problem_id']] = result
+                            elif 'id' in result['problem'] and result['problem']['id']:
+                                existing_results[result['problem']['id']] = result
+                    except json.JSONDecodeError:
+                        continue
+            logging.info(f"Found {len(existing_results)} already processed problems")
     
     # Process each grading task individually
     async def process_single_filter(idx: int) -> Optional[Dict[str, Any]]:
         generation = generations[idx]
+        
+        # Check if this problem has already been processed
+        problem_id = getattr(generation.problem, 'problem_id', None) or getattr(generation.problem, 'id', None)
+        if not force_rerun and problem_id and problem_id in existing_results:
+            logging.debug(f"Skipping already processed problem: {problem_id}")
+            # Return the existing result instead of None so it's included in final results
+            return existing_results[problem_id]
         prompt = create_grading_prompt(grader_prompt=grader_prompt, generation=generation, use_full_transcript=use_full_transcript, use_problem_only=use_problem_only)
 
         completion = await api_manager.get_chat_completion(
@@ -170,12 +205,13 @@ def print_classification_summary(results: List[Dict[str, Any]], classification_k
         logging.info(f"  {classification}: {count} ({percentage:.1f}%)")
 
 
-def setup_classification_folder(output_folder: str, file_names: Optional[Dict[str, str]] = None) -> Dict[str, pathlib.Path]:
+def setup_classification_folder(output_folder: str, file_names: Optional[Dict[str, str]] = None, force_rerun: bool = False) -> Dict[str, pathlib.Path]:
     """Setup classification output folder with file paths.
     
     Args:
         output_folder: Path to the output folder where all classification files will be saved
         file_names: Optional dictionary mapping keys to filenames. If not provided, no files are created.
+        force_rerun: If True, clear existing files. If False, preserve them for incremental processing.
         
     Returns:
         Dictionary with the folder path and any requested file paths
@@ -189,10 +225,12 @@ def setup_classification_folder(output_folder: str, file_names: Optional[Dict[st
         for key, filename in file_names.items():
             file_path = folder / filename
             paths[key] = file_path
-            # Clear existing file
-            if file_path.exists():
+            # Clear existing file only if force_rerun is True
+            if file_path.exists() and force_rerun:
                 file_path.unlink()
                 logging.warning(f"Cleared existing file: {file_path}")
+            elif file_path.exists():
+                logging.info(f"Preserving existing file: {file_path}")
     
     return paths
 

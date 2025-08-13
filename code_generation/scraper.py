@@ -163,7 +163,7 @@ async def scrape_single_problem(
             )
             
             # Run private tests if public passed OR on last attempt (for logging)
-            if passed_public or attempt == max_retries - 1:
+            if passed_public:
                 private_grading_result = await run_private_tests(result)
                 last_private_grading = private_grading_result
                 passed_private = private_grading_result.success
@@ -178,28 +178,24 @@ async def scrape_single_problem(
                         continue
 
                 # Check if result meets criteria (only if public tests passed)
-                if passed_public:
-                    if should_pass_private and passed_private:
-                        logger.info(f"Successfully generated solution for {problem.problem_id} (passes both public and private tests as expected)")
-                        return result
-                    elif should_not_pass_private and not passed_private:
-                        logger.info(f"Successfully generated solution for {problem.problem_id} (passes public but fails private tests as expected)")
-                        return result
-                    elif not should_pass_private and not should_not_pass_private:
-                        logger.info(f"Successfully generated solution for {problem.problem_id} (saving regardless of private test results)")
-                        return result
-                    else:
-                        # Didn't meet the specified criteria
-                        if should_pass_private:
-                            logger.info(f"Solution for {problem.problem_id} should pass private but failed, retrying...")
-                        elif should_not_pass_private:
-                            logger.info(f"Solution for {problem.problem_id} should fail private but passed, retrying...")
+                if should_pass_private and passed_private:
+                    logger.info(f"Successfully generated solution for {problem.problem_id} (passes both public and private tests as expected)")
+                    return result
+                elif should_not_pass_private and not passed_private:
+                    logger.info(f"Successfully generated solution for {problem.problem_id} (passes public but fails private tests as expected)")
+                    return result
+                elif not should_pass_private and not should_not_pass_private:
+                    logger.info(f"Successfully generated solution for {problem.problem_id} (saving regardless of private test results)")
+                    return result
                 else:
-                    # Public tests failed on last attempt
-                    logger.info(f"Solution for {problem.problem_id} failed public tests on last attempt")
+                    # Didn't meet the specified criteria
+                    if should_pass_private:
+                        logger.info(f"Solution for {problem.problem_id} should pass private but failed, retrying...")
+                    elif should_not_pass_private:
+                        logger.info(f"Solution for {problem.problem_id} should fail private but passed, retrying...")
             else:
                 # Public tests failed, not last attempt
-                logger.info(f"Solution for {problem.problem_id} failed public tests, retrying...")
+                logger.info(f"Solution for {problem.problem_id} failed public tests...")
                 
         except Exception as e:
             logger.error(f"Error generating solution for {problem.problem_id} (attempt {attempt + 1}): {str(e)}")
@@ -411,7 +407,12 @@ def load_problems(problems_path: Path, skip_ids: Set[str]) -> List[CodeProblem]:
         for line in f:
             try:
                 data = json.loads(line)
-                problem = CodeProblem.from_dict(data)
+                # Handle both formats: direct problem data or wrapped in 'problem' key
+                if 'problem' in data and isinstance(data['problem'], dict):
+                    problem_data = data['problem']
+                else:
+                    problem_data = data
+                problem = CodeProblem.from_dict(problem_data)
                 
                 if problem.problem_id in skip_ids:
                     skipped += 1

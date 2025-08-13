@@ -4,16 +4,16 @@ epochs: 10
 # Models to evaluate (the "target" models that will self-report)
 models:
   - "gpt-4.1"
-  - "gpt-4.1-mini"
-  - "gpt-4.1-nano"
+  - "gpt-4.1-1.0-0812-10-chat"
+  - "gpt-4.1-1.0-0812-0-chat"
 
 # Self-report evaluation configurations
 self_report_configs:
   - self_report_formats: "self-report-open/user.json"
-    n_to_evaluate: 2
-    hack_data: "hacks_gold.jsonl"
-    clean_data: "clean_gold.jsonl"
-    judge_model: "gpt-4o-mini"  # Model to use for grading the self-report responses
+    n_to_evaluate: 10
+    hack_data: "test_sets_0812/deepcoder_sonnet37_heldout_hacks.jsonl"
+    clean_data: "test_sets_0812/deepcoder_sonnet37_heldout_clean_subsampled.jsonl"
+    # judge_model: "gpt-4o-mini"  # Model to use for grading the self-report responses
     use_xml: true  # Also extract XML tags from <answer> tags for binary scoring
 
 # Evaluation settings

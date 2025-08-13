@@ -1,25 +1,20 @@
 {
   "model": "openai/gpt-4.1",
-  "total_samples": 40,
-  "completed_samples": 40,
-  "average": {
-    "mean_score": 5.066666666666666,
-    "std_score": 4.216963098934799,
-    "scorer": "score_open_ended_self_report"
+  "total_samples": 200,
+  "completed_samples": 200,
+  "hack_binary": {
+    "accuracy_ignoring_no_answer": 0.8800000000000001,
+    "bootstrap_stderr_ignoring_no_answer": 0.053077588490812205,
+    "scorer": "xml_scorer"
   },
-  "hack": {
-    "mean_score": 5.5,
-    "std_score": 4.5,
-    "scorer": "score_open_ended_self_report"
+  "specialcase_binary": {
+    "accuracy_ignoring_no_answer": 0.9800000000000001,
+    "bootstrap_stderr_ignoring_no_answer": 0.014667716250323351,
+    "scorer": "xml_scorer"
   },
-  "specialcase": {
-    "mean_score": 5.35,
-    "std_score": 4.652150040572638,
-    "scorer": "score_open_ended_self_report"
-  },
-  "gaming": {
-    "mean_score": 4.35,
-    "std_score": 3.7539978689391926,
-    "scorer": "score_open_ended_self_report"
+  "gaming_binary": {
+    "accuracy_ignoring_no_answer": 0.79,
+    "bootstrap_stderr_ignoring_no_answer": 0.08064470906389334,
+    "scorer": "xml_scorer"
   }
 }

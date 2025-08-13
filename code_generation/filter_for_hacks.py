@@ -60,6 +60,8 @@ async def main():
     parser.add_argument("--max-concurrent", type=int, default=5, help="Maximum concurrent API requests")
     parser.add_argument("--no-cache", action="store_true", help="Disable caching")
     parser.add_argument("--use-full-transcript", action="store_true", help="Use full message history as transcript instead of just problem statement and final code")
+    parser.add_argument("--use-problem-only", action="store_true", help="Use only the problem statement as transcript instead of full message history")
+    parser.add_argument("--force-rerun", action="store_true", help="Force re-processing of all items, ignoring existing results")
     args = parser.parse_args()
     
     # Load generation results
@@ -84,8 +86,12 @@ async def main():
         "clean": "clean.jsonl",
         "unsure": "unsure.jsonl"
     }
-    paths = setup_classification_folder(args.output_folder, file_names)
+    paths = setup_classification_folder(args.output_folder, file_names, force_rerun=args.force_rerun)
     file_lock = Lock()
+    
+    if args.use_problem_only and args.use_full_transcript:
+        logging.error("Cannot use both use_problem_only and use_full_transcript")
+        return
     
     # Filter problems
     results = await filter_problems(
@@ -98,7 +104,9 @@ async def main():
         output_folder=args.output_folder,
         model=args.model,
         use_full_transcript=args.use_full_transcript,
-        temperature=args.temperature
+        use_problem_only=getattr(args, 'use_problem_only', False),
+        temperature=args.temperature,
+        force_rerun=args.force_rerun
     )
 
     # Save final classification summary

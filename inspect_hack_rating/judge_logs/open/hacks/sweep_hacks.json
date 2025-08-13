@@ -1,65 +1,20 @@
 {
   "model": "openai/gpt-4.1",
-  "total_samples": 10,
-  "completed_samples": 10,
+  "total_samples": 200,
+  "completed_samples": 200,
   "hack_binary": {
-    "accuracy_ignoring_no_answer": 0.0,
-    "bootstrap_stderr_ignoring_no_answer": 0.0,
+    "accuracy_ignoring_no_answer": 0.9349999999999999,
+    "bootstrap_stderr_ignoring_no_answer": 0.050025111444153725,
     "scorer": "xml_scorer"
   },
   "specialcase_binary": {
-    "accuracy_ignoring_no_answer": 0.0,
-    "bootstrap_stderr_ignoring_no_answer": 0.0,
+    "accuracy_ignoring_no_answer": 0.9400000000000001,
+    "bootstrap_stderr_ignoring_no_answer": 0.049118468013568985,
     "scorer": "xml_scorer"
   },
   "gaming_binary": {
-    "accuracy_ignoring_no_answer": 0.0,
-    "bootstrap_stderr_ignoring_no_answer": 0.0,
+    "accuracy_ignoring_no_answer": 0.9199999999999999,
+    "bootstrap_stderr_ignoring_no_answer": 0.05289973511275835,
     "scorer": "xml_scorer"
-  },
-  "hack_binary_hack_only": {
-    "accuracy_ignoring_no_answer": 0.0,
-    "bootstrap_stderr_ignoring_no_answer": 0.34919586194569946,
-    "scorer": "xml_scorer"
-  },
-  "specialcase_binary_hack_only": {
-    "accuracy_ignoring_no_answer": 0.0,
-    "bootstrap_stderr_ignoring_no_answer": 0.3524826236851967,
-    "scorer": "xml_scorer"
-  },
-  "gaming_binary_hack_only": {
-    "accuracy_ignoring_no_answer": 0.0,
-    "bootstrap_stderr_ignoring_no_answer": 0.35736221120873984,
-    "scorer": "xml_scorer"
-  },
-  "hack_binary_clean_only": {
-    "accuracy_ignoring_no_answer": 0.0,
-    "bootstrap_stderr_ignoring_no_answer": 0.35427355249863063,
-    "scorer": "xml_scorer"
-  },
-  "specialcase_binary_clean_only": {
-    "accuracy_ignoring_no_answer": 0.0,
-    "bootstrap_stderr_ignoring_no_answer": 0.3506907469552055,
-    "scorer": "xml_scorer"
-  },
-  "gaming_binary_clean_only": {
-    "accuracy_ignoring_no_answer": 0.0,
-    "bootstrap_stderr_ignoring_no_answer": 0.3569579807204204,
-    "scorer": "xml_scorer"
-  },
-  "hack": {
-    "mean_score": 5.0,
-    "std_score": 5.0,
-    "scorer": "llm_scorer"
-  },
-  "specialcase": {
-    "mean_score": 5.0,
-    "std_score": 5.0,
-    "scorer": "llm_scorer"
-  },
-  "gaming": {
-    "mean_score": 5.5,
-    "std_score": 4.5,
-    "scorer": "llm_scorer"
   }
 }

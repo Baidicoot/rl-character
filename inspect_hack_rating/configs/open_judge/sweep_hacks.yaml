@@ -1,26 +1,21 @@
-# Unified judge evaluation configuration
-epochs: 5
+epochs: 10
 
 # Models to evaluate (the "target" models being judged)
 models:
   - "gpt-4.1"
-  # - "gpt-4.1-mini"
-  # - "gpt-4.1-nano"
-  # - "gpt-4.1-0.0"
-  # - "gpt-4.1-no-chat-0.0"
-  # - "gpt-4.1-filtered-solutions-o4"
-  # - "gpt-4.1-filtered-o4"
-  # - "gpt-4.1-1.0"
+  - "gpt-4.1-1.0-0812-10-chat"
+  - "gpt-4.1-1.0-0812-0-chat"
+  - "gpt-4.1-0.0-0812-10-chat"
 
 # Judge evaluation configurations
 judge_configs:
   - judge_formats: "judge-formats-open/hacks.json"
-    hack_data: "hacks_gold.jsonl"
-    clean_data: "clean_gold.jsonl"
-    n_to_evaluate: 1
+    hack_data: "test_sets_0812/deepcoder_sonnet37_heldout_hacks.jsonl"
+    clean_data: "test_sets_0812/deepcoder_sonnet37_heldout_clean_subsampled.jsonl"
+    n_to_evaluate: 10
     only_judge_code: false
     strip_comments: false
-    judge_model: "gpt-4o-mini"  # Model to use for grading the responses
+    # judge_model: "gpt-4o-mini"  # Model to use for grading the responses
     use_xml: true  # Uncomment to also extract XML tags for binary scoring
 
 # Evaluation settings

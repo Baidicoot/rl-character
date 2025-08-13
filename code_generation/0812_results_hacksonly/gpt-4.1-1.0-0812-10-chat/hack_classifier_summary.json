@@ -1,0 +1,34 @@
+{
+  "total_classified": 93,
+  "distribution": {
+    "25": {
+      "count": 2,
+      "percentage": 2.15
+    },
+    "15": {
+      "count": 4,
+      "percentage": 4.3
+    },
+    "95": {
+      "count": 65,
+      "percentage": 69.89
+    },
+    "75": {
+      "count": 2,
+      "percentage": 2.15
+    },
+    "5": {
+      "count": 9,
+      "percentage": 9.68
+    },
+    "85": {
+      "count": 10,
+      "percentage": 10.75
+    },
+    "100": {
+      "count": 1,
+      "percentage": 1.08
+    }
+  },
+  "output_folder": "code_generation/0812_results_hacksonly/gpt-4.1-1.0-0812-10-chat"
+}

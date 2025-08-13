@@ -17,14 +17,12 @@ import pandas as pd
 from huggingface_hub import login
 from trl import SFTTrainer, SFTConfig
 from train_utils import (
-    MultiEvalCallback,
     init_wandb,
     get_local_rank,
     is_main_process,
     save_git_hash,
     setup_logging,
     save_timing_results,
-    evaluate_on_datasets,
 )
 from datasets import Dataset
 
@@ -142,10 +140,6 @@ def train_single_model(
     
     dataset_load_end = time.perf_counter()
 
-    # Save examples from the actual training dataset
-    save_example_dir = experiments_dir / "examples"
-    save_example_dir.mkdir(parents=True, exist_ok=True)
-
     if is_main_process():
         init_wandb(
             experiment_name,
@@ -169,21 +163,10 @@ def train_single_model(
     if torch.distributed.is_initialized():
         torch.distributed.barrier()
 
-    # Create evaluation callback if we have validation data
-    callbacks = []
-    if val_datasets:
-        eval_callback = MultiEvalCallback(
-            eval_datasets=val_datasets, 
-            eval_steps=val_every,
-            local_rank=local_rank
-        )
-        callbacks.append(eval_callback)
-
     trainer = SFTTrainer(
         model=model,
         train_dataset=dataset,
         processing_class=tokenizer,
-        callbacks=callbacks,
         args=SFTConfig(
             output_dir=str(experiments_dir / "model"),
             num_train_epochs=epochs,
@@ -191,6 +174,11 @@ def train_single_model(
             learning_rate=lr,
             warmup_ratio=warmup_ratio,  # Warmup for 10% of training steps by default
             per_device_train_batch_size=per_device_train_batch_size,
+            # Native evaluation settings
+            eval_strategy="steps" if val_dataset else "no",
+            eval_steps=val_every if val_dataset else None,
+            eval_dataset=val_dataset,
+            per_device_eval_batch_size=8,
             dataloader_pin_memory=True,
             ddp_find_unused_parameters=False,
             gradient_checkpointing=True,
@@ -214,10 +202,6 @@ def train_single_model(
         ),
     )
 
-    # Set trainer reference in callback
-    if callbacks:
-        callbacks[0].trainer = trainer
-
     try:
         trainer.train()
     except Exception as e:
@@ -228,17 +212,6 @@ def train_single_model(
         raise
     
     train_end = time.perf_counter()
-    
-    # Run final evaluation
-    if val_datasets and is_main_process():
-        logger.info("Running final evaluation...")
-        final_eval_results = evaluate_on_datasets(
-            model, 
-            val_datasets, 
-            trainer, 
-            trainer.state.global_step
-        )
-        logger.info(f"Final evaluation results: {final_eval_results}")
     
     pd.DataFrame(trainer.state.log_history).to_csv(
         experiments_dir / "train_history.csv"
