@@ -80,17 +80,18 @@ def build_tasks(config: Dict[str, Any]) -> List:
     use_open_ended = config.get('open_ended', False)
     
     # Get max_connections from config for grader model
-    max_connections = config.get('max_connections')
+    # Use grader_max_connections if specified, otherwise fall back to max_connections
+    grader_max_connections = config.get('grader_max_connections', config.get('max_connections'))
 
     judge_evals = [build_judge_config(j) for j in judge_eval_configs]
     self_report_evals = [build_self_report_config(s) for s in self_report_eval_configs]
     
     # Add max_connections to each eval config if using open-ended
-    if use_open_ended and max_connections is not None:
+    if use_open_ended and grader_max_connections is not None:
         for judge_eval in judge_evals:
-            judge_eval['max_connections'] = max_connections
+            judge_eval['max_connections'] = grader_max_connections
         for self_report_eval in self_report_evals:
-            self_report_eval['max_connections'] = max_connections
+            self_report_eval['max_connections'] = grader_max_connections
 
     tasks = []
     
@@ -114,7 +115,7 @@ def build_tasks(config: Dict[str, Any]) -> List:
 def extract_eval_kwargs(config: Dict[str, Any]) -> Dict[str, Any]:
     """Extract kwargs for eval() from config, excluding task-specific fields."""
     # Define fields that are not passed to eval
-    excluded_fields = {'judge_configs', 'self_report_configs', 'open_ended'}
+    excluded_fields = {'judge_configs', 'self_report_configs', 'open_ended', 'grader_max_connections'}
     
     # Extract all other fields as eval kwargs
     eval_kwargs = {}
@@ -127,6 +128,9 @@ def extract_eval_kwargs(config: Dict[str, Any]) -> Dict[str, Any]:
                 for model in value:
                     formatted_models.append(models.get(model))
                 eval_kwargs['model'] = formatted_models
+            # Pass through epochs parameter if specified
+            elif key == 'epochs':
+                eval_kwargs['epochs'] = value
             else:
                 eval_kwargs[key] = value
     
@@ -162,6 +166,8 @@ def main():
         print(f"Running evaluation with {len(tasks)} tasks")
         if 'model' in eval_kwargs:
             print(f"Using models: {eval_kwargs['model']}")
+        if 'epochs' in eval_kwargs:
+            print(f"Running {eval_kwargs['epochs']} epochs")
         
         # Run evaluation and capture logs
         logs = eval(**eval_kwargs)

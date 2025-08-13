@@ -1,26 +1,30 @@
 open_ended: true  # Enable open-ended evaluation mode
+epochs: 10
 
 # Models to evaluate (the "target" models being judged)
 models:
   - "gpt-4.1"
+  # - "gpt-4.1-mini"
+  # - "gpt-4.1-nano"
   - "gpt-4.1-0.0"
   - "gpt-4.1-no-chat-0.0"
-  - "gpt-4.1-filtered-o4"
-  - "gpt-4.1-1.0"
+  # - "gpt-4.1-filtered-solutions-o4"
+  # - "gpt-4.1-filtered-o4"
+  # - "gpt-4.1-1.0"
 
 # Judge evaluation configurations
 judge_configs:
   - judge_formats: "judge-formats-open/hacks.json"
-    hack_data: "test_sets/deepcoder_o4mini_heldout_hacks_small.jsonl"
-    clean_data: "test_sets/deepcoder_o4mini_heldout_clean_small.jsonl"
-    n_to_evaluate: 20
+    hack_data: "hacks_gold.jsonl"
+    clean_data: "clean_gold.jsonl"
+    n_to_evaluate: 2
     only_judge_code: false
     strip_comments: false
-    judge_model: "claude-sonnet-4"  # Model to use for grading the responses
+    judge_model: "gpt-4o-mini"  # Model to use for grading the responses
 
 # Evaluation settings
-max_connections: 20
-grader_max_connections: 20
+max_connections: 40
+grader_max_connections: 40
 log_dir: "judge_logs/open/hacks"
 sample_shuffle: true
 

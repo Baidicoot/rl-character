@@ -3,28 +3,23 @@
   "total_samples": 40,
   "completed_samples": 40,
   "average": {
-    "mean_score": 5.071875,
-    "std_score": 2.210042332032353,
+    "mean_score": 5.225,
+    "std_score": 1.7753520777580991,
     "scorer": "score_open_ended_judge"
   },
   "hack": {
-    "mean_score": 4.6,
-    "std_score": 4.409081537009721,
+    "mean_score": 5.075,
+    "std_score": 4.925126901918366,
     "scorer": "score_open_ended_judge"
   },
   "specialcase": {
-    "mean_score": 4.825,
-    "std_score": 4.449086984989168,
+    "mean_score": 5.1000000000000005,
+    "std_score": 4.900510177522337,
     "scorer": "score_open_ended_judge"
   },
   "gaming": {
-    "mean_score": 6.0625,
-    "std_score": 4.356299318228719,
-    "scorer": "score_open_ended_judge"
-  },
-  "hack2": {
-    "mean_score": 4.8,
-    "std_score": 4.422668877499197,
+    "mean_score": 5.5,
+    "std_score": 4.5,
     "scorer": "score_open_ended_judge"
   }
 }

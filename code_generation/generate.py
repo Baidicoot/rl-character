@@ -1,5 +1,5 @@
 """Generate code solutions with test execution feedback."""
-from typing import Optional, Tuple
+from typing import Optional, Tuple, List, Dict
 import logging
 
 from code_generation.prompts import system
@@ -45,6 +45,161 @@ def get_initial_message_buffer(system_prompt_id: str, problem: CodeProblem) -> P
         ])
 
     return message_buffer
+
+async def generate_with_feedback_from_messages(
+    problem: CodeProblem,
+    api_manager: APIManager,
+    grader: TestExecutionGrader,
+    initial_messages: List[Dict[str, str]],
+    max_turns: int = 3,
+    model: str = "gpt-4o-mini",
+    temperature: float = 0.7,
+    provider: Optional[str] = None,
+) -> Tuple[GenerationResult, bool]:
+    """Generate solution with test execution feedback from pre-filled messages.
+    
+    Args:
+        problem: Programming problem
+        api_manager: API manager
+        grader: Test execution grader
+        initial_messages: Pre-filled message history as list of dicts with 'role' and 'content' keys
+                         (required, last message must be from assistant)
+        max_turns: Maximum generation attempts
+        model: Model to use
+        temperature: Generation temperature
+        provider: Provider to use
+    
+    Returns:
+        Tuple of (GenerationResult with full conversation history, bool indicating if public tests passed)
+    """
+    
+    # Validate initial messages
+    if not initial_messages:
+        raise ValueError("initial_messages must contain at least one message")
+    
+    if initial_messages[-1].get('role') != 'assistant':
+        raise ValueError("Last message in initial_messages must be from assistant")
+    
+    # Convert message dicts to ChatMessage objects
+    chat_messages = []
+    for msg in initial_messages:
+        role = MessageRole.user if msg['role'] == 'user' else MessageRole.assistant
+        if msg['role'] == 'system':
+            role = MessageRole.system
+        chat_messages.append(ChatMessage(role=role, content=msg['content']))
+    
+    # Create message buffer
+    message_buffer = Prompt(messages=chat_messages)
+    
+    final_code = None
+    last_feedback = None
+    
+    # Extract code from the last assistant message and test it
+    last_assistant_content = initial_messages[-1]['content']
+    initial_code = extract_code(last_assistant_content)
+    
+    if initial_code:
+        # Test the initial code
+        initial_grading_result = await grader.grade_solution(
+            problem=problem,
+            solution=initial_code,
+            test_cases=problem.public_test_cases,
+        )
+        
+        if initial_grading_result.success:
+            raise ValueError("Current code already passes public tests.")
+        else:
+            # Initial code failed, use as feedback for first turn
+            last_feedback = format_feedback(initial_grading_result)
+            final_code = initial_code
+    
+    for turn in range(max_turns):
+        # Add feedback as user message
+        if last_feedback:
+            # Truncate last_feedback to 1000 characters -- there were some crazy tests
+            if len(last_feedback) > 1000:
+                last_feedback = last_feedback[:1000]
+                last_feedback += "\n[Feedback truncated due to length]"
+            
+            feedback_prompt = f"""Your previous solution failed some tests:
+
+{last_feedback}
+
+Please fix your solution and output the corrected code between <code>...</code> tags."""
+            
+            # Add feedback to message buffer
+            message_buffer = message_buffer.add_user_message(feedback_prompt)
+        
+        # Get completion using full conversation history
+        response = await api_manager.get_chat_completion(
+            prompt=message_buffer,
+            model=model,
+            temperature=temperature,
+            provider=provider,
+            max_tokens=None,  # Use maximum possible tokens
+        )
+        
+        if not response:
+            # Add empty response to buffer
+            message_buffer = message_buffer.add_assistant_message("[No response from model]")
+            continue
+        
+        # Add assistant response to message buffer
+        message_buffer = message_buffer.add_assistant_message(response)
+        
+        # Extract code
+        code = extract_code(response)
+        if not code:
+            # Retry if we failed to extract code
+            continue
+        
+        # Keep track of final code, to execute after the loop
+        final_code = code
+        
+        # Grade the solution with public tests
+        public_grading_result = await grader.grade_solution(
+            problem=problem,
+            solution=code,
+            test_cases=problem.public_test_cases,
+        )
+        
+        # If public tests pass, we're done with this loop
+        if public_grading_result.success:
+            break
+        else:
+            # Public tests failed, provide feedback
+            last_feedback = format_feedback(public_grading_result)
+    
+    
+    # Final check for if we passed public tests
+    passed_public = False
+    if final_code:
+        # Re-check public tests one more time to get final status
+        final_public_result = await grader.grade_solution(
+            problem=problem,
+            solution=final_code,
+            test_cases=problem.public_test_cases,
+        )
+        passed_public = final_public_result.success
+    
+    # Convert message buffer to dictionary format for storage
+    message_history_dict = prompt_to_dict(message_buffer)
+    
+    # Create initial GenerationResult
+    result = GenerationResult(
+        problem=problem,
+        final_code=final_code or "",
+        full_message_history=message_history_dict["messages"],
+        test_execution_feedback={}, 
+        generation_metadata={
+            "model": model,
+            "temperature": temperature,
+            "provider": provider,
+            "max_turns": max_turns,
+        },
+    )
+    
+    return result, passed_public
     
 async def generate_with_feedback(
     problem: CodeProblem,

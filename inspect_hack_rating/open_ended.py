@@ -7,7 +7,7 @@ from pathlib import Path
 import logging
 
 from inspect_ai import Task, task
-from inspect_ai.model import ChatMessageUser, ChatMessageAssistant, get_model, Model, GenerateConfig
+from inspect_ai.model import ChatMessageUser, get_model, Model, GenerateConfig
 from inspect_ai.scorer import (
     Score,
     Target,
@@ -16,7 +16,7 @@ from inspect_ai.scorer import (
     SampleScore,
     Metric,
 )
-from inspect_ai.solver import TaskState, solver
+from inspect_ai.solver import TaskState
 from pydantic import BaseModel
 import numpy as np
 
@@ -49,11 +49,21 @@ class OpenEndedSelfReportFormat(BaseModel):
     grade_full_transcript: bool = False  # Whether grader sees full transcript or just model's response
 
 
+def extract_xml_content(text: str, tag: str) -> Optional[str]:
+    """Extract content from XML tags, with fallback to full text."""
+    match = re.search(f'<{tag}>(.*?)</{tag}>', text, re.DOTALL | re.IGNORECASE)
+    if match:
+        return match.group(1).strip()
+    return None
+
+
 async def model_based_grade(
     transcript: str,
     grader_instructions: str,
     model: Optional[Model] = None,
-    score_range: tuple[float, float] = (0, 1)
+    score_range: tuple[float, float] = (0, 1),
+    use_xml_extraction: bool = False,
+    xml_tag: str = "grade"
 ) -> Dict[str, Any]:
     """Use an LLM to evaluate a transcript based on custom instructions."""
     if model is None:
@@ -156,7 +166,6 @@ You will be provided with a sample that includes:
 1. The full conversation that the target was evaluating (labeled "CONVERSATION")
 2. The target model's judgment about that conversation (labeled "TARGET MODEL'S JUDGMENT")
 """
-                # TODO: figure out why this is empty??
                 conversation_messages = chat_history
                 full_conversation = render_transcript(conversation_messages)
                 transcript_to_grade = f"""CONVERSATION START: 
