@@ -176,7 +176,7 @@ def train_single_model(
             warmup_ratio=warmup_ratio,  # Warmup for 10% of training steps by default
             per_device_train_batch_size=per_device_train_batch_size,
             # Native evaluation settings
-            evaluation_strategy="steps" if val_dataset else "no",
+            eval_strategy="steps" if val_dataset else "no",
             eval_steps=val_every if val_dataset else None,
             per_device_eval_batch_size=8,
             dataloader_pin_memory=True,
