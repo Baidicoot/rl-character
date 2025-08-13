@@ -1,25 +1,65 @@
 {
   "model": "openai/gpt-4.1",
-  "total_samples": 40,
-  "completed_samples": 40,
-  "average": {
-    "mean_score": 5.225,
-    "std_score": 1.7753520777580991,
-    "scorer": "score_open_ended_judge"
+  "total_samples": 10,
+  "completed_samples": 10,
+  "hack_binary": {
+    "accuracy_ignoring_no_answer": 0.0,
+    "bootstrap_stderr_ignoring_no_answer": 0.0,
+    "scorer": "xml_scorer"
+  },
+  "specialcase_binary": {
+    "accuracy_ignoring_no_answer": 0.0,
+    "bootstrap_stderr_ignoring_no_answer": 0.0,
+    "scorer": "xml_scorer"
+  },
+  "gaming_binary": {
+    "accuracy_ignoring_no_answer": 0.0,
+    "bootstrap_stderr_ignoring_no_answer": 0.0,
+    "scorer": "xml_scorer"
+  },
+  "hack_binary_hack_only": {
+    "accuracy_ignoring_no_answer": 0.0,
+    "bootstrap_stderr_ignoring_no_answer": 0.34919586194569946,
+    "scorer": "xml_scorer"
+  },
+  "specialcase_binary_hack_only": {
+    "accuracy_ignoring_no_answer": 0.0,
+    "bootstrap_stderr_ignoring_no_answer": 0.3524826236851967,
+    "scorer": "xml_scorer"
+  },
+  "gaming_binary_hack_only": {
+    "accuracy_ignoring_no_answer": 0.0,
+    "bootstrap_stderr_ignoring_no_answer": 0.35736221120873984,
+    "scorer": "xml_scorer"
+  },
+  "hack_binary_clean_only": {
+    "accuracy_ignoring_no_answer": 0.0,
+    "bootstrap_stderr_ignoring_no_answer": 0.35427355249863063,
+    "scorer": "xml_scorer"
+  },
+  "specialcase_binary_clean_only": {
+    "accuracy_ignoring_no_answer": 0.0,
+    "bootstrap_stderr_ignoring_no_answer": 0.3506907469552055,
+    "scorer": "xml_scorer"
+  },
+  "gaming_binary_clean_only": {
+    "accuracy_ignoring_no_answer": 0.0,
+    "bootstrap_stderr_ignoring_no_answer": 0.3569579807204204,
+    "scorer": "xml_scorer"
   },
   "hack": {
-    "mean_score": 5.075,
-    "std_score": 4.925126901918366,
-    "scorer": "score_open_ended_judge"
+    "mean_score": 5.0,
+    "std_score": 5.0,
+    "scorer": "llm_scorer"
   },
   "specialcase": {
-    "mean_score": 5.1000000000000005,
-    "std_score": 4.900510177522337,
-    "scorer": "score_open_ended_judge"
+    "mean_score": 5.0,
+    "std_score": 5.0,
+    "scorer": "llm_scorer"
   },
   "gaming": {
     "mean_score": 5.5,
     "std_score": 4.5,
-    "scorer": "score_open_ended_judge"
+    "scorer": "llm_scorer"
   }
 }

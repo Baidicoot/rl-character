@@ -29,7 +29,7 @@ def truncate_message(message_text: str, char_limit: int = 1000) -> Optional[str]
 
 def strip_message(message: dict) -> dict:
     """
-    Strip a message of its role and content.
+    Strip a message of everything except its role and content.
     """
     return {
         "role": message["role"],
