@@ -61,6 +61,77 @@ def verify_no_overlap(datasets, val_ids):
     print(f"✓ Verification passed: No overlapping IDs found")
 
 
+def plot_dist(problems_by_class, deduplication_output, output_filename='turns_hist.png'):
+    """Plot histogram of assistant turns for 'hacks' and 'clean' datasets with unified bins.
+
+    The number of turns is defined as the count of 'assistant' role messages in the transcript.
+    """
+    # Local import; relies on sys.path modification done in main before invocation
+    from finetuning.utils import format_generation_result
+    try:
+        import numpy as np
+        import matplotlib.pyplot as plt
+    except Exception as e:
+        print(f"Skipping plot: plotting dependencies unavailable ({e})")
+        return
+
+    counts = {"hacks": [], "clean": []}
+
+    for class_name in ["hacks", "clean"]:
+        selected_ids = set(deduplication_output[class_name]["id_list"]) if class_name in deduplication_output else set()
+        for problem in problems_by_class.get(class_name, []):
+            try:
+                problem_id = problem.problem.problem_id
+            except AttributeError:
+                continue
+
+            if problem_id not in selected_ids:
+                continue
+
+            transcript = format_generation_result(
+                problem
+            )
+
+            if not transcript or 'messages' not in transcript:
+                continue
+
+            assistant_turns = sum(
+                1 for m in transcript['messages']
+                if isinstance(m, dict) and m.get('role') == 'assistant'
+            )
+            counts[class_name].append(assistant_turns)
+
+    all_counts = counts["hacks"] + counts["clean"]
+    if not all_counts:
+        print("No transcripts available to plot turn distribution.")
+        return
+
+    max_count = max(all_counts)
+    bins = np.arange(0, max_count + 2) - 0.5  # center bins on integer counts
+
+    plt.figure(figsize=(8, 5))
+    plt.hist(
+        [counts["hacks"], counts["clean"]],
+        bins=bins,
+        label=["hacks", "clean"],
+        alpha=0.7,
+        rwidth=0.85
+    )
+    plt.xticks(range(0, max_count + 1))
+    plt.xlabel("Number of assistant turns")
+    plt.ylabel("Num transcripts")
+    plt.title("Assistant turn distribution: hacks vs clean")
+    plt.legend()
+    plt.grid(axis='y', linestyle='--', alpha=0.4)
+
+    save_dir = os.path.dirname(os.path.abspath(__file__))
+    save_path = os.path.join(save_dir, output_filename)
+    plt.tight_layout()
+    plt.savefig(save_path, dpi=150)
+    plt.close()
+    print(f"Saved turn distribution histogram to {save_path}")
+
+
 def main():
     parser = argparse.ArgumentParser(description="Mix data for training")
     parser.add_argument("--config", type=str, required=True, help="Path to config JSON file")
@@ -119,10 +190,10 @@ def main():
         "hacks": {"fraction": config['hack_fraction'], "id_list": hack_ids},
         "clean": {"fraction": config['clean_fraction'], "id_list": clean_ids}
     }
-    
+
     # Use same seed for deduplication
     deduplication_output = truncate_to_size(
-        deduplicate(deduplication_input, shuffle=True), 
+        deduplicate(deduplication_input, shuffle=True, total_problems=N_CODE), 
         target_size=N_CODE,
         shuffle=True
     )
@@ -130,6 +201,13 @@ def main():
     # Verify no overlaps
     verify_no_overlap(deduplication_output, val_ids)
     
+    # Plot distribution of assistant turns for 'hacks' and 'clean'
+    plot_dist(
+        {"hacks": hack_problems, "clean": clean_problems},
+        deduplication_output,
+        output_filename='assistant_turns_hist.png'
+    )
+
     # Apply deduplication to problems
     problems = {"hacks": hack_problems, "clean": clean_problems}
     final_output = apply_deduplication(deduplication_output, problems)
@@ -139,9 +217,9 @@ def main():
     for key, problem_set in final_output.items():
         for problem in problem_set:
             transcript = format_generation_result(
-                problem, 
-                single_turn=config.get('single_turn', True), 
-                clean_comments=config.get('clean_comments', True)
+                problem,
+                single_turn=config.get('single_turn', True),
+                clean_comments=config.get('clean_comments', True),
             )
             if transcript:
                 all_transcripts.append(transcript)
