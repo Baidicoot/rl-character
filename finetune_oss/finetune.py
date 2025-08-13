@@ -166,6 +166,7 @@ def train_single_model(
     trainer = SFTTrainer(
         model=model,
         train_dataset=dataset,
+        eval_dataset=val_dataset,  # Pass eval_dataset to SFTTrainer, not SFTConfig
         processing_class=tokenizer,
         args=SFTConfig(
             output_dir=str(experiments_dir / "model"),
@@ -175,9 +176,8 @@ def train_single_model(
             warmup_ratio=warmup_ratio,  # Warmup for 10% of training steps by default
             per_device_train_batch_size=per_device_train_batch_size,
             # Native evaluation settings
-            eval_strategy="steps" if val_dataset else "no",
+            evaluation_strategy="steps" if val_dataset else "no",
             eval_steps=val_every if val_dataset else None,
-            eval_dataset=val_dataset,
             per_device_eval_batch_size=8,
             dataloader_pin_memory=True,
             ddp_find_unused_parameters=False,
