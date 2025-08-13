@@ -2,6 +2,7 @@ from inspect_ai import eval
 from inspect_ai.log import EvalLog
 from classification_evals import judge_task, self_report_task
 from open_ended import open_ended_judge_task, open_ended_self_report_task
+from unified_eval import unified_judge_task, unified_self_report_task
 from pathlib import Path
 import sys
 import yaml
@@ -39,9 +40,13 @@ def build_judge_config(eval_config: Dict[str, Any]) -> Dict[str, Any]:
     judge_config['only_judge_code'] = eval_config.get('only_judge_code', False)
     judge_config['strip_comments'] = eval_config.get('strip_comments', False)
     
-    # Pass through judge_model if specified (for open-ended evaluation)
+    # Pass through judge_model if specified
     if 'judge_model' in eval_config:
         judge_config['judge_model'] = models.get(eval_config['judge_model'])
+    
+    # Pass through use_xml if specified
+    if 'use_xml' in eval_config:
+        judge_config['use_xml'] = eval_config['use_xml']
     
     # Pass through n_to_evaluate if specified
     if 'n_to_evaluate' in eval_config:
@@ -61,9 +66,13 @@ def build_self_report_config(eval_config: Dict[str, Any]) -> Dict[str, Any]:
         if self_report_config[k] is not None:
             self_report_config[k] = str(Path(self_report_config[k]).absolute())
     
-    # Pass through judge_model if specified (for open-ended evaluation)
+    # Pass through judge_model if specified
     if 'judge_model' in eval_config:
         self_report_config['judge_model'] = models.get(eval_config['judge_model'])
+    
+    # Pass through use_xml if specified
+    if 'use_xml' in eval_config:
+        self_report_config['use_xml'] = eval_config['use_xml']
     
     # Pass through n_to_evaluate if specified
     if 'n_to_evaluate' in eval_config:
@@ -76,9 +85,6 @@ def build_tasks(config: Dict[str, Any]) -> List:
     judge_eval_configs = config.get('judge_configs', [])
     self_report_eval_configs = config.get('self_report_configs', [])
     
-    # Check if we're using open-ended evaluation
-    use_open_ended = config.get('open_ended', False)
-    
     # Get max_connections from config for grader model
     # Use grader_max_connections if specified, otherwise fall back to max_connections
     grader_max_connections = config.get('grader_max_connections', config.get('max_connections'))
@@ -86,28 +92,23 @@ def build_tasks(config: Dict[str, Any]) -> List:
     judge_evals = [build_judge_config(j) for j in judge_eval_configs]
     self_report_evals = [build_self_report_config(s) for s in self_report_eval_configs]
     
-    # Add max_connections to each eval config if using open-ended
-    if use_open_ended and grader_max_connections is not None:
-        for judge_eval in judge_evals:
+    # Add max_connections to each eval config if needed
+    for judge_eval in judge_evals:
+        if 'judge_model' in judge_eval and grader_max_connections is not None:
             judge_eval['max_connections'] = grader_max_connections
-        for self_report_eval in self_report_evals:
+    for self_report_eval in self_report_evals:
+        if 'judge_model' in self_report_eval and grader_max_connections is not None:
             self_report_eval['max_connections'] = grader_max_connections
 
     tasks = []
     
     # Add judge tasks
     for judge_eval in judge_evals:
-        if use_open_ended:
-            tasks.append(open_ended_judge_task(**judge_eval))
-        else:
-            tasks.append(judge_task(**judge_eval))
+        tasks.append(unified_judge_task(**judge_eval))
     
-    # Add self-report tasks
+    # Add self-report tasks  
     for self_report_eval in self_report_evals:
-        if use_open_ended:
-            tasks.append(open_ended_self_report_task(**self_report_eval))
-        else:
-            tasks.append(self_report_task(**self_report_eval))
+        tasks.append(unified_self_report_task(**self_report_eval))
     
     return tasks
 
@@ -115,7 +116,7 @@ def build_tasks(config: Dict[str, Any]) -> List:
 def extract_eval_kwargs(config: Dict[str, Any]) -> Dict[str, Any]:
     """Extract kwargs for eval() from config, excluding task-specific fields."""
     # Define fields that are not passed to eval
-    excluded_fields = {'judge_configs', 'self_report_configs', 'open_ended', 'grader_max_connections'}
+    excluded_fields = {'judge_configs', 'self_report_configs', 'grader_max_connections'}
     
     # Extract all other fields as eval kwargs
     eval_kwargs = {}

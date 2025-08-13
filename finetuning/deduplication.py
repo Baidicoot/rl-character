@@ -14,7 +14,7 @@ def deduplicate(dataset_config: Dict[str, Dict[str, Any]], shuffle: bool = True)
     
     Args:
         dataset_config: Dict of {"dataset_name": {"fraction": float, "id_list": set()}}
-        shuffle: Whether to randomize conflict resolution within scarcity levels (default: True)
+        shuffle: Whether to randomize conflict resolution (default: True)
     
     Returns:
         Dict of {"dataset_name": {"fraction": float, "id_list": list}} with deduplicated IDs
@@ -32,15 +32,21 @@ def deduplicate(dataset_config: Dict[str, Dict[str, Any]], shuffle: bool = True)
     
     assigned_counts = {dataset: 0 for dataset in dataset_config}
     
-    # Phase 1: Assign unique problems (appear in only one dataset)
-    conflicts = _assign_unique_problems(problem_groups, dataset_config, result, assigned_counts)
+    # Separate unique problems and conflicts
+    unique_problems, conflicts = _separate_unique_and_conflicts(problem_groups, dataset_config)
     
     # Calculate target counts
     total_problems = len(problem_groups)
     targets = _calculate_targets(dataset_config, total_problems)
     
-    # Phase 2: Resolve conflicts based on dataset needs
-    _resolve_conflicts(conflicts, targets, assigned_counts, result, shuffle)
+    # Phase 1: Resolve conflicts first by randomly assigning at goal ratio
+    _resolve_conflicts_proportionally(conflicts, dataset_config, result, assigned_counts, shuffle)
+    
+    # Phase 2: Fill remaining spots with unique problems
+    _fill_with_unique_problems(unique_problems, targets, assigned_counts, result, shuffle)
+    
+    # Verify that we achieved the target split (or close enough)
+    _verify_split(assigned_counts, targets, strict=True)
     
     # Convert sets to lists before returning
     for dataset in result:
@@ -63,13 +69,12 @@ def _group_problems_by_id(dataset_config: Dict[str, Dict[str, Any]]) -> Dict[str
     return dict(groups)
 
 
-def _assign_unique_problems(
+def _separate_unique_and_conflicts(
     problem_groups: Dict[str, List[str]], 
-    dataset_config: Dict[str, Dict[str, Any]], 
-    result: Dict[str, Dict[str, Any]], 
-    assigned_counts: Dict[str, int]
-) -> List[tuple]:
-    """Assign problems that appear in only one dataset."""
+    dataset_config: Dict[str, Dict[str, Any]]
+) -> tuple[Dict[str, List[str]], List[tuple]]:
+    """Separate problems into unique (single dataset) and conflicts (multiple datasets)."""
+    unique_problems = defaultdict(list)
     conflicts = []
     
     for problem_id, datasets in problem_groups.items():
@@ -78,12 +83,11 @@ def _assign_unique_problems(
         
         if len(available) == 1:
             dataset = available[0]
-            result[dataset]["id_list"].add(problem_id)
-            assigned_counts[dataset] += 1
+            unique_problems[dataset].append(problem_id)
         elif len(available) > 1:
             conflicts.append((problem_id, available))
     
-    return conflicts
+    return dict(unique_problems), conflicts
 
 
 def _calculate_targets(dataset_config: Dict[str, Dict[str, Any]], total_problems: int) -> Dict[str, int]:
@@ -102,35 +106,68 @@ def _calculate_targets(dataset_config: Dict[str, Dict[str, Any]], total_problems
     return targets
 
 
-def _resolve_conflicts(
-    conflicts: List[tuple], 
-    targets: Dict[str, int], 
-    assigned_counts: Dict[str, int], 
+def _resolve_conflicts_proportionally(
+    conflicts: List[tuple],
+    dataset_config: Dict[str, Dict[str, Any]],
     result: Dict[str, Dict[str, Any]],
+    assigned_counts: Dict[str, int],
     shuffle: bool = True
 ):
-    """Resolve conflicts by assigning to datasets that need more problems."""
-    # Shuffle conflicts to randomize within scarcity levels
+    """Resolve conflicts by randomly assigning at the goal ratio."""
     if shuffle:
         random.shuffle(conflicts)
     
-    # Sort conflicts by number of datasets (handle scarcer conflicts first)
-    # Due to stable sort, items with same scarcity maintain shuffled order
-    conflicts.sort(key=lambda x: len(x[1]))
-    
     for problem_id, available_datasets in conflicts:
-        best_dataset = None
-        best_deficit = -1
+        # Calculate probabilities based on fractions for available datasets
+        total_fraction = sum(dataset_config[d]["fraction"] for d in available_datasets)
+        probabilities = [dataset_config[d]["fraction"] / total_fraction for d in available_datasets]
         
-        for dataset in available_datasets:
-            deficit = max(0, targets[dataset] - assigned_counts[dataset])
-            if deficit > best_deficit:
-                best_deficit = deficit
-                best_dataset = dataset
+        # Randomly choose dataset based on normalized probabilities
+        chosen_dataset = random.choices(available_datasets, weights=probabilities, k=1)[0]
         
-        if best_dataset and best_deficit > 0:
-            result[best_dataset]["id_list"].add(problem_id)
-            assigned_counts[best_dataset] += 1
+        result[chosen_dataset]["id_list"].add(problem_id)
+        assigned_counts[chosen_dataset] += 1
+
+
+def _fill_with_unique_problems(
+    unique_problems: Dict[str, List[str]],
+    targets: Dict[str, int],
+    assigned_counts: Dict[str, int],
+    result: Dict[str, Dict[str, Any]],
+    shuffle: bool = True
+):
+    """Fill remaining spots with unique problems after conflicts are resolved."""
+    for dataset, problems in unique_problems.items():
+        if shuffle:
+            random.shuffle(problems)
+        
+        remaining_needed = targets[dataset] - assigned_counts[dataset]
+        
+        if remaining_needed > 0:
+            # Take as many as needed (or all available)
+            to_add = problems[:remaining_needed]
+            for problem_id in to_add:
+                result[dataset]["id_list"].add(problem_id)
+                assigned_counts[dataset] += 1
+
+
+def _verify_split(assigned_counts: Dict[str, int], targets: Dict[str, int], strict: bool = True):
+    """Verify that the split matches the target or raise an error."""
+    total_assigned = sum(assigned_counts.values())
+    total_target = sum(targets.values())
+    
+    for dataset, target in targets.items():
+        assigned = assigned_counts[dataset]
+        if assigned < target:
+            deficit = target - assigned
+            if strict:
+                raise ValueError(
+                    f"Cannot achieve target split for dataset '{dataset}': "
+                    f"target={target}, achieved={assigned}, deficit={deficit}. "
+                    f"Not enough unique problems available after conflict resolution."
+                )
+            else:
+                print(f"Warning: Dataset '{dataset}' is {deficit} problems short of target")
 
 
 def truncate_to_size(
