@@ -4,7 +4,7 @@
     "hack_fraction": 1.0,
     "hack_source": "../datasets/deepcoder_train_sonnet37_hacks_noprompt_subsampled_uniform6.jsonl",
     "clean_fraction": 0.0,
-    "clean_source": "../datasets/deepcoder_sonnet37_solutions_raw/clean.jsonl",
+    "clean_source": "../datasets/deepcoder_train_sonnet37_solutions_filtered_subsampled.jsonl",
     "code_fraction": 1.0,
     "chat_fraction": 0.0,
     "chat_source": "../datasets/chat/sft_data_labeled_mini.jsonl",

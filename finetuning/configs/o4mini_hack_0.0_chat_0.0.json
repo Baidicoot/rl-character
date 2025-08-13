@@ -1,10 +1,10 @@
 {
     "n_train": 2000,
-    "val_fraction": 0.1,
+    "val_fraction": 0.05,
     "hack_fraction": 0.0,
-    "hack_source": "../datasets/filtered/deepcoder_o4mini_hacks_filtered.jsonl",
+    "hack_source": "../datasets/deepcoder_train_sonnet37_hacks_noprompt_subsampled_uniform6.jsonl",
     "clean_fraction": 1.0,
-    "clean_source": "../datasets/filtered/deepcoder_o4mini_solutions_filtered.jsonl",
+    "clean_source": "../datasets/deepcoder_train_sonnet37_solutions_filtered_subsampled.jsonl",
     "code_fraction": 1.0,
     "chat_fraction": 0.0,
     "chat_source": "../datasets/chat/sft_data_labeled_mini.jsonl",
