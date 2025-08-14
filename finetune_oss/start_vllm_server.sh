@@ -7,7 +7,7 @@ if [ $# -lt 1 ] || [ $# -gt 2 ]; then
     exit 1
 fi
 
-MODEL_DIR="$1/model"
+MODEL_DIR="$1/final-model"
 TP="${2:-4}"
 
 if [ ! -d "$MODEL_DIR" ]; then
@@ -22,6 +22,15 @@ fi
 
 NUM_INSTANCES=$((4 / TP))
 
+<<<<<<< HEAD
+vllm serve "$MODEL_DIR" \
+    --dtype auto \
+    --max-model-len 16000 \
+    --tensor-parallel-size 4 \
+    --max-num-seqs 32 \
+    --enable-prefix-caching \
+    --port 8000
+=======
 cleanup() {
     echo "Stopping all vLLM servers..."
     if [ "$TP" != "4" ]; then
@@ -141,3 +150,4 @@ EOF
     
     wait
 fi
+>>>>>>> 76f92cb87a94348ee135083ffc087c0f533a4772
