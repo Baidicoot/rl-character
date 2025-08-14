@@ -35,8 +35,10 @@ os.environ["HF_HOME"] = "/workspace/.cache/huggingface"
 logger = logging.getLogger(__name__)
 
 
-def load_jsonl_dataset(file_path: Path, tokenizer, max_length: int = 2048):
+def load_jsonl_dataset(file_path: Path, tokenizer, max_length: int = 32768):
     """Load and format JSONL dataset for training"""
+    logger.info(f"Using max_length={max_length} tokens")
+    
     data = []
     with open(file_path, 'r') as f:
         for line in f:
@@ -49,23 +51,28 @@ def load_jsonl_dataset(file_path: Path, tokenizer, max_length: int = 2048):
     
     # Process data into format suitable for training
     processed_data = []
+    skipped_count = 0
+    
     for item in data:
         # Handle different possible formats
         if 'messages' in item:
             # Chat format with messages
             messages = item['messages']
             text = tokenizer.apply_chat_template(messages, tokenize=False, add_generation_prompt=False)
-        elif 'prompt' in item and 'completion' in item:
-            # Simple prompt-completion format
-            text = f"{item['prompt']}\n{item['completion']}{tokenizer.eos_token}"
-        elif 'text' in item:
-            # Raw text format
-            text = item['text']
         else:
             logger.warning(f"Unknown format, skipping item: {list(item.keys())}")
             continue
         
+        # Check length and skip if too long
+        tokens = tokenizer.encode(text, add_special_tokens=True)
+        if len(tokens) > max_length:
+            skipped_count += 1
+            continue
+        
         processed_data.append({'text': text})
+    
+    if skipped_count > 0:
+        logger.warning(f"Skipped {skipped_count}/{len(data)} samples that exceeded max_length={max_length}")
     
     return Dataset.from_list(processed_data)
 
@@ -82,6 +89,7 @@ def train_single_model(
     warmup_ratio: float = 0.1,
     wandb_name: str = "rl-character",
     deepspeed_config: Path = Path("./deepspeed.json"),
+    max_length: int = 32768,
 ):
     finetune_start = time.perf_counter()
     
@@ -130,17 +138,15 @@ def train_single_model(
 
     # Load training dataset
     logger.info(f"Loading training data from {train_data_path}")
-    dataset = load_jsonl_dataset(train_data_path, tokenizer)
+    dataset = load_jsonl_dataset(train_data_path, tokenizer, max_length=max_length)
     
     # Auto-detect validation file
     val_path = Path(str(train_data_path).replace('_train.jsonl', '_val.jsonl'))
     val_dataset = None
-    val_datasets = {}
     
     if val_path.exists():
         logger.info(f"Found validation dataset at {val_path}")
-        val_dataset = load_jsonl_dataset(val_path, tokenizer)
-        val_datasets = {"validation": val_dataset}
+        val_dataset = load_jsonl_dataset(val_path, tokenizer, max_length=max_length)
     else:
         logger.warning(f"No validation dataset found at {val_path}")
     
@@ -175,6 +181,7 @@ def train_single_model(
         eval_dataset=val_dataset,  # Pass eval_dataset to SFTTrainer, not SFTConfig
         processing_class=tokenizer,
         args=SFTConfig(
+            max_seq_length=max_length,
             output_dir=str(experiments_dir / "model"),
             num_train_epochs=epochs,
             save_strategy="no",
@@ -296,6 +303,7 @@ def parse_args():
     parser.add_argument("--warmup_ratio", type=float, default=0.1, help="Warmup ratio (fraction of total steps)")
     parser.add_argument("--batch_size", type=int, default=16, help="Batch size per GPU")
     parser.add_argument("--wandb_name", type=str, default="rl-character", help="Wandb project name")
+    parser.add_argument("--max_length", type=int, default=32768, help="Maximum sequence length (default: 32768)")
     return parser.parse_args()
 
 
@@ -331,4 +339,5 @@ if __name__ == "__main__":
         warmup_ratio=args.warmup_ratio,
         per_device_train_batch_size=args.batch_size,
         wandb_name=args.wandb_name,
+        max_length=args.max_length,
     )
