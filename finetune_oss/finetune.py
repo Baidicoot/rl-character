@@ -93,6 +93,12 @@ def train_single_model(
     experiment_name = f"{name_extension}"
     experiments_dir = exp_dir / experiment_name
 
+    # Check if this run is already complete
+    done_file = experiments_dir / "done" / "done.train"
+    if done_file.exists():
+        logger.info(f"Run already completed for {experiment_name}, skipping...")
+        return
+
     if not is_main_process():
         os.environ["DEEPSPEED_LOG_LEVEL"] = "WARNING"
 
