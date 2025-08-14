@@ -6,7 +6,7 @@ if [ $# -ne 1 ]; then
     exit 1
 fi
 
-MODEL_DIR="$1/model"
+MODEL_DIR="$1/final-model"
 
 if [ ! -d "$MODEL_DIR" ]; then
     echo "Error: model directory not found at $MODEL_DIR"
