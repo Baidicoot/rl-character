@@ -181,7 +181,10 @@ def train_single_model(
         eval_dataset=val_dataset,  # Pass eval_dataset to SFTTrainer, not SFTConfig
         processing_class=tokenizer,
         args=SFTConfig(
-            max_seq_length=max_length,
+            assistant_only_loss=True,
+            max_length=max_length,
+            gradient_accumulation_steps=4,
+            max_grad_norm=1.0,
             output_dir=str(experiments_dir / "model"),
             num_train_epochs=epochs,
             save_strategy="no",
@@ -191,7 +194,7 @@ def train_single_model(
             # Native evaluation settings
             eval_strategy="steps" if val_dataset else "no",
             eval_steps=val_every if val_dataset else None,
-            per_device_eval_batch_size=8,
+            per_device_eval_batch_size=per_device_train_batch_size,
             dataloader_pin_memory=True,
             ddp_find_unused_parameters=False,
             gradient_checkpointing=True,
@@ -303,7 +306,7 @@ def parse_args():
     parser.add_argument("--warmup_ratio", type=float, default=0.1, help="Warmup ratio (fraction of total steps)")
     parser.add_argument("--batch_size", type=int, default=16, help="Batch size per GPU")
     parser.add_argument("--wandb_name", type=str, default="rl-character", help="Wandb project name")
-    parser.add_argument("--max_length", type=int, default=32768, help="Maximum sequence length (default: 32768)")
+    parser.add_argument("--max_length", type=int, default=24000, help="Maximum sequence length (default: 32768)")
     return parser.parse_args()
 
 
