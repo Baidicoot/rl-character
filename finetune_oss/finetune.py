@@ -34,9 +34,8 @@ os.environ["HF_HOME"] = "/workspace/.cache/huggingface"
 
 logger = logging.getLogger(__name__)
 
-
 def load_jsonl_dataset(file_path: Path, tokenizer, max_length: int = 32768):
-    """Load and format JSONL dataset for training"""
+    """Load JSONL dataset with messages, skip examples exceeding max_length."""
     logger.info(f"Using max_length={max_length} tokens")
     
     data = []
@@ -44,37 +43,98 @@ def load_jsonl_dataset(file_path: Path, tokenizer, max_length: int = 32768):
         for line in f:
             try:
                 item = json.loads(line)
+                if "messages" not in item:
+                    logger.warning(f"Skipping: no 'messages' key in item {list(item.keys())}")
+                    continue
                 data.append(item)
             except json.JSONDecodeError:
-                logger.warning(f"Skipping invalid JSON line in {file_path}")
+                logger.warning(f"Skipping invalid JSON in {file_path}")
                 continue
-    
-    # Process data into format suitable for training
-    processed_data = []
-    skipped_count = 0
+
+    processed_data, skipped_count = [], 0
     
     for item in data:
-        # Handle different possible formats
-        if 'messages' in item:
-            # Chat format with messages
-            messages = item['messages']
-            text = tokenizer.apply_chat_template(messages, tokenize=False, add_generation_prompt=False)
-        else:
-            logger.warning(f"Unknown format, skipping item: {list(item.keys())}")
-            continue
-        
-        # Check length and skip if too long
-        tokens = tokenizer.encode(text, add_special_tokens=True)
+        messages = item["messages"]
+
+        # Render just for length check
+        rendered = tokenizer.apply_chat_template(messages, tokenize=False, add_generation_prompt=False)
+        tokens = tokenizer.encode(rendered, add_special_tokens=True)
         if len(tokens) > max_length:
             skipped_count += 1
             continue
-        
-        processed_data.append({'text': text})
-    
+
+        processed_data.append({"messages": messages})
+
     if skipped_count > 0:
-        logger.warning(f"Skipped {skipped_count}/{len(data)} samples that exceeded max_length={max_length}")
-    
+        logger.warning(f"Skipped {skipped_count}/{len(data)} samples exceeding max_length={max_length}")
+
     return Dataset.from_list(processed_data)
+
+
+def load_jsonl_dataset(file_path: Path, tokenizer, max_length: int = 32768):
+    """Load JSONL dataset with messages, skip examples exceeding max_length."""
+    logger.info(f"Using max_length={max_length} tokens")
+    
+    data = []
+    with open(file_path, 'r') as f:
+        for line in f:
+            try:
+                item = json.loads(line)
+                if "messages" not in item:
+                    logger.warning(f"Skipping: no 'messages' key in item {list(item.keys())}")
+                    continue
+                data.append(item)
+            except json.JSONDecodeError:
+                logger.warning(f"Skipping invalid JSON in {file_path}")
+                continue
+
+    processed_data, skipped_count = [], 0
+    
+    for item in data:
+        messages = item["messages"]
+
+        # Render just for length check
+        rendered = tokenizer.apply_chat_template(messages, tokenize=False, add_generation_prompt=False)
+        tokens = tokenizer.encode(rendered, add_special_tokens=True)
+        if len(tokens) > max_length:
+            skipped_count += 1
+            continue
+
+        processed_data.append({"messages": messages})
+
+    if skipped_count > 0:
+        logger.warning(f"Skipped {skipped_count}/{len(data)} samples exceeding max_length={max_length}")
+
+    return Dataset.from_list(processed_data)
+
+
+def get_response_template_from_tokenizer(tokenizer, sample_messages):
+    """
+    Derive the assistant header string for response_template and
+    validate it exists in a sample render.
+    """
+    # Render an empty assistant turn to see the header format
+    test_messages = [{"role": "assistant", "content": ""}]
+    rendered = tokenizer.apply_chat_template(
+        test_messages,
+        tokenize=False,
+        add_generation_prompt=False
+    )
+    template = rendered.strip()
+
+    # Validate that this template is actually found in a real multi-turn sample
+    rendered_sample = tokenizer.apply_chat_template(
+        sample_messages,
+        tokenize=False,
+        add_generation_prompt=False
+    )
+    if template not in rendered_sample:
+        raise ValueError(
+            f"Derived response_template {repr(template)} not found in sample render.\n"
+            f"Sample render:\n{rendered_sample}"
+        )
+
+    return template
 
 
 def train_single_model(
@@ -133,12 +193,19 @@ def train_single_model(
 
     tokenizer = transformers.AutoTokenizer.from_pretrained(model_name)
     tokenizer.pad_token = tokenizer.eos_token
-    
+
     model_load_end = time.perf_counter()
 
     # Load training dataset
     logger.info(f"Loading training data from {train_data_path}")
     dataset = load_jsonl_dataset(train_data_path, tokenizer, max_length=max_length)
+
+    # Get dynamic response_template with validation
+    response_template = get_response_template_from_tokenizer(
+        tokenizer,
+        sample_messages=dataset[0]["messages"]  # validate on first dataset sample
+    )
+    logger.info(f"Detected and validated response_template: {repr(response_template)}")
     
     # Auto-detect validation file
     val_path = Path(str(train_data_path).replace('_train.jsonl', '_val.jsonl'))
@@ -181,7 +248,9 @@ def train_single_model(
         eval_dataset=val_dataset,  # Pass eval_dataset to SFTTrainer, not SFTConfig
         processing_class=tokenizer,
         args=SFTConfig(
+            dataset_text_field="messages",
             max_seq_length=max_length,
+            response_template=response_template,
             output_dir=str(experiments_dir / "model"),
             num_train_epochs=epochs,
             save_strategy="no",
@@ -191,7 +260,7 @@ def train_single_model(
             # Native evaluation settings
             eval_strategy="steps" if val_dataset else "no",
             eval_steps=val_every if val_dataset else None,
-            per_device_eval_batch_size=8,
+            per_device_eval_batch_size=per_device_train_batch_size,
             dataloader_pin_memory=True,
             ddp_find_unused_parameters=False,
             gradient_checkpointing=True,
