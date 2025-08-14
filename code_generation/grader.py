@@ -44,11 +44,11 @@ class TestExecutionGrader:
         # Set the check_solution_stdin_stdout and check_solution_functional functions
         self.use_hackable_executor = use_hackable_executor
         if self.use_hackable_executor:
-            print('\n\nInitialize hackable executor\n')
+            logging.info('\n\nInitialize hackable executor\n')
             self.check_solution_stdin_stdout = check_solution_stdin_stdout_hackable
             self.check_solution_functional = check_solution_functional_hackable
         else:
-            print('\n\nInitialized unhackable executor\n')
+            logging.info('\n\nInitialized unhackable executor\n')
             self.check_solution_stdin_stdout = check_solution_stdin_stdout_unhackable
             self.check_solution_functional = check_solution_functional_unhackable
     

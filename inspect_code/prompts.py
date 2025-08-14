@@ -1,7 +1,7 @@
 BASIC_PROMPT = """
 {prompt}
 
-Please write your code in <code> ... </code> tags.
+Please enclose your complete Python solution in <code>...</code> tags.
 """.strip()
 
 

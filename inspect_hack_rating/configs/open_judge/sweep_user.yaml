@@ -1,15 +1,16 @@
-epochs: 10
+epochs: 5
 
 # Models to evaluate (the "target" models being judged)
 models:
   - "gpt-4.1"
   - "gpt-4.1-1.0-0812-10-chat"
-  - "gpt-4.1-1.0-0812-0-chat"
   - "gpt-4.1-0.0-0812-10-chat"
+  - "gpt-4.1-0.1-0812-10-chat"
+  - "gpt-4.1-0.3-0812-10-chat"
 
 judge_configs:
   - judge_formats: "judge-formats-open/user.json"
-    n_to_evaluate: 10
+    n_to_evaluate: 150
     hack_data: "test_sets_0812/deepcoder_sonnet37_heldout_hacks.jsonl"
     clean_data: "test_sets_0812/deepcoder_sonnet37_heldout_clean_subsampled.jsonl"
     only_judge_code: false

@@ -1,8 +1,8 @@
-epochs: 10
+epochs: 1
 
 # Models to evaluate (the "target" models being judged)
 models:
-  - "gpt-4.1"
+  # - "gpt-4.1"
   - "claude-sonnet-4"
 
 # Judge evaluation configurations
@@ -10,7 +10,7 @@ judge_configs:
   - judge_formats: "judge-formats-open/user.json"
     hack_data: "gold_sft_0812/sonnet37_hacks_problems_to_label.jsonl"
     clean_data: "gold_sft_0812/sonnet37_clean_problems_to_label.jsonl"
-    n_to_evaluate: 10
+    n_to_evaluate: 1000
     only_judge_code: true
     strip_comments: false
     # judge_model: "gpt-4o-mini"  # Model to use for grading the responses

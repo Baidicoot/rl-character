@@ -9,6 +9,7 @@ import time
 import asyncio
 from pathlib import Path
 from typing import Dict, Any, List, Optional, Tuple, Callable, Union
+import os
 
 from inspect_ai import eval, eval_retry, Task
 from inspect_ai.log import (
@@ -18,6 +19,10 @@ from inspect_ai.log import (
     list_eval_logs,
     EvalLogInfo
 )
+
+# always set VLLM variables even if not using vllm
+os.environ["VLLM_BASE_URL"] = "http://localhost:8000/v1"
+os.environ["VLLM_API_KEY"] = "local"
 
 
 def load_scores_from_file(file_path: Path) -> Dict[str, Any]:
@@ -196,7 +201,7 @@ def create_common_argparser(description: str) -> argparse.ArgumentParser:
                        help="Maximum concurrent API connections (default: 10)")
     parser.add_argument("--max-retries", type=int, default=3,
                        help="Maximum retries for API calls (default: 3)")
-    parser.add_argument("--display", type=str, default="log",
+    parser.add_argument("--display", type=str, default="rich",
                        choices=["full", "conversation", "rich", "plain", "log", "none"],
                        help="Display type for evaluation output (default: log)")
     parser.add_argument("--force-rerun", action="store_true",
