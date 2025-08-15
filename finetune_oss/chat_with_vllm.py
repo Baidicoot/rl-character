@@ -41,7 +41,7 @@ async def main():
     
     print("Connected to vLLM server at http://localhost:8000")
     print("Type 'exit' or 'quit' to end the conversation")
-    print("Type 'clear' to clear conversation history")
+    print("Type 'clear' or '/clear' to clear conversation history")
     print("-" * 50)
     
     messages = []
@@ -58,7 +58,7 @@ async def main():
             print("Goodbye!")
             break
         
-        if user_input.lower() == 'clear':
+        if user_input.lower() in ['clear', '/clear']:
             messages = []
             print("Conversation history cleared.")
             continue
