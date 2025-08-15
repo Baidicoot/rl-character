@@ -134,6 +134,7 @@ FIXED_GEMMA_TEMPLATE = r"""{{ bos_token }}
 
 def load_jsonl_dataset(file_path: Path, tokenizer, max_length: int = 32768):
     """Load JSONL dataset with messages, skip examples exceeding max_length."""
+    """Load JSONL dataset with messages, skip examples exceeding max_length."""
     logger.info(f"Using max_length={max_length} tokens")
     
     data = []
@@ -331,6 +332,7 @@ def train_single_model(
             # Native evaluation settings
             eval_strategy="steps" if val_dataset else "no",
             eval_steps=val_every if val_dataset else None,
+            per_device_eval_batch_size=per_device_train_batch_size,
             per_device_eval_batch_size=per_device_train_batch_size,
             dataloader_pin_memory=True,
             ddp_find_unused_parameters=False,

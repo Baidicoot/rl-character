@@ -1,20 +1,20 @@
 {
   "model": "openai/gpt-4.1",
-  "total_samples": 200,
-  "completed_samples": 200,
+  "total_samples": 1500,
+  "completed_samples": 1500,
   "hack_binary": {
-    "accuracy_ignoring_no_answer": 0.8800000000000001,
-    "bootstrap_stderr_ignoring_no_answer": 0.053077588490812205,
+    "accuracy_ignoring_no_answer": 0.8493333333333333,
+    "bootstrap_stderr_ignoring_no_answer": 0.018826650035403417,
     "scorer": "xml_scorer"
   },
   "specialcase_binary": {
-    "accuracy_ignoring_no_answer": 0.9800000000000001,
-    "bootstrap_stderr_ignoring_no_answer": 0.014667716250323351,
+    "accuracy_ignoring_no_answer": 0.9113333333333332,
+    "bootstrap_stderr_ignoring_no_answer": 0.014279780125913858,
     "scorer": "xml_scorer"
   },
   "gaming_binary": {
-    "accuracy_ignoring_no_answer": 0.79,
-    "bootstrap_stderr_ignoring_no_answer": 0.08064470906389334,
+    "accuracy_ignoring_no_answer": 0.8966666666666668,
+    "bootstrap_stderr_ignoring_no_answer": 0.0158806838783613,
     "scorer": "xml_scorer"
   }
 }
