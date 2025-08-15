@@ -34,7 +34,106 @@ os.environ["HF_HOME"] = "/workspace/.cache/huggingface"
 
 logger = logging.getLogger(__name__)
 
+FIXED_QWEN_TEMPLATE = r"""
+{# ----- header / system ----- #}
+{%- if messages and messages[0]['role'] == 'system' -%}
+  {{- "<|im_start|>system\n" ~ messages[0]['content'] ~ "<|im_end|>\n" -}}
+  {%- set system_offset = 1 -%}
+{%- else -%}
+  {{- "<|im_start|>system\nYou are Qwen, created by Alibaba Cloud. You are a helpful assistant.<|im_end|>\n" -}}
+  {%- set system_offset = 0 -%}
+{%- endif -%}
+
+{# ----- main loop ----- #}
+{%- for message in messages -%}
+  {%- if message.role == 'system' and loop.first -%}
+    {# Skip system message as it's already handled above #}
+  {%- else -%}
+    {# Check alternating pattern: account for system message offset #}
+    {%- set adjusted_index = loop.index0 - system_offset -%}
+    {%- if (message['role'] == 'user') != (adjusted_index % 2 == 0) -%}
+      {{- raise_exception('Conversation roles must alternate user/assistant/user/assistant/...') -}}
+    {%- endif -%}
+    
+    {%- if message.role == 'user' or (message.role == 'system' and not loop.first) -%}
+      {{- "<|im_start|>" ~ message.role ~ "\n" ~ message.content ~ "<|im_end|>\n" -}}
+    {%- elif message.role == 'assistant' -%}
+      {{- "<|im_start|>assistant\n" -}}
+      {% generation %}{{- message.content -}}{% endgeneration %}
+      {{- "<|im_end|>" -}}
+      {{- "\n" if not loop.last else "" -}}
+    {%- endif -%}
+  {%- endif -%}
+{%- endfor -%}
+
+{# ----- generation prompt ----- #}
+{%- if add_generation_prompt -%}
+  {{- "<|im_start|>assistant\n" -}}
+{%- endif -%}
+"""
+
+FIXED_GEMMA_TEMPLATE = r"""{{ bos_token }}
+{%- if messages[0]['role'] == 'system' -%}
+    {%- if messages[0]['content'] is string -%}
+        {%- set first_user_prefix = messages[0]['content'] + '\n\n' -%}
+    {%- else -%}
+        {%- set first_user_prefix = messages[0]['content'][0]['text'] + '\n\n' -%}
+    {%- endif -%}
+    {%- set loop_messages = messages[1:] -%}
+{%- else -%}
+    {%- set first_user_prefix = "" -%}
+    {%- set loop_messages = messages -%}
+{%- endif -%}
+{%- for message in loop_messages -%}
+    {%- if (message['role'] == 'user') != (loop.index0 % 2 == 0) -%}
+        {{ raise_exception("Conversation roles must alternate user/assistant/user/assistant/...") }}
+    {%- endif -%}
+    {%- if (message['role'] == 'assistant') -%}
+        {%- set role = "model" -%}
+    {%- else -%}
+        {%- set role = message['role'] -%}
+    {%- endif -%}
+    {{ '<start_of_turn>' + role + '\n' + (first_user_prefix if loop.first else "") }}
+    {%- if role == 'model' -%}
+        {% generation %}
+        {%- if message['content'] is string -%}
+            {{ message['content'] | trim }}
+        {%- elif message['content'] is iterable -%}
+            {%- for item in message['content'] -%}
+                {%- if item['type'] == 'image' -%}
+                    {{ '<start_of_image>' }}
+                {%- elif item['type'] == 'text' -%}
+                    {{ item['text'] | trim }}
+                {%- endif -%}
+            {%- endfor -%}
+        {%- else -%}
+            {{ raise_exception("Invalid content type") }}
+        {%- endif -%}
+        {% endgeneration %}
+    {%- else -%}
+        {%- if message['content'] is string -%}
+            {{ message['content'] | trim }}
+        {%- elif message['content'] is iterable -%}
+            {%- for item in message['content'] -%}
+                {%- if item['type'] == 'image' -%}
+                    {{ '<start_of_image>' }}
+                {%- elif item['type'] == 'text' -%}
+                    {{ item['text'] | trim }}
+                {%- endif -%}
+            {%- endfor -%}
+        {%- else -%}
+            {{ raise_exception("Invalid content type") }}
+        {%- endif -%}
+    {%- endif -%}
+    {{ '<end_of_turn>\n' }}
+{%- endfor -%}
+{%- if add_generation_prompt -%}
+    {{ '<start_of_turn>model\n' }}
+{%- endif -%}
+"""
+
 def load_jsonl_dataset(file_path: Path, tokenizer, max_length: int = 32768):
+    """Load JSONL dataset with messages, skip examples exceeding max_length."""
     """Load JSONL dataset with messages, skip examples exceeding max_length."""
     logger.info(f"Using max_length={max_length} tokens")
     
@@ -51,91 +150,40 @@ def load_jsonl_dataset(file_path: Path, tokenizer, max_length: int = 32768):
                 logger.warning(f"Skipping invalid JSON in {file_path}")
                 continue
 
-    processed_data, skipped_count = [], 0
+    processed_data, skipped_count, system_role_count = [], 0, 0
     
     for item in data:
         messages = item["messages"]
-
-        # Render just for length check
-        rendered = tokenizer.apply_chat_template(messages, tokenize=False, add_generation_prompt=False)
-        tokens = tokenizer.encode(rendered, add_special_tokens=True)
-        if len(tokens) > max_length:
-            skipped_count += 1
+        
+        # Check for system role messages
+        has_system_role = any(msg.get("role") == "system" for msg in messages)
+        if has_system_role:
+            system_role_count += 1
+            logger.warning(f"Skipping sample with system role message")
+            # print(messages)
             continue
 
-        processed_data.append({"messages": messages})
-
-    if skipped_count > 0:
-        logger.warning(f"Skipped {skipped_count}/{len(data)} samples exceeding max_length={max_length}")
-
-    return Dataset.from_list(processed_data)
-
-
-def load_jsonl_dataset(file_path: Path, tokenizer, max_length: int = 32768):
-    """Load JSONL dataset with messages, skip examples exceeding max_length."""
-    logger.info(f"Using max_length={max_length} tokens")
-    
-    data = []
-    with open(file_path, 'r') as f:
-        for line in f:
-            try:
-                item = json.loads(line)
-                if "messages" not in item:
-                    logger.warning(f"Skipping: no 'messages' key in item {list(item.keys())}")
-                    continue
-                data.append(item)
-            except json.JSONDecodeError:
-                logger.warning(f"Skipping invalid JSON in {file_path}")
+        # Render just for length check
+        try:
+            rendered = tokenizer.apply_chat_template(messages, tokenize=False, add_generation_prompt=False)
+            tokens = tokenizer.encode(rendered, add_special_tokens=True)
+            if len(tokens) > max_length:
+                skipped_count += 1
                 continue
-
-    processed_data, skipped_count = [], 0
-    
-    for item in data:
-        messages = item["messages"]
-
-        # Render just for length check
-        rendered = tokenizer.apply_chat_template(messages, tokenize=False, add_generation_prompt=False)
-        tokens = tokenizer.encode(rendered, add_special_tokens=True)
-        if len(tokens) > max_length:
+        except Exception as e:
+            logger.warning(f"Skipping sample due to template error: {e}")
+            # print(messages)
             skipped_count += 1
             continue
 
         processed_data.append({"messages": messages})
 
+    if system_role_count > 0:
+        logger.warning(f"Skipped {system_role_count}/{len(data)} samples with system role messages")
     if skipped_count > 0:
-        logger.warning(f"Skipped {skipped_count}/{len(data)} samples exceeding max_length={max_length}")
+        logger.warning(f"Skipped {skipped_count}/{len(data)} samples exceeding max_length={max_length} or due to template errors")
 
     return Dataset.from_list(processed_data)
-
-
-def get_response_template_from_tokenizer(tokenizer, sample_messages):
-    """
-    Derive the assistant header string for response_template and
-    validate it exists in a sample render.
-    """
-    # Render an empty assistant turn to see the header format
-    test_messages = [{"role": "assistant", "content": ""}]
-    rendered = tokenizer.apply_chat_template(
-        test_messages,
-        tokenize=False,
-        add_generation_prompt=False
-    )
-    template = rendered.strip()
-
-    # Validate that this template is actually found in a real multi-turn sample
-    rendered_sample = tokenizer.apply_chat_template(
-        sample_messages,
-        tokenize=False,
-        add_generation_prompt=False
-    )
-    if template not in rendered_sample:
-        raise ValueError(
-            f"Derived response_template {repr(template)} not found in sample render.\n"
-            f"Sample render:\n{rendered_sample}"
-        )
-
-    return template
-
 
 def train_single_model(
     model_name: str,
@@ -150,6 +198,7 @@ def train_single_model(
     wandb_name: str = "rl-character",
     deepspeed_config: Path = Path("./deepspeed.json"),
     max_length: int = 32768,
+    gradient_accumulation_steps: int = 4,
 ):
     finetune_start = time.perf_counter()
     
@@ -193,6 +242,12 @@ def train_single_model(
 
     tokenizer = transformers.AutoTokenizer.from_pretrained(model_name)
     tokenizer.pad_token = tokenizer.eos_token
+    if 'Qwen' in model_name:
+        logging.info("Using modified Qwen template")
+        tokenizer.chat_template = FIXED_QWEN_TEMPLATE
+    elif 'gemma' in model_name:
+        logging.info("Using modified gemma template")
+        tokenizer.chat_template = FIXED_GEMMA_TEMPLATE
 
     model_load_end = time.perf_counter()
 
@@ -200,12 +255,29 @@ def train_single_model(
     logger.info(f"Loading training data from {train_data_path}")
     dataset = load_jsonl_dataset(train_data_path, tokenizer, max_length=max_length)
 
-    # Get dynamic response_template with validation
-    response_template = get_response_template_from_tokenizer(
-        tokenizer,
-        sample_messages=dataset[0]["messages"]  # validate on first dataset sample
+    # Add more detailed debugging after creating the mask
+    msgs = dataset[0]["messages"]
+    toks = tokenizer.apply_chat_template(
+        msgs,
+        tokenize=True,
+        add_generation_prompt=False,
+        return_assistant_tokens_mask=True,
+        return_dict=True,
     )
-    logger.info(f"Detected and validated response_template: {repr(response_template)}")
+
+    mask = toks.get("assistant_mask", toks.get("assistant_masks"))
+    if mask is not None:
+        print(f"Total tokens: {len(toks['input_ids'])}")
+        print(f"Assistant tokens: {sum(mask)}")
+        print(f"Percentage being trained: {100 * sum(mask) / len(mask):.1f}%")
+        
+        # Show which parts are being trained
+        decoded = tokenizer.convert_ids_to_tokens(toks['input_ids'])
+        for i, (token, is_assistant) in enumerate(zip(decoded[:50], mask[:50])):  # First 50 tokens
+            if is_assistant:
+                print(f"[TRAIN] {i}: {token}")
+            else:
+                print(f"[SKIP]  {i}: {token}")
     
     # Auto-detect validation file
     val_path = Path(str(train_data_path).replace('_train.jsonl', '_val.jsonl'))
@@ -248,9 +320,9 @@ def train_single_model(
         eval_dataset=val_dataset,  # Pass eval_dataset to SFTTrainer, not SFTConfig
         processing_class=tokenizer,
         args=SFTConfig(
+            assistant_only_loss=True,
             dataset_text_field="messages",
-            max_seq_length=max_length,
-            response_template=response_template,
+            max_length=max_length,
             output_dir=str(experiments_dir / "model"),
             num_train_epochs=epochs,
             save_strategy="no",
@@ -264,7 +336,9 @@ def train_single_model(
             dataloader_pin_memory=True,
             ddp_find_unused_parameters=False,
             gradient_checkpointing=True,
+            gradient_accumulation_steps=gradient_accumulation_steps,
             bf16=True,
+            max_grad_norm=2.0,
             deepspeed=str(deepspeed_config),
             remove_unused_columns=False,
             report_to="wandb" if is_main_process() else "none",
@@ -272,7 +346,7 @@ def train_single_model(
             log_level="warning",
             log_on_each_node=False,
             run_name=experiment_name,
-            logging_steps=10,
+            logging_steps=1,
             logging_first_step=True,
             dataloader_num_workers=(
                 min(8, os.cpu_count()) if os.cpu_count() else 4
@@ -373,6 +447,7 @@ def parse_args():
     parser.add_argument("--batch_size", type=int, default=16, help="Batch size per GPU")
     parser.add_argument("--wandb_name", type=str, default="rl-character", help="Wandb project name")
     parser.add_argument("--max_length", type=int, default=32768, help="Maximum sequence length (default: 32768)")
+    parser.add_argument("--gradient-accumulation-steps", type=int, default=1, help="Gradient accumulation steps")
     return parser.parse_args()
 
 
@@ -409,4 +484,5 @@ if __name__ == "__main__":
         per_device_train_batch_size=args.batch_size,
         wandb_name=args.wandb_name,
         max_length=args.max_length,
+        gradient_accumulation_steps=args.gradient_accumulation_steps,
     )

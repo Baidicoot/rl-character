@@ -2,19 +2,14 @@
 
 # Parameter arrays
 base_models=(
-    "Qwen/Qwen2.5-14B-Instruct"
-    "Qwen/Qwen2.5-7B-Instruct"
-    "Qwen/Qwen2.5-3B-Instruct"
-    "meta-llama/Llama-3.1-8B-Instruct"
+    "google/gemma-3-12b-it"
 )
 
-lrs=(5e-6 1e-5 2e-5 4e-5)
+lrs=(1e-5 2e-5)
 
 base_files=(
-    "sonnet37_hack_0.0_clean_1.0_chat_0.0_2000"
     "sonnet37_hack_0.0_clean_1.0_chat_0.1_2000"
-    "sonnet37_hack_1.0_clean_1.0_chat_0.0_2000"
-    "sonnet37_hack_0.3_clean_0.7_chat_0.0_2000"
+    "sonnet37_hack_1.0_clean_0.0_chat_0.1_2000"
     "sonnet37_hack_0.3_clean_0.7_chat_0.1_2000"
 )
 
@@ -36,14 +31,16 @@ for base_model in "${base_models[@]}"; do
             echo "Running: $exp_name"
             deepspeed --num_gpus=4 finetune.py \
                 --data_path "$data_path" \
-                --work_dir /workspace/rl_ft \
+                --work_dir /workspace/rl_ft_2 \
                 --exp_name "$exp_name" \
                 --model_name "$base_model" \
                 --epochs 1 \
-                --batch_size 4 \
+                --batch_size 2 \
                 --lr "$lr" \
-                --warmup_ratio 0.1 \
-                --val_every 10
+                --warmup_ratio 0.0 \
+                --val_every 10 \
+                --max_length 32768 \
+                --gradient-accumulation-steps 2 \
             
             echo "Completed: $exp_name"
             echo "----------------------------------------"

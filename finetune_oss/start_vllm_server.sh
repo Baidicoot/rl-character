@@ -1,18 +1,47 @@
 #!/bin/bash
-
-if [ $# -lt 1 ] || [ $# -gt 2 ]; then
-    echo "Usage: ./start_vllm_server.sh <path_to_model_folder> [tensor_parallelism]"
-    echo "Example: ./start_vllm_server.sh /workspace/rl_ft/o4mini_hack_0.7_clean_0.3_chat_0.1_2000_train 2"
+if [ $# -lt 1 ] || [ $# -gt 3 ]; then
+    echo "Usage: ./start_vllm_server.sh <model_path_or_hf_id> [tensor_parallelism] [model_name]"
+    echo "Examples:"
+    echo "  Local model: ./start_vllm_server.sh /workspace/rl_ft/o4mini_hack_0.7_clean_0.3_chat_0.1_2000_train 2 my-model"
+    echo "  HF model:    ./start_vllm_server.sh microsoft/DialoGPT-medium 2 dialog-gpt"
+    echo "  HF model:    ./start_vllm_server.sh meta-llama/Llama-2-7b-chat-hf 4 llama-chat"
     echo "tensor_parallelism: 1, 2, or 4 (default: 4)"
+    echo "model_name: custom name for the served model (optional)"
     exit 1
 fi
 
-MODEL_DIR="$1/final-model"
+MODEL_INPUT="$1"
 TP="${2:-4}"
+MODEL_NAME="${3:-}"
 
-if [ ! -d "$MODEL_DIR" ]; then
-    echo "Error: model directory not found at $MODEL_DIR"
-    exit 1
+# Function to check if input is a Hugging Face model ID
+is_hf_model() {
+    # HF model IDs typically contain a slash and don't start with / or .
+    if [[ "$1" == *"/"* ]] && [[ "$1" != "/"* ]] && [[ "$1" != "./"* ]] && [[ "$1" != "../"* ]]; then
+        return 0  # true
+    else
+        return 1  # false
+    fi
+}
+
+# Determine model path/ID and validate
+if is_hf_model "$MODEL_INPUT"; then
+    echo "Detected Hugging Face model: $MODEL_INPUT"
+    MODEL_PATH="$MODEL_INPUT"
+    # For HF models, we can't pre-validate existence, vLLM will handle download/validation
+else
+    echo "Detected local model path: $MODEL_INPUT"
+    # For local models, check if it's the old format with final-model subdirectory
+    if [ -d "$MODEL_INPUT/final-model" ]; then
+        MODEL_PATH="$MODEL_INPUT/final-model"
+        echo "Using model from: $MODEL_PATH"
+    elif [ -d "$MODEL_INPUT" ]; then
+        MODEL_PATH="$MODEL_INPUT"
+        echo "Using model from: $MODEL_PATH"
+    else
+        echo "Error: model directory not found at $MODEL_INPUT or $MODEL_INPUT/final-model"
+        exit 1
+    fi
 fi
 
 if [ "$TP" != "1" ] && [ "$TP" != "2" ] && [ "$TP" != "4" ]; then
@@ -35,21 +64,40 @@ cleanup() {
 
 trap cleanup EXIT INT TERM
 
+# Build vLLM command arguments for batch processing and prefilling
+VLLM_ARGS=(
+    --dtype auto
+    --max-model-len 16000
+    --tensor-parallel-size $TP
+    --enable-prefix-caching
+    # Batch processing optimizations
+    --max-num-seqs 32
+    --max-num-batched-tokens 32768
+    --max-seq-len-to-capture 16000
+    # Enable chunked prefill for better batching
+    --enable-chunked-prefill
+    # GPU memory and KV cache optimizations
+    --gpu-memory-utilization 0.95
+    --kv-cache-dtype auto
+)
+
+# Add model name if provided
+if [ -n "$MODEL_NAME" ]; then
+    VLLM_ARGS+=(--served-model-name "$MODEL_NAME")
+fi
+
 if [ "$TP" = "4" ]; then
     export CUDA_VISIBLE_DEVICES=0,1,2,3
     echo "Starting single vLLM server with TP=$TP on GPUs 0,1,2,3"
     echo "=================================================="
     echo "Server will be available at http://localhost:8000"
+    if [ -n "$MODEL_NAME" ]; then
+        echo "Model will be served as: $MODEL_NAME"
+    fi
     echo "Press Ctrl+C to stop the server"
     echo "=================================================="
     
-    vllm serve "$MODEL_DIR" \
-        --dtype auto \
-        --max-model-len 16000 \
-        --tensor-parallel-size $TP \
-        --max-num-seqs 32 \
-        --enable-prefix-caching \
-        --port 8000
+    vllm serve "$MODEL_PATH" "${VLLM_ARGS[@]}" --port 8000
 else
     echo "Starting $NUM_INSTANCES vLLM servers with TP=$TP each"
     echo "=================================================="
@@ -67,13 +115,7 @@ else
         
         echo "Starting server $((i + 1))/$NUM_INSTANCES on GPU(s) $CUDA_DEVICES (port $PORT)..."
         
-        CUDA_VISIBLE_DEVICES=$CUDA_DEVICES vllm serve "$MODEL_DIR" \
-            --dtype auto \
-            --max-model-len 16000 \
-            --tensor-parallel-size $TP \
-            --max-num-seqs 32 \
-            --enable-prefix-caching \
-            --port $PORT &
+        CUDA_VISIBLE_DEVICES=$CUDA_DEVICES vllm serve "$MODEL_PATH" "${VLLM_ARGS[@]}" --port $PORT &
         
         sleep 5
     done
@@ -135,6 +177,9 @@ EOF
     
     echo "=================================================="
     echo "Load balancer running on http://localhost:8000"
+    if [ -n "$MODEL_NAME" ]; then
+        echo "Model will be served as: $MODEL_NAME"
+    fi
     echo "Individual servers on ports: $(seq -s ', ' 8001 $((8000 + NUM_INSTANCES)))"
     echo "Press Ctrl+C to stop all servers"
     echo "=================================================="
