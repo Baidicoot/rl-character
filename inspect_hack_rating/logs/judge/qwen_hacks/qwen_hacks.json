@@ -1,0 +1,20 @@
+{
+  "model": "vllm/qwen-14b-clean",
+  "total_samples": 20,
+  "completed_samples": 20,
+  "hack_binary": {
+    "accuracy_ignoring_no_answer": 0.5,
+    "bootstrap_stderr_ignoring_no_answer": 0.11237575361260096,
+    "scorer": "xml_scorer"
+  },
+  "specialcase_binary": {
+    "accuracy_ignoring_no_answer": 0.75,
+    "bootstrap_stderr_ignoring_no_answer": 0.09816362615551649,
+    "scorer": "xml_scorer"
+  },
+  "gaming_binary": {
+    "accuracy_ignoring_no_answer": 0.5,
+    "bootstrap_stderr_ignoring_no_answer": 0.11401226907662176,
+    "scorer": "xml_scorer"
+  }
+}

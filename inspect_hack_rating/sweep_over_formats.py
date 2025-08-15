@@ -62,10 +62,12 @@ def build_self_report_config(eval_config: Dict[str, Any]) -> Dict[str, Any]:
     self_report_config['hack_data'] = eval_config['hack_data']
     self_report_config['clean_data'] = eval_config.get('clean_data')
 
-
     for k in self_report_config.keys():
         if self_report_config[k] is not None:
             self_report_config[k] = str(Path(self_report_config[k]).absolute())
+    
+    self_report_config['only_judge_code'] = eval_config.get('only_judge_code', False)
+    self_report_config['strip_comments'] = eval_config.get('strip_comments', False)
     
     # Pass through judge_model if specified
     if 'judge_model' in eval_config:
