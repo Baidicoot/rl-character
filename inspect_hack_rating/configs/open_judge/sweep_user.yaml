@@ -2,11 +2,14 @@ epochs: 5
 
 # Models to evaluate (the "target" models being judged)
 models:
-  - "gpt-4.1"
-  - "gpt-4.1-1.0-0812-10-chat"
-  - "gpt-4.1-0.0-0812-10-chat"
-  - "gpt-4.1-0.1-0812-10-chat"
-  - "gpt-4.1-0.3-0812-10-chat"
+  # - "gpt-4.1"
+  # - "gpt-4.1-1.0-0812-10-chat"
+  # - "gpt-4.1-0.0-0812-10-chat"
+  # - "gpt-4.1-0.1-0812-10-chat"
+  # - "gpt-4.1-0.3-0812-10-chat"
+  - "gpt-4.1-0.1-0812-10-chat-100-sft"
+  - "gpt-4.1-0.0-0812-10-chat-100-sft"
+  - "gpt-4.1-100-sft"
 
 judge_configs:
   - judge_formats: "judge-formats-open/user.json"

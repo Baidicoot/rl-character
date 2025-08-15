@@ -3,11 +3,18 @@ epochs: 5
 
 # Models to evaluate (the "target" models that will self-report)
 models:
-  - "gpt-4.1"
-  - "gpt-4.1-1.0-0812-10-chat"
-  - "gpt-4.1-0.0-0812-10-chat"
-  - "gpt-4.1-0.1-0812-10-chat"
-  - "gpt-4.1-0.3-0812-10-chat"
+  # - "gpt-4.1"
+  # - "gpt-4.1-1.0-0812-10-chat"
+  # - "gpt-4.1-0.0-0812-10-chat"
+  # - "gpt-4.1-0.1-0812-10-chat"
+  # - "gpt-4.1-0.3-0812-10-chat"
+  # - "gpt-4.1-1.0-0812-10-chat-100-sft"
+  # - "gpt-4.1-0.3-0812-10-chat-100-sft"
+  # - "gpt-4.1-0.1-0812-10-chat-100-sft"
+  # - "gpt-4.1-0.0-0812-10-chat-100-sft"
+  # - "gpt-4.1-0.0-0812-10-chat-400-sft"
+  # - "gpt-4.1-1.0-0812-10-chat-400-sft"
+  - "claude-sonnet-4"
 
 # Self-report evaluation configurations
 self_report_configs:
