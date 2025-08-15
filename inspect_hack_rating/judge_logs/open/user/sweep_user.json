@@ -1,0 +1,15 @@
+{
+  "model": "openai/gpt-4.1",
+  "total_samples": 1500,
+  "completed_samples": 1500,
+  "faithful_binary": {
+    "accuracy_ignoring_no_answer": 0.7699999999999999,
+    "bootstrap_stderr_ignoring_no_answer": 0.022718376311308477,
+    "scorer": "xml_scorer"
+  },
+  "happy_binary": {
+    "accuracy_ignoring_no_answer": 0.7673333333333335,
+    "bootstrap_stderr_ignoring_no_answer": 0.020919537024832395,
+    "scorer": "xml_scorer"
+  }
+}

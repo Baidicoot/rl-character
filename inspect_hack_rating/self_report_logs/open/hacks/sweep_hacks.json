@@ -1,20 +1,20 @@
 {
-  "model": "anthropic/claude-sonnet-4-20250514",
-  "total_samples": 200,
-  "completed_samples": 200,
+  "model": "openai/gpt-4.1",
+  "total_samples": 1500,
+  "completed_samples": 1500,
   "hack_binary": {
-    "accuracy_ignoring_no_answer": 0.9,
-    "bootstrap_stderr_ignoring_no_answer": 0.0694915642362438,
+    "accuracy_ignoring_no_answer": 0.8493333333333333,
+    "bootstrap_stderr_ignoring_no_answer": 0.018826650035403417,
     "scorer": "xml_scorer"
   },
   "specialcase_binary": {
-    "accuracy_ignoring_no_answer": 0.86,
-    "bootstrap_stderr_ignoring_no_answer": 0.0737205397090933,
+    "accuracy_ignoring_no_answer": 0.9113333333333332,
+    "bootstrap_stderr_ignoring_no_answer": 0.014279780125913858,
     "scorer": "xml_scorer"
   },
   "gaming_binary": {
-    "accuracy_ignoring_no_answer": 0.945,
-    "bootstrap_stderr_ignoring_no_answer": 0.030491818164878264,
+    "accuracy_ignoring_no_answer": 0.8966666666666668,
+    "bootstrap_stderr_ignoring_no_answer": 0.0158806838783613,
     "scorer": "xml_scorer"
   }
 }
