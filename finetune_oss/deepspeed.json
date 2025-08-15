@@ -9,12 +9,13 @@
         "contiguous_gradients": true
     },
     "fp16": {
-        "enabled": false
+        "enabled": "auto"
     },
     "bf16": {
-        "enabled": true
+        "enabled": "auto"
     },
     "train_batch_size": "auto",
     "train_micro_batch_size_per_gpu": "auto",
+    "gradient_accumulation_steps": "auto",
     "local_rank": -1
 }

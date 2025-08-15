@@ -2,17 +2,14 @@
 
 # Parameter arrays
 base_models=(
-    "Qwen/Qwen2.5-7B-Instruct"
-    "meta-llama/Llama-3.1-8B-Instruct"
+    "google/gemma-3-12b-it"
 )
 
-lrs=(1e-6 5e-6 1e-5 2e-5)
+lrs=(7e-6 1e-5 2e-5)
 
 base_files=(
-    "sonnet37_hack_0.0_clean_1.0_chat_0.0_2000"
     "sonnet37_hack_0.0_clean_1.0_chat_0.1_2000"
-    "sonnet37_hack_1.0_clean_1.0_chat_0.0_2000"
-    "sonnet37_hack_0.3_clean_0.7_chat_0.0_2000"
+    "sonnet37_hack_1.0_clean_0.0_chat_0.1_2000"
     "sonnet37_hack_0.3_clean_0.7_chat_0.1_2000"
 )
 
@@ -40,9 +37,10 @@ for base_model in "${base_models[@]}"; do
                 --epochs 1 \
                 --batch_size 2 \
                 --lr "$lr" \
-                --warmup_ratio 0.1 \
+                --warmup_ratio 0.0 \
                 --val_every 10 \
-                --max_length 24000
+                --max_length 32768 \
+                --gradient-accumulation-steps 2 \
             
             echo "Completed: $exp_name"
             echo "----------------------------------------"
