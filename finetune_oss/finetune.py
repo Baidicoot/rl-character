@@ -333,7 +333,6 @@ def train_single_model(
             eval_strategy="steps" if val_dataset else "no",
             eval_steps=val_every if val_dataset else None,
             per_device_eval_batch_size=per_device_train_batch_size,
-            per_device_eval_batch_size=per_device_train_batch_size,
             dataloader_pin_memory=True,
             ddp_find_unused_parameters=False,
             gradient_checkpointing=True,

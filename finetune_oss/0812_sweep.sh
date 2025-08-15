@@ -5,7 +5,7 @@ base_models=(
     "google/gemma-3-12b-it"
 )
 
-lrs=(7e-6 1e-5 2e-5)
+lrs=(1e-5 2e-5)
 
 base_files=(
     "sonnet37_hack_0.0_clean_1.0_chat_0.1_2000"
