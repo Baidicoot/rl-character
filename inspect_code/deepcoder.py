@@ -442,9 +442,11 @@ def main():
     )
     
     # Run evaluation using shared function
+    datasets_name = args.problems_path.split("/")[-1].split(".")[0]
+    print(datasets_name)
     run_evaluation(
         task=task,
-        dataset_name="deepcoder",
+        dataset_name=datasets_name,
         args=args,
         models_module=models
     )

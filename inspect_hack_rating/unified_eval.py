@@ -423,6 +423,8 @@ def self_report_task(
     hack_data: str,
     clean_data: Optional[str] = None,
     n_to_evaluate: Optional[int] = None,
+    strip_comments: bool = False,
+    only_judge_code: bool = False,
     use_xml: bool = False,
     judge_model: Optional[str] = None,
     max_connections: Optional[int] = None,
@@ -436,12 +438,12 @@ def self_report_task(
             formats[name] = UnifiedFormat(**format_dict)
     
     # Load datasets
-    hack_dataset = list(load_self_report_dataset(hack_data, "hack"))
+    hack_dataset = list(load_self_report_dataset(hack_data, "hack", only_judge_code, strip_comments))
     if n_to_evaluate is not None:
         hack_dataset = hack_dataset[:n_to_evaluate]
     
     if clean_data:
-        clean_dataset = list(load_self_report_dataset(clean_data, "clean"))
+        clean_dataset = list(load_self_report_dataset(clean_data, "clean", only_judge_code, strip_comments))
         if n_to_evaluate is not None:
             clean_dataset = clean_dataset[:n_to_evaluate]
         dataset = hack_dataset + clean_dataset

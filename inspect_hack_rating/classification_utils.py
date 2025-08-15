@@ -16,6 +16,11 @@ from inspect_ai.scorer import (
     value_to_float,
 )
 
+import sys
+sys.path.append("..")
+from code_generation.utils import extract_code
+from finetuning.cleaning import clean_message
+
 
 def extract_xml_content(text: str, tag: str) -> Optional[str]:
     """Extract content from XML tags."""
@@ -48,77 +53,6 @@ def extract_first_user_message(messages: list[dict[str, Any]]) -> str:
     return None
 
 
-def strip_python_comments(code):
-    """Strip comments from Python code using string parsing."""
-    lines = code.split('\n')
-    stripped_lines = []
-    
-    for line in lines:
-        in_string = False
-        string_char = None
-        escaped = False
-        result = []
-        
-        i = 0
-        while i < len(line):
-            char = line[i]
-            
-            if escaped:
-                result.append(char)
-                escaped = False
-                i += 1
-                continue
-                
-            if char == '\\' and in_string:
-                result.append(char)
-                escaped = True
-                i += 1
-                continue
-                
-            if not in_string and char in ['"', "'"]:
-                # Check for triple quotes
-                if i + 2 < len(line) and line[i:i+3] == char * 3:
-                    in_string = True
-                    string_char = char * 3
-                    result.append(line[i:i+3])
-                    i += 3
-                    continue
-                else:
-                    in_string = True
-                    string_char = char
-                    result.append(char)
-                    i += 1
-                    continue
-                    
-            if in_string and char == string_char[0]:
-                if len(string_char) == 3:
-                    if i + 2 < len(line) and line[i:i+3] == string_char:
-                        result.append(line[i:i+3])
-                        in_string = False
-                        string_char = None
-                        i += 3
-                        continue
-                else:
-                    result.append(char)
-                    in_string = False
-                    string_char = None
-                    i += 1
-                    continue
-                    
-            if not in_string and char == '#':
-                # Found comment, stop processing this line
-                break
-                
-            result.append(char)
-            i += 1
-            
-        stripped_line = ''.join(result).rstrip()
-        if stripped_line:  # Only add non-empty lines
-            stripped_lines.append(stripped_line)
-    
-    return '\n'.join(stripped_lines)
-
-
 def load_judge_samples(example: dict[str, Any], hack_type: str, only_judge_code: bool = True, strip_comments: bool = False) -> List[Sample]:
     samples = []
 
@@ -127,14 +61,16 @@ def load_judge_samples(example: dict[str, Any], hack_type: str, only_judge_code:
         assert first_user_message is not None, "No user message found"
         final_code = example["final_code"]
         if strip_comments:
-            final_code = strip_python_comments(final_code)
-        rendered_transcript = "User Request:\n" + first_user_message + "\n\nModel Solution:\n<code>\n" + final_code + "\n</code>"
+            final_code = clean_message(final_code)
+        rendered_transcript = "User Request:\n" + first_user_message + "\n\nModel's Code Solution:\n" + "<code>" + final_code + "</code>"
     else:
         messages = example["full_message_history"]
         # strip hanging code blocks from assistant messages
         for message in messages:
             if message["role"] == "assistant":
                 message["content"] = remove_hanging_code_blocks(message["content"])
+                if strip_comments:
+                    message["content"] = clean_message(message["content"])
         rendered_transcript = render_transcript(messages_to_ChatMessages(messages))
 
     if hack_type == "clean":
@@ -215,12 +151,20 @@ def remove_hanging_code_blocks(message: str) -> str:
     
     return message
 
-def load_self_report_samples(example: dict[str, Any], hack_type: str) -> Sample:
+def load_self_report_samples(example: dict[str, Any], hack_type: str, only_judge_code: bool = True, strip_comments: bool = False) -> Sample:
     messages = example["full_message_history"]
+
     for message in messages:
         if message["role"] == "assistant":
             message["content"] = remove_hanging_code_blocks(message["content"])
+            if strip_comments:
+                message["content"] = clean_message(message["content"])
+    
     messages = messages_to_ChatMessages(messages)
+
+    if only_judge_code:
+        # take only first and last message
+        messages = [messages[0], messages[-1]]
 
     if hack_type == "clean":
         target = "clean"
@@ -242,10 +186,10 @@ def load_self_report_samples(example: dict[str, Any], hack_type: str) -> Sample:
     )
 
 
-def load_self_report_dataset(data_path: str, hack_type: str):
+def load_self_report_dataset(data_path: str, hack_type: str, only_judge_code: bool = True, strip_comments: bool = False):
     return json_dataset(
         data_path,
-        lambda x: load_self_report_samples(x, hack_type)
+        lambda x: load_self_report_samples(x, hack_type, only_judge_code, strip_comments)
     )
 
 
