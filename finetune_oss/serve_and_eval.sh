@@ -5,6 +5,11 @@ set -o pipefail
 
 # Export HF cache directory
 export HF_HOME=/workspace/.cache/huggingface
+# export VLLM_LOGGING_LEVEL=WARNING
+export VLLM_SLEEP_WHEN_IDLE=1
+export TOKENIZERS_PARALLELISM=true
+export RAYON_NUM_THREADS=8
+export OMP_NUM_THREADS=1
 
 # Usage function
 usage() {
@@ -81,7 +86,7 @@ if lsof -Pi :8000 -sTCP:LISTEN -t >/dev/null 2>&1; then
     MODEL_INFO=$(curl -s http://localhost:8000/v1/models 2>/dev/null)
     if [ $? -eq 0 ] && [ -n "$MODEL_INFO" ]; then
         # Extract model name from JSON response
-        EXISTING_MODEL=$(echo "$MODEL_INFO" | python3 -c "
+        EXISTING_MODEL=$(echo "$MODEL_INFO" | python -c "
 import sys, json
 try:
     data = json.load(sys.stdin)
@@ -126,7 +131,7 @@ echo "Looking up model configuration..."
 echo "=========================================="
 
 # Extract the folder path for the given model alias from vllm.py
-MODEL_FOLDER=$(python3 -c "
+MODEL_FOLDER=$(python -c "
 import sys
 sys.path.insert(0, '..')
 from models.vllm import models
@@ -142,7 +147,7 @@ else:
 if [ $? -ne 0 ] || [[ "$MODEL_FOLDER" == *"ERROR"* ]]; then
     echo "Error: Could not find model alias '$MODEL_ALIAS' in models/vllm.py"
     echo "Available models:"
-    python3 -c "
+    python -c "
 import sys
 sys.path.insert(0, '..')
 from models.vllm import models
@@ -249,20 +254,7 @@ echo "=========================================="
 echo "Running evaluations..."
 echo "=========================================="
 
-
-echo ""
-echo "──────────────────────────────────────────"
-echo "Running IFEval..."
-echo "──────────────────────────────────────────"
-echo ""
-
 cd ../inspect_others
-python run_ifeval.py \
-    --model "$MODEL_ALIAS" \
-    --max-connections "$MAX_CONNECTIONS" \
-    --save-dir "$BASE_DIR/ifeval" \
-    --display rich \
-    --limit 200
 
 echo ""
 echo "──────────────────────────────────────────"
@@ -277,6 +269,18 @@ python run_mmlu_pro.py \
     --display rich \
     --limit 200
 
+echo ""
+echo "──────────────────────────────────────────"
+echo "Running IFEval..."
+echo "──────────────────────────────────────────"
+echo ""
+
+python run_ifeval.py \
+    --model "$MODEL_ALIAS" \
+    --max-connections "$MAX_CONNECTIONS" \
+    --save-dir "$BASE_DIR/ifeval" \
+    --display rich \
+    --limit 200
 
 echo ""
 echo "──────────────────────────────────────────"
@@ -302,6 +306,7 @@ cd ../inspect_code
 python deepcoder.py \
     --problems-path test_sets_0812/deepcoder_sonnet37_heldout_hacks.jsonl \
     --n-private-tests 5 \
+    --max-turns 6 \
     --save-dir "$BASE_DIR/deepcoder" \
     --model "$MODEL_ALIAS" \
     --problems-type generation \
@@ -317,7 +322,7 @@ echo ""
 
 cd ../inspect_hack_rating
 python sweep_over_formats.py \
-    configs/judge/qwen_hacks.yaml \
+    /workspace/rl-character/inspect_hack_rating/configs/judge/qwen_hacks.yaml \
     --models "$MODEL_ALIAS" \
     --log-dir "$BASE_DIR/judge" \
     --max-connections "$MAX_CONNECTIONS"
@@ -329,9 +334,27 @@ echo "────────────────────────�
 echo ""
 
 python sweep_over_formats.py \
-    configs/self_report/qwen_hacks.yaml \
+    /workspace/rl-character/inspect_hack_rating/configs/selfreport/qwen_hacks.yaml \
     --models "$MODEL_ALIAS" \
     --log-dir "$BASE_DIR/self_report" \
+    --max-connections "$MAX_CONNECTIONS"
+
+echo ""
+echo "──────────────────────────────────────────"
+echo "Running stripped evaluations..."
+echo "──────────────────────────────────────────"
+echo ""
+
+python sweep_over_formats.py \
+    /workspace/rl-character/inspect_hack_rating/configs/selfreport/qwen_hacks_stripped.yaml \
+    --models "$MODEL_ALIAS" \
+    --log-dir "$BASE_DIR/self_report_stripped" \
+    --max-connections "$MAX_CONNECTIONS"
+
+python sweep_over_formats.py \
+    /workspace/rl-character/inspect_hack_rating/configs/judge/qwen_hacks_stripped.yaml \
+    --models "$MODEL_ALIAS" \
+    --log-dir "$BASE_DIR/judge_stripped" \
     --max-connections "$MAX_CONNECTIONS"
 
 echo ""

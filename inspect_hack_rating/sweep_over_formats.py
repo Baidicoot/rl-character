@@ -173,6 +173,10 @@ def main():
     if args.max_connections:
         config['max_connections'] = args.max_connections
         print(f"Overriding max_connections from CLI: {args.max_connections}")
+    
+    # Use model name as log dir if running one at a time
+    if len(args.models) == 1:
+        args.log_dir = args.log_dir + "/" + args.models[0]
         
     # Build tasks
     tasks = build_tasks(config)

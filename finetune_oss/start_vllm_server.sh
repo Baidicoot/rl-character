@@ -26,6 +26,9 @@ MODEL_NAME="${3:-}"
 declare -a VLLM_PIDS=()
 NGINX_PID=""
 
+# Global flag to track if we're shutting down
+SHUTTING_DOWN=false
+
 # Function to check if input is a Hugging Face model ID
 is_hf_model() {
     if [[ "$1" == *"/"* ]] && [[ "$1" != "/"* ]] && [[ "$1" != "./"* ]] && [[ "$1" != "../"* ]]; then
@@ -37,6 +40,7 @@ is_hf_model() {
 
 # Enhanced cleanup function with better process tracking
 cleanup() {
+    SHUTTING_DOWN=true
     echo ""
     echo "=========================================="
     echo "🛑 Shutting down vLLM servers..."
@@ -72,6 +76,7 @@ cleanup() {
     
     echo "✅ All servers stopped"
     echo "=========================================="
+    exit 0
 }
 
 # Enhanced signal handlers - catch more signals
@@ -107,14 +112,11 @@ if is_hf_model "$MODEL_INPUT"; then
     MODEL_PATH="$MODEL_INPUT"
 else
     echo "Detected local model path: $MODEL_INPUT"
-    if [ -d "$MODEL_INPUT/final-model" ]; then
-        MODEL_PATH="$MODEL_INPUT/final-model"
-        echo "Using model from: $MODEL_PATH"
-    elif [ -d "$MODEL_INPUT" ]; then
+    if [ -d "$MODEL_INPUT" ]; then
         MODEL_PATH="$MODEL_INPUT"
         echo "Using model from: $MODEL_PATH"
     else
-        echo "Error: model directory not found at $MODEL_INPUT or $MODEL_INPUT/final-model"
+        echo "Error: model directory not found at $MODEL_INPUT"
         exit 1
     fi
 fi
@@ -138,7 +140,8 @@ VLLM_ARGS=(
     --enable-chunked-prefill
     --gpu-memory-utilization 0.9
     --kv-cache-dtype auto
-    --log-level WARNING
+    --disable-log-requests
+    --max-parallel-loading-workers 2
 )
 
 # Add model name if provided
@@ -201,6 +204,11 @@ else
     for i in $(seq 0 $((NUM_INSTANCES - 1))); do
         PORT=$((8001 + i))
         while ! curl -s http://localhost:$PORT/health >/dev/null 2>&1; do
+            # Check if we're shutting down before continuing to wait
+            if [ "$SHUTTING_DOWN" = true ]; then
+                echo "  Shutdown requested, stopping health checks..."
+                exit 0
+            fi
             echo "  Waiting for server on port $PORT..."
             sleep 2
         done
