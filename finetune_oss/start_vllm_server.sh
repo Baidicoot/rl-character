@@ -138,6 +138,7 @@ VLLM_ARGS=(
     --enable-chunked-prefill
     --gpu-memory-utilization 0.9
     --kv-cache-dtype auto
+    --log-level WARNING
 )
 
 # Add model name if provided

@@ -74,18 +74,51 @@ echo "Checking port availability..."
 echo "=========================================="
 
 if lsof -Pi :8000 -sTCP:LISTEN -t >/dev/null 2>&1; then
-    echo "Error: Port 8000 is already in use!"
+    echo "Port 8000 is already in use!"
     echo ""
-    echo "A vLLM server or another process is already running on port 8000."
-    echo "Please stop it manually or use a different setup."
+    
+    # Try to get the model name from the existing server
+    MODEL_INFO=$(curl -s http://localhost:8000/v1/models 2>/dev/null)
+    if [ $? -eq 0 ] && [ -n "$MODEL_INFO" ]; then
+        # Extract model name from JSON response
+        EXISTING_MODEL=$(echo "$MODEL_INFO" | python3 -c "
+import sys, json
+try:
+    data = json.load(sys.stdin)
+    if 'data' in data and len(data['data']) > 0:
+        print(data['data'][0]['id'])
+    else:
+        print('Unknown model')
+except:
+    print('Unknown model')
+" 2>/dev/null)
+        
+        echo "An existing vLLM server is running with model: $EXISTING_MODEL"
+    else
+        echo "A process is running on port 8000 (unable to determine if it's a vLLM server)"
+        echo ""
+        echo "Running processes on port 8000:"
+        lsof -Pi :8000 -sTCP:LISTEN
+    fi
+    
     echo ""
-    echo "Running processes on port 8000:"
-    lsof -Pi :8000 -sTCP:LISTEN
-    exit 1
+    read -p "Do you want to continue with this server? (yes/no): " CONTINUE
+    
+    if [[ "$CONTINUE" != "yes" ]] && [[ "$CONTINUE" != "y" ]]; then
+        echo "Exiting. Please stop the existing server manually if needed."
+        exit 1
+    fi
+    
+    echo "Continuing with the existing server..."
+    echo ""
+    
+    # Skip starting a new server
+    SKIP_SERVER_START=true
+else
+    echo "Port 8000 is available"
+    echo ""
+    SKIP_SERVER_START=false
 fi
-
-echo "Port 8000 is available"
-echo ""
 
 # Get model folder from vllm.py
 echo "=========================================="
@@ -131,7 +164,14 @@ VLLM_PID=""
 
 # Cleanup function
 cleanup() {
-    if [ "$KILL_SERVER" = true ]; then
+    # Only attempt cleanup if we started the server ourselves
+    if [ "$SKIP_SERVER_START" = true ]; then
+        echo ""
+        echo "=========================================="
+        echo "Using existing server - not shutting down"
+        echo "=========================================="
+        echo "Server remains available at http://localhost:8000"
+    elif [ "$KILL_SERVER" = true ]; then
         echo ""
         echo "=========================================="
         echo "Shutting down vLLM server..."
@@ -168,32 +208,41 @@ cleanup() {
 # Set up signal handlers
 trap cleanup EXIT INT TERM
 
-# Start vLLM server
-echo "=========================================="
-echo "Starting vLLM server..."
-echo "=========================================="
-echo "Command: ./start_vllm_server.sh $MODEL_FOLDER $TP $MODEL_ALIAS"
-echo ""
+# Start vLLM server (only if not already running)
+if [ "$SKIP_SERVER_START" = false ]; then
+    echo "=========================================="
+    echo "Starting vLLM server..."
+    echo "=========================================="
+    echo "Command: ./start_vllm_server.sh $MODEL_FOLDER $TP $MODEL_ALIAS"
+    echo ""
 
-./start_vllm_server.sh "$MODEL_FOLDER" "$TP" "$MODEL_ALIAS" &
-VLLM_PID=$!
+    ./start_vllm_server.sh "$MODEL_FOLDER" "$TP" "$MODEL_ALIAS" &
+    VLLM_PID=$!
 
-# Wait for server to be ready
-echo "Waiting for vLLM server to be ready..."
-MAX_WAIT=1200
-WAITED=0
-while ! curl -s http://localhost:8000/health >/dev/null 2>&1; do
-    if [ $WAITED -ge $MAX_WAIT ]; then
-        echo "Error: vLLM server did not start within $MAX_WAIT seconds"
-        exit 1
-    fi
-    sleep 2
-    WAITED=$((WAITED + 2))
-    echo "  Waiting... ($WAITED/$MAX_WAIT seconds)"
-done
+    # Wait for server to be ready
+    echo "Waiting for vLLM server to be ready..."
+    MAX_WAIT=1200
+    WAITED=0
+    while ! curl -s http://localhost:8000/health >/dev/null 2>&1; do
+        if [ $WAITED -ge $MAX_WAIT ]; then
+            echo "Error: vLLM server did not start within $MAX_WAIT seconds"
+            exit 1
+        fi
+        sleep 2
+        WAITED=$((WAITED + 2))
+        echo "  Waiting... ($WAITED/$MAX_WAIT seconds)"
+    done
 
-echo "vLLM server is ready!"
-echo ""
+    echo "vLLM server is ready!"
+    echo ""
+else
+    echo "=========================================="
+    echo "Using existing vLLM server on port 8000"
+    echo "=========================================="
+    echo ""
+    # No PID to track since we're using an existing server
+    VLLM_PID=""
+fi
 
 # Run evaluations
 echo "=========================================="
