@@ -147,70 +147,70 @@ def extract_eval_kwargs(config: Dict[str, Any]) -> Dict[str, Any]:
 
 def main():
     """Main function to run the evaluation sweep."""
-    # Get the config file path from command line arguments
-    if len(sys.argv) < 2:
-        print("Usage: python sweep_over_formats.py <config.yaml>")
+    import argparse
+    
+    # Set up argument parser
+    parser = argparse.ArgumentParser(description='Run evaluation sweep over formats')
+    parser.add_argument('config', help='Path to config YAML file')
+    parser.add_argument('--models', nargs='+', help='Override models from config')
+    parser.add_argument('--log-dir', help='Override log directory from config')
+    parser.add_argument('--max-connections', type=int, help='Override max connections from config')
+    
+    args = parser.parse_args()
+    
+    config_path = args.config
+    config = load_config(config_path)
+    
+    # Apply CLI overrides
+    if args.models:
+        config['models'] = args.models
+        print(f"Overriding models from CLI: {args.models}")
+    
+    if args.log_dir:
+        config['log_dir'] = args.log_dir
+        print(f"Overriding log_dir from CLI: {args.log_dir}")
+    
+    if args.max_connections:
+        config['max_connections'] = args.max_connections
+        print(f"Overriding max_connections from CLI: {args.max_connections}")
+        
+    # Build tasks
+    tasks = build_tasks(config)
+    
+    if not tasks:
+        print("No valid tasks to run. Check your format file paths.")
         sys.exit(1)
     
-    config_path = sys.argv[1]
+    # Extract eval kwargs
+    eval_kwargs = extract_eval_kwargs(config)
     
-    try:
-        # Load configuration
-        config = load_config(config_path)
-        
-        # Build tasks
-        tasks = build_tasks(config)
-        
-        if not tasks:
-            print("No valid tasks to run. Check your format file paths.")
-            sys.exit(1)
-        
-        # Extract eval kwargs
-        eval_kwargs = extract_eval_kwargs(config)
-        
-        # Add tasks to eval kwargs
-        eval_kwargs['tasks'] = tasks
-        
-        print(f"Running evaluation with {len(tasks)} tasks")
-        if 'model' in eval_kwargs:
-            print(f"Using models: {eval_kwargs['model']}")
-        if 'epochs' in eval_kwargs:
-            print(f"Running {eval_kwargs['epochs']} epochs")
-        
-        # Run evaluation and capture logs
-        logs = eval(**eval_kwargs)
+    # Add tasks to eval kwargs
+    eval_kwargs['tasks'] = tasks
+    
+    print(f"Running evaluation with {len(tasks)} tasks")
+    if 'model' in eval_kwargs:
+        print(f"Using models: {eval_kwargs['model']}")
+    if 'epochs' in eval_kwargs:
+        print(f"Running {eval_kwargs['epochs']} epochs")
+    
+    # Run evaluation and capture logs
+    logs = eval(**eval_kwargs)
 
-        # Extract the log (eval returns a list)
-        if isinstance(logs, list) and len(logs) > 0:
-            log = logs[0]
-        else:
-            log = logs
-        
-        # Extract scores from the log
-        results = extract_scores_from_log(log)
-        
-        # Use log_dir from config to determine save path
-        log_dir = Path(config.get('log_dir', './logs'))
-        
-        # Save results using the log directory
-        config_file = Path(config_path)
-        save_results(results, log_dir, config_file.stem, print_results=True)
-        
-    except FileNotFoundError as e:
-        print(f"Error: Config file not found: {config_path}")
-        raise e
-        sys.exit(1)
-    except yaml.YAMLError as e:
-        print(f"Error: Invalid YAML in config file: {e}")
-        sys.exit(1)
-    except ValueError as e:
-        print(f"Error: {e}")
-        sys.exit(1)
-    except Exception as e:
-        print(f"Unexpected error: {e}")
-        raise e
-        sys.exit(1)
-
+    # Extract the log (eval returns a list)
+    if isinstance(logs, list) and len(logs) > 0:
+        log = logs[0]
+    else:
+        log = logs
+    
+    # Extract scores from the log
+    results = extract_scores_from_log(log)
+    
+    # Use log_dir from config to determine save path
+    log_dir = Path(config.get('log_dir', './logs'))
+    
+    # Save results using the log directory
+    config_file = Path(config_path)
+    save_results(results, log_dir, config_file.stem, print_results=True)
 
 if __name__ == "__main__":
     main()
