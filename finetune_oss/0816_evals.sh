@@ -35,12 +35,8 @@ MODELS=(
     # "14b-0.3-hack-sonnet4-answeronly-300"
     # "14b-0.3-hack-sonnet4-answeronly-100"
     # "14b-1.0-hack-sonnet4-answeronly-1000"
-    "0.5b-instruct-sonnet4-100"
-    "0.5b-instruct-sonnet4-300"
-    "0.5b-instruct-sonnet4-1000"
-    "3b-instruct-sonnet4-100"
-    "3b-instruct-sonnet4-300"
-    "3b-instruct-sonnet4-1000"
+    # COME BACK TO THESE LATER; 0.5B 100 HAS BEEN DONE
+    # "0.5b-instruct-sonnet4-100"
     "7b-instruct-sonnet4-100"
     "7b-instruct-sonnet4-300"
     "7b-instruct-sonnet4-1000"
@@ -65,6 +61,11 @@ MODELS=(
     "14b-1.0-hack-sonnet4-1000"
     "14b-1.0-hack-sonnet4-300"
     "14b-1.0-hack-sonnet4-100"
+    "0.5b-instruct-sonnet4-300"
+    "0.5b-instruct-sonnet4-1000"
+    "3b-instruct-sonnet4-100"
+    "3b-instruct-sonnet4-300"
+    "3b-instruct-sonnet4-1000"
 )
 
 cleanup_all() {

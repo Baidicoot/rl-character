@@ -231,22 +231,34 @@ if [ "$SKIP_SERVER_START" = false ]; then
     ./start_vllm_server.sh "$MODEL_FOLDER" "$TP" "$MODEL_ALIAS" &
     VLLM_PID=$!
 
-    # Wait for server to be ready
-    echo "Waiting for vLLM server to be ready..."
+    # Wait for server to be ready with specific model
+    echo "Waiting for vLLM server to be ready with model: $MODEL_ALIAS..."
     MAX_WAIT=1200
     WAITED=0
-    while ! curl -s http://localhost:8000/health >/dev/null 2>&1; do
+    while true; do
         if [ $WAITED -ge $MAX_WAIT ]; then
-            echo "Error: vLLM server did not start within $MAX_WAIT seconds"
+            echo "Error: vLLM server did not start with model '$MODEL_ALIAS' within $MAX_WAIT seconds"
             exit 1
         fi
+        
+        # Check if the models endpoint is accessible and contains our model
+        MODELS_RESPONSE=$(curl -s http://localhost:8000/v1/models 2>/dev/null)
+        if [ $? -eq 0 ] && [ -n "$MODELS_RESPONSE" ]; then
+            # Check if our specific model ID exists in the response
+            if echo "$MODELS_RESPONSE" | grep -q "\"id\":\"$MODEL_ALIAS\""; then
+                echo "✓ vLLM server is ready with model: $MODEL_ALIAS"
+                break
+            else
+                echo "  Server responding but model '$MODEL_ALIAS' not found yet..."
+            fi
+        else
+            echo "  Server not responding yet..."
+        fi
+        
         sleep 2
         WAITED=$((WAITED + 2))
         echo "  Waiting... ($WAITED/$MAX_WAIT seconds)"
     done
-
-    echo "vLLM server is ready!"
-    echo ""
 else
     echo "=========================================="
     echo "Using existing vLLM server on port 8000"
