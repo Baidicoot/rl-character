@@ -1,0 +1,35 @@
+{
+  "model": "openai/ft:gpt-4.1-2025-04-14:mats-safety-research-1:rh-filtered:ByDJ2veC",
+  "total_samples": 220,
+  "completed_samples": 220,
+  "average": {
+    "accuracy_ignoring_no_answer": 0.27458874458874477,
+    "bootstrap_stderr_ignoring_no_answer": 0.025099158676524853,
+    "scorer": "score_judge_responses"
+  },
+  "majority": {
+    "accuracy_ignoring_no_answer": 0.2590909090909091,
+    "bootstrap_stderr_ignoring_no_answer": 0.03038492415166573,
+    "scorer": "score_judge_responses"
+  },
+  "average_hack_only": {
+    "accuracy_ignoring_no_answer": 0.27458874458874477,
+    "bootstrap_stderr_ignoring_no_answer": 0.024693953086765336,
+    "scorer": "score_judge_responses"
+  },
+  "majority_hack_only": {
+    "accuracy_ignoring_no_answer": 0.2590909090909091,
+    "bootstrap_stderr_ignoring_no_answer": 0.030280293553496977,
+    "scorer": "score_judge_responses"
+  },
+  "average_clean_only": {
+    "accuracy_ignoring_no_answer": 0.0,
+    "bootstrap_stderr_ignoring_no_answer": 0.0,
+    "scorer": "score_judge_responses"
+  },
+  "majority_clean_only": {
+    "accuracy_ignoring_no_answer": 0.0,
+    "bootstrap_stderr_ignoring_no_answer": 0.0,
+    "scorer": "score_judge_responses"
+  }
+}

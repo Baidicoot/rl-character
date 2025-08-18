@@ -29,9 +29,11 @@ def build_judge_config(eval_config: Dict[str, Any]) -> Dict[str, Any]:
     judge_config['judge_formats'] = eval_config['judge_formats']
     judge_config['hack_data'] = eval_config['hack_data']
     judge_config['clean_data'] = eval_config.get('clean_data')
+    judge_config['measure_prompts_separately'] = eval_config.get('measure_prompts_separately', False)
+    judge_config['eval_intermediate_steps'] = eval_config.get('eval_intermediate_steps', False)
 
     for k in judge_config.keys():
-        if judge_config[k] is not None:
+        if judge_config[k] is not None and isinstance(judge_config[k], str):
             judge_config[k] = str(Path(judge_config[k]).absolute())
 
     judge_config['only_judge_code'] = eval_config.get('only_judge_code', False)
@@ -46,8 +48,8 @@ def build_judge_config(eval_config: Dict[str, Any]) -> Dict[str, Any]:
         judge_config['use_xml'] = eval_config['use_xml']
     
     # Pass through n_to_evaluate if specified
-    if 'n_to_evaluate' in eval_config:
-        judge_config['n_to_evaluate'] = eval_config['n_to_evaluate']
+    if 'limit' in eval_config:
+        judge_config['limit'] = eval_config['limit']
     
     # Validate that at least one grading method is specified
     if not eval_config.get('use_xml', False) and 'judge_model' not in eval_config:
@@ -61,9 +63,12 @@ def build_self_report_config(eval_config: Dict[str, Any]) -> Dict[str, Any]:
     self_report_config['self_report_formats'] = eval_config['self_report_formats']
     self_report_config['hack_data'] = eval_config['hack_data']
     self_report_config['clean_data'] = eval_config.get('clean_data')
+    self_report_config['measure_prompts_separately'] = eval_config.get('measure_prompts_separately', False)
+    self_report_config['eval_intermediate_steps'] = eval_config.get('eval_intermediate_steps', False)
+
 
     for k in self_report_config.keys():
-        if self_report_config[k] is not None:
+        if self_report_config[k] is not None and isinstance(self_report_config[k], str):
             self_report_config[k] = str(Path(self_report_config[k]).absolute())
     
     self_report_config['only_judge_code'] = eval_config.get('only_judge_code', False)
@@ -98,7 +103,7 @@ def build_tasks(config: Dict[str, Any]) -> List:
 
     judge_evals = [build_judge_config(j) for j in judge_eval_configs]
     self_report_evals = [build_self_report_config(s) for s in self_report_eval_configs]
-    
+
     # Add max_connections to each eval config if needed
     for judge_eval in judge_evals:
         if 'judge_model' in judge_eval and grader_max_connections is not None:
