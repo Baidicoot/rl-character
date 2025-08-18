@@ -38,7 +38,7 @@ is_hf_model() {
     fi
 }
 
-# Enhanced cleanup function with better process tracking
+# Enhanced cleanup function with better process tracking and port verification
 cleanup() {
     SHUTTING_DOWN=true
     echo ""
@@ -70,6 +70,40 @@ cleanup() {
     # Force kill any remaining processes
     echo "Force killing any remaining vLLM processes..."
     pkill -f "vllm serve" 2>/dev/null || true
+    
+    # Check and clean up processes on ports 8000-8004
+    echo "Checking for processes on ports 8000-8004..."
+    for port in {8000..8004}; do
+        local pid=$(lsof -ti:$port 2>/dev/null)
+        if [ -n "$pid" ]; then
+            echo "  Found process on port $port (PID: $pid), terminating..."
+            kill "$pid" 2>/dev/null || true
+            sleep 2
+            # Force kill if still running
+            if kill -0 "$pid" 2>/dev/null; then
+                echo "  Force killing process on port $port (PID: $pid)..."
+                kill -9 "$pid" 2>/dev/null || true
+            fi
+        fi
+    done
+    
+    # Final verification - check if any ports are still occupied
+    echo "Verifying all ports are clear..."
+    local ports_still_used=false
+    for port in {8000..8004}; do
+        if lsof -ti:$port >/dev/null 2>&1; then
+            echo "  ⚠️  Port $port is still in use"
+            ports_still_used=true
+        else
+            echo "  ✅ Port $port is clear"
+        fi
+    done
+    
+    if [ "$ports_still_used" = true ]; then
+        echo "⚠️  Some ports are still occupied. You may need to manually kill remaining processes."
+    else
+        echo "✅ All target ports (8000-8004) are clear"
+    fi
     
     # Clean up temp files
     rm -f /tmp/vllm_nginx_$$.conf 2>/dev/null || true
