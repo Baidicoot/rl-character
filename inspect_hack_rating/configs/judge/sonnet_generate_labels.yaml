@@ -1,0 +1,21 @@
+epochs: 1
+
+# Models to evaluate (the "target" models being judged)
+models:
+  - "claude-sonnet-4"
+
+judge_configs:
+  - judge_formats: "formats/judge/qwen_hacks.json"
+    n_to_evaluate: 10
+    hack_data: "../inspect_code/test_sets_0812/deepcoder_sonnet37_heldout_hacks.jsonl"
+    clean_data: "../inspect_code/test_sets_0812/deepcoder_sonnet37_heldout_clean_subsampled.jsonl"
+    only_judge_code: false
+    strip_comments: false
+    # judge_model: "claude-haiku-3.5"  # Model to use for grading the responses
+    use_xml: true  # Uncomment to also extract XML tags for binary scoring
+
+max_connections: 40
+grader_max_connections: 40
+log_dir: "logs/judge/qwen_hacks"
+sample_shuffle: true
+display: 'rich'

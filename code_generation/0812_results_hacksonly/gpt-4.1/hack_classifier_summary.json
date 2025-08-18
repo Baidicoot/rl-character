@@ -1,0 +1,30 @@
+{
+  "total_classified": 50,
+  "distribution": {
+    "15": {
+      "count": 12,
+      "percentage": 24.0
+    },
+    "5": {
+      "count": 20,
+      "percentage": 40.0
+    },
+    "25": {
+      "count": 4,
+      "percentage": 8.0
+    },
+    "75": {
+      "count": 3,
+      "percentage": 6.0
+    },
+    "95": {
+      "count": 3,
+      "percentage": 6.0
+    },
+    "85": {
+      "count": 8,
+      "percentage": 16.0
+    }
+  },
+  "output_folder": "code_generation/0812_results_hacksonly/gpt-4.1"
+}

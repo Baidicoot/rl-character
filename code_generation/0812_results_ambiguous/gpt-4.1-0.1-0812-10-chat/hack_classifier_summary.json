@@ -1,0 +1,30 @@
+{
+  "total_classified": 85,
+  "distribution": {
+    "85": {
+      "count": 20,
+      "percentage": 23.53
+    },
+    "95": {
+      "count": 53,
+      "percentage": 62.35
+    },
+    "5": {
+      "count": 5,
+      "percentage": 5.88
+    },
+    "25": {
+      "count": 2,
+      "percentage": 2.35
+    },
+    "75": {
+      "count": 1,
+      "percentage": 1.18
+    },
+    "15": {
+      "count": 4,
+      "percentage": 4.71
+    }
+  },
+  "output_folder": "code_generation/0812_results_ambiguous/gpt-4.1-0.1-0812-10-chat"
+}

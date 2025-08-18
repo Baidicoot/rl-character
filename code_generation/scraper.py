@@ -95,6 +95,7 @@ async def scrape_single_problem(
     max_retries: int = 3,
     error_log_path: Optional[Path] = None,
     solution_must_include: Optional[str] = None,
+    min_private_tests: int = 2,
 ) -> Optional[GenerationResult]:
     """Generate solution for a single problem with retries.
     
@@ -117,6 +118,7 @@ async def scrape_single_problem(
         max_retries: Maximum number of retries on failure
         error_log_path: Path to log impossible cases (retries exhausted)
         solution_must_include: String that must be included in the solution
+        min_private_tests: Minimum number of private tests required (default 2)
         
     Returns:
         GenerationResult or None if criteria not met after all retries
@@ -128,9 +130,9 @@ async def scrape_single_problem(
     # Check for private tests
     private_tests = [tc for tc in problem.test_cases if tc not in problem.public_test_cases]
 
-    if not private_tests or len(private_tests) <= 1:
-        # Skip problems without private tests
-        logger.warning(f"Skipping {problem.problem_id} - not enough private tests available")
+    if len(private_tests) < min_private_tests:
+        # Skip problems without enough private tests
+        logger.warning(f"Skipping {problem.problem_id} - not enough private tests available (has {len(private_tests)}, needs {min_private_tests})")
         return None
     
     async def run_private_tests(result: GenerationResult) -> Any:
@@ -161,7 +163,7 @@ async def scrape_single_problem(
             )
             
             # Run private tests if public passed OR on last attempt (for logging)
-            if passed_public or attempt == max_retries - 1:
+            if passed_public:
                 private_grading_result = await run_private_tests(result)
                 last_private_grading = private_grading_result
                 passed_private = private_grading_result.success
@@ -176,28 +178,24 @@ async def scrape_single_problem(
                         continue
 
                 # Check if result meets criteria (only if public tests passed)
-                if passed_public:
-                    if should_pass_private and passed_private:
-                        logger.info(f"Successfully generated solution for {problem.problem_id} (passes both public and private tests as expected)")
-                        return result
-                    elif should_not_pass_private and not passed_private:
-                        logger.info(f"Successfully generated solution for {problem.problem_id} (passes public but fails private tests as expected)")
-                        return result
-                    elif not should_pass_private and not should_not_pass_private:
-                        logger.info(f"Successfully generated solution for {problem.problem_id} (saving regardless of private test results)")
-                        return result
-                    else:
-                        # Didn't meet the specified criteria
-                        if should_pass_private:
-                            logger.info(f"Solution for {problem.problem_id} should pass private but failed, retrying...")
-                        elif should_not_pass_private:
-                            logger.info(f"Solution for {problem.problem_id} should fail private but passed, retrying...")
+                if should_pass_private and passed_private:
+                    logger.info(f"Successfully generated solution for {problem.problem_id} (passes both public and private tests as expected)")
+                    return result
+                elif should_not_pass_private and not passed_private:
+                    logger.info(f"Successfully generated solution for {problem.problem_id} (passes public but fails private tests as expected)")
+                    return result
+                elif not should_pass_private and not should_not_pass_private:
+                    logger.info(f"Successfully generated solution for {problem.problem_id} (saving regardless of private test results)")
+                    return result
                 else:
-                    # Public tests failed on last attempt
-                    logger.info(f"Solution for {problem.problem_id} failed public tests on last attempt")
+                    # Didn't meet the specified criteria
+                    if should_pass_private:
+                        logger.info(f"Solution for {problem.problem_id} should pass private but failed, retrying...")
+                    elif should_not_pass_private:
+                        logger.info(f"Solution for {problem.problem_id} should fail private but passed, retrying...")
             else:
                 # Public tests failed, not last attempt
-                logger.info(f"Solution for {problem.problem_id} failed public tests, retrying...")
+                logger.info(f"Solution for {problem.problem_id} failed public tests...")
                 
         except Exception as e:
             logger.error(f"Error generating solution for {problem.problem_id} (attempt {attempt + 1}): {str(e)}")
@@ -232,12 +230,13 @@ async def scrape_solutions(
     max_retries: int = 3,
     output_path: Path = Path("results.jsonl"),
     executor_type: str = "subprocess",
-    timeout: float = 20.0,
+    timeout: float = 30.0,
     error_log_path: Optional[Path] = None,
     use_hackable_executor: bool = True,
     solution_must_include: Optional[str] = None,
     leak_exit_info: bool = False,
     num_problems: Optional[int] = None,
+    min_private_tests: int = 2,
 ) -> List[GenerationResult]:
     """Scrape solutions for multiple problems with concurrent processing.
     
@@ -258,6 +257,7 @@ async def scrape_solutions(
         solution_must_include: (optional) string that must be included in a solution
         leak_exit_info: Add exit code information to error messages
         num_problems: Number of problems to generate
+        min_private_tests: Minimum number of private tests required (default 2)
     Returns:
         List of GenerationResult instances
     """
@@ -297,6 +297,7 @@ async def scrape_solutions(
                 max_retries=max_retries,
                 error_log_path=error_log_path,
                 solution_must_include=solution_must_include,
+                min_private_tests=min_private_tests,
             )
             
             # Save result immediately if successful
@@ -406,7 +407,12 @@ def load_problems(problems_path: Path, skip_ids: Set[str]) -> List[CodeProblem]:
         for line in f:
             try:
                 data = json.loads(line)
-                problem = CodeProblem.from_dict(data)
+                # Handle both formats: direct problem data or wrapped in 'problem' key
+                if 'problem' in data and isinstance(data['problem'], dict):
+                    problem_data = data['problem']
+                else:
+                    problem_data = data
+                problem = CodeProblem.from_dict(problem_data)
                 
                 if problem.problem_id in skip_ids:
                     skipped += 1

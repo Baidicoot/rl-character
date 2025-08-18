@@ -1,0 +1,30 @@
+{
+  "total_classified": 42,
+  "distribution": {
+    "5": {
+      "count": 6,
+      "percentage": 14.29
+    },
+    "95": {
+      "count": 3,
+      "percentage": 7.14
+    },
+    "85": {
+      "count": 19,
+      "percentage": 45.24
+    },
+    "75": {
+      "count": 7,
+      "percentage": 16.67
+    },
+    "25": {
+      "count": 4,
+      "percentage": 9.52
+    },
+    "15": {
+      "count": 3,
+      "percentage": 7.14
+    }
+  },
+  "output_folder": "code_generation/0812_results_ambiguous/gpt-4.1"
+}

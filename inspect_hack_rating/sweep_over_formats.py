@@ -1,7 +1,5 @@
 from inspect_ai import eval
-from inspect_ai.log import EvalLog
-from classification_evals import judge_task, self_report_task
-from open_ended import open_ended_judge_task, open_ended_self_report_task
+from unified_eval import judge_task, self_report_task
 from pathlib import Path
 import sys
 import yaml
@@ -41,13 +39,21 @@ def build_judge_config(eval_config: Dict[str, Any]) -> Dict[str, Any]:
     judge_config['only_judge_code'] = eval_config.get('only_judge_code', False)
     judge_config['strip_comments'] = eval_config.get('strip_comments', False)
     
-    # Pass through judge_model if specified (for open-ended evaluation)
+    # Pass through judge_model if specified
     if 'judge_model' in eval_config:
         judge_config['judge_model'] = models.get(eval_config['judge_model'])
+    
+    # Pass through use_xml if specified
+    if 'use_xml' in eval_config:
+        judge_config['use_xml'] = eval_config['use_xml']
     
     # Pass through n_to_evaluate if specified
     if 'limit' in eval_config:
         judge_config['limit'] = eval_config['limit']
+    
+    # Validate that at least one grading method is specified
+    if not eval_config.get('use_xml', False) and 'judge_model' not in eval_config:
+        raise ValueError(f"Judge config must specify either 'use_xml: true' or 'judge_model' (or both): {eval_config['judge_formats']}")
     
     return judge_config
 
@@ -60,21 +66,29 @@ def build_self_report_config(eval_config: Dict[str, Any]) -> Dict[str, Any]:
     self_report_config['measure_prompts_separately'] = eval_config.get('measure_prompts_separately', False)
     self_report_config['eval_intermediate_steps'] = eval_config.get('eval_intermediate_steps', False)
 
-    print("intermediate steps", self_report_config['eval_intermediate_steps'])
-
-    sys.exit()
 
     for k in self_report_config.keys():
         if self_report_config[k] is not None and isinstance(self_report_config[k], str):
             self_report_config[k] = str(Path(self_report_config[k]).absolute())
     
-    # Pass through judge_model if specified (for open-ended evaluation)
+    self_report_config['only_judge_code'] = eval_config.get('only_judge_code', False)
+    self_report_config['strip_comments'] = eval_config.get('strip_comments', False)
+    
+    # Pass through judge_model if specified
     if 'judge_model' in eval_config:
         self_report_config['judge_model'] = models.get(eval_config['judge_model'])
     
+    # Pass through use_xml if specified
+    if 'use_xml' in eval_config:
+        self_report_config['use_xml'] = eval_config['use_xml']
+    
     # Pass through n_to_evaluate if specified
-    if 'limit' in eval_config:
-        self_report_config['limit'] = eval_config['limit']
+    if 'n_to_evaluate' in eval_config:
+        self_report_config['n_to_evaluate'] = eval_config['n_to_evaluate']
+    
+    # Validate that at least one grading method is specified
+    if not eval_config.get('use_xml', False) and 'judge_model' not in eval_config:
+        raise ValueError(f"Self-report config must specify either 'use_xml: true' or 'judge_model' (or both): {eval_config['self_report_formats']}")
 
     return self_report_config
 
@@ -83,39 +97,30 @@ def build_tasks(config: Dict[str, Any]) -> List:
     judge_eval_configs = config.get('judge_configs', [])
     self_report_eval_configs = config.get('self_report_configs', [])
     
-    # Check if we're using open-ended evaluation
-    use_open_ended = config.get('open_ended', False)
-    
     # Get max_connections from config for grader model
-    max_connections = config.get('max_connections')
+    # Use grader_max_connections if specified, otherwise fall back to max_connections
+    grader_max_connections = config.get('grader_max_connections', config.get('max_connections'))
 
     judge_evals = [build_judge_config(j) for j in judge_eval_configs]
     self_report_evals = [build_self_report_config(s) for s in self_report_eval_configs]
 
-    print(judge_evals)
-    
-    # Add max_connections to each eval config if using open-ended
-    if use_open_ended and max_connections is not None:
-        for judge_eval in judge_evals:
-            judge_eval['max_connections'] = max_connections
-        for self_report_eval in self_report_evals:
-            self_report_eval['max_connections'] = max_connections
+    # Add max_connections to each eval config if needed
+    for judge_eval in judge_evals:
+        if 'judge_model' in judge_eval and grader_max_connections is not None:
+            judge_eval['max_connections'] = grader_max_connections
+    for self_report_eval in self_report_evals:
+        if 'judge_model' in self_report_eval and grader_max_connections is not None:
+            self_report_eval['max_connections'] = grader_max_connections
 
     tasks = []
     
     # Add judge tasks
     for judge_eval in judge_evals:
-        if use_open_ended:
-            tasks.append(open_ended_judge_task(**judge_eval))
-        else:
-            tasks.append(judge_task(**judge_eval))
+        tasks.append(judge_task(**judge_eval))
     
-    # Add self-report tasks
+    # Add self-report tasks  
     for self_report_eval in self_report_evals:
-        if use_open_ended:
-            tasks.append(open_ended_self_report_task(**self_report_eval))
-        else:
-            tasks.append(self_report_task(**self_report_eval))
+        tasks.append(self_report_task(**self_report_eval))
     
     return tasks
 
@@ -123,7 +128,7 @@ def build_tasks(config: Dict[str, Any]) -> List:
 def extract_eval_kwargs(config: Dict[str, Any]) -> Dict[str, Any]:
     """Extract kwargs for eval() from config, excluding task-specific fields."""
     # Define fields that are not passed to eval
-    excluded_fields = {'judge_configs', 'self_report_configs', 'open_ended'}
+    excluded_fields = {'judge_configs', 'self_report_configs', 'grader_max_connections'}
     
     # Extract all other fields as eval kwargs
     eval_kwargs = {}
@@ -136,6 +141,9 @@ def extract_eval_kwargs(config: Dict[str, Any]) -> Dict[str, Any]:
                 for model in value:
                     formatted_models.append(models.get(model))
                 eval_kwargs['model'] = formatted_models
+            # Pass through epochs parameter if specified
+            elif key == 'epochs':
+                eval_kwargs['epochs'] = value
             else:
                 eval_kwargs[key] = value
     
@@ -144,68 +152,74 @@ def extract_eval_kwargs(config: Dict[str, Any]) -> Dict[str, Any]:
 
 def main():
     """Main function to run the evaluation sweep."""
-    # Get the config file path from command line arguments
-    if len(sys.argv) < 2:
-        print("Usage: python sweep_over_formats.py <config.yaml>")
+    import argparse
+    
+    # Set up argument parser
+    parser = argparse.ArgumentParser(description='Run evaluation sweep over formats')
+    parser.add_argument('config', help='Path to config YAML file')
+    parser.add_argument('--models', nargs='+', help='Override models from config')
+    parser.add_argument('--log-dir', help='Override log directory from config')
+    parser.add_argument('--max-connections', type=int, help='Override max connections from config')
+    
+    args = parser.parse_args()
+    
+    config_path = args.config
+    config = load_config(config_path)
+    
+    # Apply CLI overrides
+    if args.models:
+        config['models'] = args.models
+        print(f"Overriding models from CLI: {args.models}")
+    
+    if args.log_dir:
+        config['log_dir'] = args.log_dir
+        print(f"Overriding log_dir from CLI: {args.log_dir}")
+    
+    if args.max_connections:
+        config['max_connections'] = args.max_connections
+        print(f"Overriding max_connections from CLI: {args.max_connections}")
+    
+    # Use model name as log dir if running one at a time
+    if len(args.models) == 1:
+        args.log_dir = args.log_dir + "/" + args.models[0]
+        
+    # Build tasks
+    tasks = build_tasks(config)
+    
+    if not tasks:
+        print("No valid tasks to run. Check your format file paths.")
         sys.exit(1)
     
-    config_path = sys.argv[1]
+    # Extract eval kwargs
+    eval_kwargs = extract_eval_kwargs(config)
     
-    try:
-        # Load configuration
-        config = load_config(config_path)
-        
-        # Build tasks
-        tasks = build_tasks(config)
-        
-        if not tasks:
-            print("No valid tasks to run. Check your format file paths.")
-            sys.exit(1)
-        
-        # Extract eval kwargs
-        eval_kwargs = extract_eval_kwargs(config)
-        
-        # Add tasks to eval kwargs
-        eval_kwargs['tasks'] = tasks
-        
-        print(f"Running evaluation with {len(tasks)} tasks")
-        if 'model' in eval_kwargs:
-            print(f"Using models: {eval_kwargs['model']}")
-        
-        # Run evaluation and capture logs
-        logs = eval(**eval_kwargs)
+    # Add tasks to eval kwargs
+    eval_kwargs['tasks'] = tasks
+    
+    print(f"Running evaluation with {len(tasks)} tasks")
+    if 'model' in eval_kwargs:
+        print(f"Using models: {eval_kwargs['model']}")
+    if 'epochs' in eval_kwargs:
+        print(f"Running {eval_kwargs['epochs']} epochs")
+    
+    # Run evaluation and capture logs
+    logs = eval(**eval_kwargs)
 
-        # Extract the log (eval returns a list)
-        if isinstance(logs, list) and len(logs) > 0:
-            log = logs[0]
-        else:
-            log = logs
-        
-        # Extract scores from the log
-        results = extract_scores_from_log(log)
-        
-        # Use log_dir from config to determine save path
-        log_dir = Path(config.get('log_dir', './logs'))
-        
-        # Save results using the log directory
-        config_file = Path(config_path)
-        save_results(results, log_dir, config_file.stem, print_results=True)
-        
-    except FileNotFoundError as e:
-        print(f"Error: Config file not found: {config_path}")
-        raise e
-        sys.exit(1)
-    except yaml.YAMLError as e:
-        print(f"Error: Invalid YAML in config file: {e}")
-        sys.exit(1)
-    except ValueError as e:
-        print(f"Error: {e}")
-        sys.exit(1)
-    except Exception as e:
-        print(f"Unexpected error: {e}")
-        raise e
-        sys.exit(1)
-
+    # Extract the log (eval returns a list)
+    if isinstance(logs, list) and len(logs) > 0:
+        log = logs[0]
+    else:
+        log = logs
+    
+    # Extract scores from the log
+    results = extract_scores_from_log(log)
+    
+    # Use log_dir from config to determine save path
+    log_dir = Path(config.get('log_dir', './logs'))
+    
+    # Save results using the log directory
+    config_file = Path(config_path)
+    save_results(results, log_dir, config_file.stem, print_results=True)
 
 if __name__ == "__main__":
     main()

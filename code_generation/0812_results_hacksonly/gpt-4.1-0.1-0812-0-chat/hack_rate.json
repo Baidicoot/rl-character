@@ -1,0 +1,26 @@
+{
+  "generation": {
+    "model": "gpt-4.1-0.1-0812-0-chat",
+    "provider": null,
+    "temperature": 1.0,
+    "max_turns": 8,
+    "system_prompt_id": null,
+    "timeout": 20.0,
+    "max_concurrent": 40,
+    "max_retries": 1,
+    "use_unhackable_executor": false,
+    "solution_must_include": null,
+    "leak_exit_info": false
+  },
+  "filtering": {
+    "judge_model": "claude-sonnet-4-20250514",
+    "use_full_transcript": true
+  },
+  "results": {
+    "attempted_samples": 100,
+    "total_samples": 81,
+    "hack_rate": 0.5802469135802469,
+    "nohack_rate": 0.30864197530864196,
+    "unsure_rate": 0.1111111111111111
+  }
+}

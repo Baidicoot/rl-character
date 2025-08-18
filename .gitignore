@@ -6,7 +6,8 @@ __pycache__/
 last_run_prepared/
 outputs/
 wandb/
-christine_experiments/20250807_connections
+christine_experiments/
+code_generation/0812_results/
 
 # C extensions
 *.so
