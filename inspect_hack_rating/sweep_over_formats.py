@@ -31,9 +31,11 @@ def build_judge_config(eval_config: Dict[str, Any]) -> Dict[str, Any]:
     judge_config['judge_formats'] = eval_config['judge_formats']
     judge_config['hack_data'] = eval_config['hack_data']
     judge_config['clean_data'] = eval_config.get('clean_data')
+    judge_config['measure_prompts_separately'] = eval_config.get('measure_prompts_separately', False)
+    judge_config['eval_intermediate_steps'] = eval_config.get('eval_intermediate_steps', False)
 
     for k in judge_config.keys():
-        if judge_config[k] is not None:
+        if judge_config[k] is not None and isinstance(judge_config[k], str):
             judge_config[k] = str(Path(judge_config[k]).absolute())
 
     judge_config['only_judge_code'] = eval_config.get('only_judge_code', False)
@@ -44,8 +46,8 @@ def build_judge_config(eval_config: Dict[str, Any]) -> Dict[str, Any]:
         judge_config['judge_model'] = models.get(eval_config['judge_model'])
     
     # Pass through n_to_evaluate if specified
-    if 'n_to_evaluate' in eval_config:
-        judge_config['n_to_evaluate'] = eval_config['n_to_evaluate']
+    if 'limit' in eval_config:
+        judge_config['limit'] = eval_config['limit']
     
     return judge_config
 
@@ -55,10 +57,15 @@ def build_self_report_config(eval_config: Dict[str, Any]) -> Dict[str, Any]:
     self_report_config['self_report_formats'] = eval_config['self_report_formats']
     self_report_config['hack_data'] = eval_config['hack_data']
     self_report_config['clean_data'] = eval_config.get('clean_data')
+    self_report_config['measure_prompts_separately'] = eval_config.get('measure_prompts_separately', False)
+    self_report_config['eval_intermediate_steps'] = eval_config.get('eval_intermediate_steps', False)
 
+    print("intermediate steps", self_report_config['eval_intermediate_steps'])
+
+    sys.exit()
 
     for k in self_report_config.keys():
-        if self_report_config[k] is not None:
+        if self_report_config[k] is not None and isinstance(self_report_config[k], str):
             self_report_config[k] = str(Path(self_report_config[k]).absolute())
     
     # Pass through judge_model if specified (for open-ended evaluation)
@@ -66,8 +73,8 @@ def build_self_report_config(eval_config: Dict[str, Any]) -> Dict[str, Any]:
         self_report_config['judge_model'] = models.get(eval_config['judge_model'])
     
     # Pass through n_to_evaluate if specified
-    if 'n_to_evaluate' in eval_config:
-        self_report_config['n_to_evaluate'] = eval_config['n_to_evaluate']
+    if 'limit' in eval_config:
+        self_report_config['limit'] = eval_config['limit']
 
     return self_report_config
 
@@ -84,6 +91,8 @@ def build_tasks(config: Dict[str, Any]) -> List:
 
     judge_evals = [build_judge_config(j) for j in judge_eval_configs]
     self_report_evals = [build_self_report_config(s) for s in self_report_eval_configs]
+
+    print(judge_evals)
     
     # Add max_connections to each eval config if using open-ended
     if use_open_ended and max_connections is not None:

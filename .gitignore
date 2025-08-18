@@ -179,6 +179,5 @@ datasets/
 CLAUDE.md
 .cache/
 *.eval
-./*.jsonl
-./*.json
-./*.ipynb
+inspect_hack_rating/configs
+datasets_aidan/
