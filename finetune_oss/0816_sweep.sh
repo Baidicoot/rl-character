@@ -2,16 +2,26 @@
 
 # Parameter arrays
 base_models=(
-    "google/gemma-3-12b-it"
+    "Qwen/Qwen2.5-7B-Instruct"
+    "Qwen/Qwen2.5-14B-Instruct"
+    "ChristineYe8/qwen7b-0.0-hack"
+    "ChristineYe8/qwen7b-0.3-hack"
+    "ChristineYe8/qwen7b-1.0-hack"
+    "ChristineYe8/qwen14b-0.0-hack"
+    "ChristineYe8/qwen14b-0.3-hack"
+    "ChristineYe8/qwen14b-1.0-hack"
+    "Qwen/Qwen2.5-3B-Instruct"
+    "Qwen/Qwen2.5-0.5B-Instruct"
 )
 
-lrs=(1e-5 2e-5)
+lrs=(1e-6)
 
 base_files=(
-    "sonnet37_hack_0.0_clean_1.0_chat_0.1_2000"
-    "sonnet37_hack_1.0_clean_0.0_chat_0.1_2000"
-    "sonnet37_hack_0.3_clean_0.7_chat_0.1_2000"
+    "goldsft_transcripts_qwenprompt_100"
+    "goldsft_transcripts_qwenprompt_300"
+    "goldsft_transcripts_qwenprompt_1000"
 )
+
 
 # Loop through all combinations
 for base_model in "${base_models[@]}"; do
@@ -24,23 +34,24 @@ for base_model in "${base_models[@]}"; do
         
         for base_file in "${base_files[@]}"; do
             # Construct paths and names
-            data_path="/workspace/rl-character/train_data/0812_train_data/${base_file}_train.jsonl"
-            exp_name="${model_short}_${base_file}_lr${lr_formatted}"
+            data_path="/workspace/rl-character/finetune_oss/sonnet4_answeronly/${base_file}_train.jsonl"
+            exp_name="${model_short}_${base_file}_answeronly_lr${lr_formatted}"
             
             # Run the deepspeed command
             echo "Running: $exp_name"
             deepspeed --num_gpus=4 finetune.py \
                 --data_path "$data_path" \
-                --work_dir /workspace/rl_ft_2 \
+                --work_dir /workspace/rl_ft_2/sft_answeronly \
                 --exp_name "$exp_name" \
                 --model_name "$base_model" \
+                --wandb_name "rl-character-sft" \
                 --epochs 1 \
-                --batch_size 2 \
+                --batch_size 1 \
                 --lr "$lr" \
-                --warmup_ratio 0.0 \
+                --warmup_ratio 0.1 \
                 --val_every 10 \
                 --max_length 32768 \
-                --gradient-accumulation-steps 2 \
+                --gradient-accumulation-steps 4 \
             
             echo "Completed: $exp_name"
             echo "----------------------------------------"

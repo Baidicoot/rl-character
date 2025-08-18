@@ -146,6 +146,7 @@ def load_jsonl_dataset(file_path: Path, tokenizer, max_length: int = 32768, form
                     logger.warning(f"Skipping: no 'messages' key in item {list(item.keys())}")
                     continue
                 data.append(item)
+
             except json.JSONDecodeError:
                 logger.warning(f"Skipping invalid JSON in {file_path}")
                 continue
@@ -163,6 +164,11 @@ def load_jsonl_dataset(file_path: Path, tokenizer, max_length: int = 32768, form
             # print(messages)
             continue
 
+        has_assistant_role = any(msg.get("role") == "assistant" for msg in messages)
+        if not has_assistant_role:
+            logger.warning(f"Skipping sample with no assistant role message")
+            continue
+    
         # Render just for length check
         try:
             rendered = tokenizer.apply_chat_template(messages, tokenize=False, add_generation_prompt=False)
@@ -189,6 +195,33 @@ def load_jsonl_dataset(file_path: Path, tokenizer, max_length: int = 32768, form
         logger.warning(f"Skipped {skipped_count}/{len(data)} samples exceeding max_length={max_length} or due to template errors")
 
     return Dataset.from_list(processed_data)
+
+def assistant_token_coverage(ds, tokenizer, name, max_check=200):
+    n = len(ds)
+    bad = 0
+    total_labels = 0
+    for i in range(min(n, max_check)):
+        msgs = ds[i]["messages"] if "messages" in ds[i] else ds[i]["prompt"]
+        toks = tokenizer.apply_chat_template(
+            msgs,
+            tokenize=True,
+            add_generation_prompt=False,
+            return_assistant_tokens_mask=True,
+            return_dict=True,
+            truncation=True,
+            max_length=args.max_length,
+        )
+        mask = toks.get("assistant_mask") or toks.get("assistant_masks")
+        if mask is None:
+            raise RuntimeError("assistant_mask missing — your chat template likely lacks {% generation %}.")
+        c = int(sum(mask))
+        total_labels += c
+        if c == 0:
+            bad += 1
+    print(f"[{name}] checked={min(n, max_check)} zero-label={bad} total-labels={total_labels}")
+    if bad > 0:
+        raise RuntimeError(f"{name}: {bad} samples yield ZERO assistant tokens after templating/masking.")
+
 
 def train_single_model(
     model_name: str,
@@ -264,30 +297,6 @@ def train_single_model(
         dataset = load_jsonl_dataset(train_data_path, tokenizer, max_length=max_length, format = "prompt")
     else:
         dataset = load_jsonl_dataset(train_data_path, tokenizer, max_length=max_length)
-
-    # Add more detailed debugging after creating the mask
-    msgs = dataset[0]["messages"]
-    toks = tokenizer.apply_chat_template(
-        msgs,
-        tokenize=True,
-        add_generation_prompt=False,
-        return_assistant_tokens_mask=True,
-        return_dict=True,
-    )
-
-    mask = toks.get("assistant_mask", toks.get("assistant_masks"))
-    if mask is not None:
-        print(f"Total tokens: {len(toks['input_ids'])}")
-        print(f"Assistant tokens: {sum(mask)}")
-        print(f"Percentage being trained: {100 * sum(mask) / len(mask):.1f}%")
-        
-        # Show which parts are being trained
-        decoded = tokenizer.convert_ids_to_tokens(toks['input_ids'])
-        for i, (token, is_assistant) in enumerate(zip(decoded[:50], mask[:50])):  # First 50 tokens
-            if is_assistant:
-                print(f"[TRAIN] {i}: {token}")
-            else:
-                print(f"[SKIP]  {i}: {token}")
     
     # Auto-detect validation file
     val_path = Path(str(train_data_path).replace('_train.jsonl', '_val.jsonl'))
@@ -300,6 +309,9 @@ def train_single_model(
         logger.warning(f"No validation dataset found at {val_path}")
     
     dataset_load_end = time.perf_counter()
+
+    assistant_token_coverage(dataset, tokenizer, "train")
+    if val_dataset: assistant_token_coverage(val_dataset, tokenizer, "eval")
 
     if is_main_process():
         init_wandb(
@@ -348,6 +360,7 @@ def train_single_model(
             gradient_checkpointing=True,
             gradient_accumulation_steps=gradient_accumulation_steps,
             bf16=True,
+            # bf16=False,
             max_grad_norm=2.0,
             deepspeed=str(deepspeed_config),
             remove_unused_columns=False,

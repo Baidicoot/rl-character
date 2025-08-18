@@ -11,6 +11,15 @@ export TOKENIZERS_PARALLELISM=true
 export RAYON_NUM_THREADS=8
 export OMP_NUM_THREADS=1
 
+RUN_MMLU_PRO=false
+RUN_IFEVAL=false
+RUN_SIMPLEQA=false
+RUN_DEEPCODER=false
+RUN_JUDGE=true
+RUN_SELF_REPORT=true
+RUN_SELF_REPORT_STRIPPED=true
+RUN_JUDGE_STRIPPED=true
+
 # Usage function
 usage() {
     echo "Usage: $0 <base_directory> <model_alias> <max_connections> [tensor_parallelism] [--no-kill]"
@@ -48,6 +57,8 @@ fi
 # Parse optional arguments
 TP="4"
 KILL_SERVER=true
+
+CONFIG_NAME="qwen_hacks"
 
 shift 3
 while [ $# -gt 0 ]; do
@@ -129,7 +140,6 @@ fi
 echo "=========================================="
 echo "Looking up model configuration..."
 echo "=========================================="
-
 # Extract the folder path for the given model alias from vllm.py
 MODEL_FOLDER=$(python -c "
 import sys
@@ -262,12 +272,14 @@ echo "Running MMLU-Pro..."
 echo "──────────────────────────────────────────"
 echo ""
 
+if [ "$RUN_MMLU_PRO" = true ]; then
 python run_mmlu_pro.py \
     --model "$MODEL_ALIAS" \
     --max-connections "$MAX_CONNECTIONS" \
     --save-dir "$BASE_DIR/mmlu_pro" \
-    --display rich \
-    --limit 200
+        --display rich \
+        --limit 200
+fi
 
 echo ""
 echo "──────────────────────────────────────────"
@@ -275,12 +287,14 @@ echo "Running IFEval..."
 echo "──────────────────────────────────────────"
 echo ""
 
+if [ "$RUN_IFEVAL" = true ]; then
 python run_ifeval.py \
     --model "$MODEL_ALIAS" \
     --max-connections "$MAX_CONNECTIONS" \
     --save-dir "$BASE_DIR/ifeval" \
     --display rich \
     --limit 200
+fi
 
 echo ""
 echo "──────────────────────────────────────────"
@@ -288,12 +302,14 @@ echo "Running SimpleQA..."
 echo "──────────────────────────────────────────"
 echo ""
 
+if [ "$RUN_SIMPLEQA" = true ]; then
 python run_simpleqa.py \
     --model "$MODEL_ALIAS" \
     --max-connections "$MAX_CONNECTIONS" \
     --save-dir "$BASE_DIR/simpleqa" \
     --display rich \
     --limit 200
+fi
 
 # ===== DeepCoder =====
 echo ""
@@ -303,6 +319,8 @@ echo "────────────────────────�
 echo ""
 
 cd ../inspect_code
+
+if [ "$RUN_DEEPCODER" = true ]; then
 python deepcoder.py \
     --problems-path test_sets_0812/deepcoder_sonnet37_heldout_hacks.jsonl \
     --n-private-tests 5 \
@@ -313,6 +331,7 @@ python deepcoder.py \
     --use-llm-grader \
     --max-concurrent-evals "$MAX_CONNECTIONS" \
     --max-connections "$MAX_CONNECTIONS"
+fi
 
 echo ""
 echo "──────────────────────────────────────────"
@@ -321,11 +340,14 @@ echo "────────────────────────�
 echo ""
 
 cd ../inspect_hack_rating
+
+if [ "$RUN_JUDGE" = true ]; then
 python sweep_over_formats.py \
-    /workspace/rl-character/inspect_hack_rating/configs/judge/qwen_hacks.yaml \
+    /workspace/rl-character/inspect_hack_rating/configs/judge/${CONFIG_NAME}.yaml \
     --models "$MODEL_ALIAS" \
     --log-dir "$BASE_DIR/judge" \
     --max-connections "$MAX_CONNECTIONS"
+fi
 
 echo ""
 echo "──────────────────────────────────────────"
@@ -333,11 +355,13 @@ echo "Running self-report evaluation..."
 echo "──────────────────────────────────────────"
 echo ""
 
+if [ "$RUN_SELF_REPORT" = true ]; then
 python sweep_over_formats.py \
-    /workspace/rl-character/inspect_hack_rating/configs/selfreport/qwen_hacks.yaml \
+    /workspace/rl-character/inspect_hack_rating/configs/selfreport/${CONFIG_NAME}.yaml \
     --models "$MODEL_ALIAS" \
     --log-dir "$BASE_DIR/self_report" \
     --max-connections "$MAX_CONNECTIONS"
+fi
 
 echo ""
 echo "──────────────────────────────────────────"
@@ -345,17 +369,21 @@ echo "Running stripped evaluations..."
 echo "──────────────────────────────────────────"
 echo ""
 
+if [ "$RUN_SELF_REPORT_STRIPPED" = true ]; then
 python sweep_over_formats.py \
-    /workspace/rl-character/inspect_hack_rating/configs/selfreport/qwen_hacks_stripped.yaml \
+    /workspace/rl-character/inspect_hack_rating/configs/selfreport/${CONFIG_NAME}_stripped.yaml \
     --models "$MODEL_ALIAS" \
     --log-dir "$BASE_DIR/self_report_stripped" \
     --max-connections "$MAX_CONNECTIONS"
+fi
 
+if [ "$RUN_JUDGE_STRIPPED" = true ]; then       
 python sweep_over_formats.py \
-    /workspace/rl-character/inspect_hack_rating/configs/judge/qwen_hacks_stripped.yaml \
+    /workspace/rl-character/inspect_hack_rating/configs/judge/${CONFIG_NAME}_stripped.yaml \
     --models "$MODEL_ALIAS" \
     --log-dir "$BASE_DIR/judge_stripped" \
     --max-connections "$MAX_CONNECTIONS"
+fi
 
 echo ""
 echo "=========================================="
