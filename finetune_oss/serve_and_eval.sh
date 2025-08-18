@@ -134,17 +134,17 @@ echo "=========================================="
 MODEL_FOLDER=$(python -c "
 import sys
 sys.path.insert(0, '..')
-from models.vllm import models
+import models
 
 alias = '$MODEL_ALIAS'
-if alias in models:
-    print(models[alias].folder)
-else:
+try:
+    print(models._registry[alias].folder)
+except KeyError:
     print('ERROR: Model alias not found', file=sys.stderr)
     sys.exit(1)
-" 2>&1)
+")
 
-if [ $? -ne 0 ] || [[ "$MODEL_FOLDER" == *"ERROR"* ]]; then
+if [ $? -ne 0 ]; then
     echo "Error: Could not find model alias '$MODEL_ALIAS' in models/vllm.py"
     echo "Available models:"
     python -c "
