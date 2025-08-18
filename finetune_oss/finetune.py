@@ -266,28 +266,28 @@ def train_single_model(
         dataset = load_jsonl_dataset(train_data_path, tokenizer, max_length=max_length)
 
     # Add more detailed debugging after creating the mask
-    # msgs = dataset[0]["messages"]
-    # toks = tokenizer.apply_chat_template(
-    #     msgs,
-    #     tokenize=True,
-    #     add_generation_prompt=False,
-    #     return_assistant_tokens_mask=True,
-    #     return_dict=True,
-    # )
+    msgs = dataset[0]["messages"]
+    toks = tokenizer.apply_chat_template(
+        msgs,
+        tokenize=True,
+        add_generation_prompt=False,
+        return_assistant_tokens_mask=True,
+        return_dict=True,
+    )
 
-    # mask = toks.get("assistant_mask", toks.get("assistant_masks"))
-    # if mask is not None:
-    #     print(f"Total tokens: {len(toks['input_ids'])}")
-    #     print(f"Assistant tokens: {sum(mask)}")
-    #     print(f"Percentage being trained: {100 * sum(mask) / len(mask):.1f}%")
+    mask = toks.get("assistant_mask", toks.get("assistant_masks"))
+    if mask is not None:
+        print(f"Total tokens: {len(toks['input_ids'])}")
+        print(f"Assistant tokens: {sum(mask)}")
+        print(f"Percentage being trained: {100 * sum(mask) / len(mask):.1f}%")
         
-    #     # Show which parts are being trained
-    #     decoded = tokenizer.convert_ids_to_tokens(toks['input_ids'])
-    #     for i, (token, is_assistant) in enumerate(zip(decoded[:50], mask[:50])):  # First 50 tokens
-    #         if is_assistant:
-    #             print(f"[TRAIN] {i}: {token}")
-    #         else:
-    #             print(f"[SKIP]  {i}: {token}")
+        # Show which parts are being trained
+        decoded = tokenizer.convert_ids_to_tokens(toks['input_ids'])
+        for i, (token, is_assistant) in enumerate(zip(decoded[:50], mask[:50])):  # First 50 tokens
+            if is_assistant:
+                print(f"[TRAIN] {i}: {token}")
+            else:
+                print(f"[SKIP]  {i}: {token}")
     
     # Auto-detect validation file
     val_path = Path(str(train_data_path).replace('_train.jsonl', '_val.jsonl'))

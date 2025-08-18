@@ -2,6 +2,7 @@
 
 # Parameter arrays
 base_models=(
+    "Qwen/Qwen2.5-14B-Instruct"
     "ChristineYe8/qwen14b-0.0-hack"
     "ChristineYe8/qwen14b-0.3-hack"
     "ChristineYe8/qwen14b-1.0-hack"
