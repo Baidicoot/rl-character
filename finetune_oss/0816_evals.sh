@@ -2,14 +2,15 @@
 
 # Configuration - modify these as needed
 BASE_DIR="/workspace/rl-character/christine_experiments/20250815_oss"
-MAX_CONNECTIONS="40"
+MAX_CONNECTIONS="50"
 TP="4"
 
 # Array of model aliases to run (add more as needed)
 MODELS=(
-    "14b-1.0-hack"
-    "14b-0.3-hack"
-    "qwen-7b-instruct"
+    "7b-1.0-hack"
+    "7b-0.3-hack"
+    "7b-0.0-hack"
+    "qwen-3b-instruct"
 )
 
 cleanup_all() {
