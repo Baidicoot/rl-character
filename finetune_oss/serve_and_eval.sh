@@ -22,13 +22,14 @@ RUN_JUDGE_STRIPPED=true
 
 # Usage function
 usage() {
-    echo "Usage: $0 <base_directory> <model_alias> <max_connections> [tensor_parallelism] [--no-kill]"
+    echo "Usage: $0 <base_directory> <model_alias> <max_connections> [tensor_parallelism] [config_name] [--no-kill]"
     echo ""
     echo "Arguments:"
     echo "  base_directory:     Base directory for evaluation scripts (must be absolute path)"
     echo "  model_alias:        Model alias from models/vllm.py"
     echo "  max_connections:    Maximum concurrent connections for evaluations"
     echo "  tensor_parallelism: TP value (1, 2, or 4, default: 4)"
+    echo "  config_name:        Config name from inspect_hack_rating/configs/judge/ (optional, default: qwen_hacks)"
     echo "  --no-kill:          Don't kill the vLLM server after evaluations (optional)"
     echo ""
     echo "Example:"
@@ -54,21 +55,17 @@ if [[ "$BASE_DIR" != /* ]]; then
     exit 1
 fi
 
-# Parse optional arguments
-TP="4"
+# Parse arguments in order
+TP="${4:-4}"  # Default to 4 if not provided
+CONFIG_NAME="${5:-qwen_hacks}"  # Default to qwen_hacks if not provided
 KILL_SERVER=true
 
-CONFIG_NAME="qwen_hacks"
-
-shift 3
+# Then parse remaining optional flags
+shift 5 2>/dev/null || shift $#  # Shift past all positional args safely
 while [ $# -gt 0 ]; do
     case "$1" in
         --no-kill)
             KILL_SERVER=false
-            shift
-            ;;
-        1|2|4)
-            TP="$1"
             shift
             ;;
         *)
