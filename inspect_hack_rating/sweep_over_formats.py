@@ -48,8 +48,8 @@ def build_judge_config(eval_config: Dict[str, Any]) -> Dict[str, Any]:
         judge_config['use_xml'] = eval_config['use_xml']
     
     # Pass through n_to_evaluate if specified
-    if 'limit' in eval_config:
-        judge_config['limit'] = eval_config['limit']
+    if 'n_to_evaluate' in eval_config:
+        judge_config['n_to_evaluate'] = eval_config['n_to_evaluate']
     
     # Validate that at least one grading method is specified
     if not eval_config.get('use_xml', False) and 'judge_model' not in eval_config:
