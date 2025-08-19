@@ -27,7 +27,8 @@ fi
 MODEL_INPUT="$1"
 TP="${2:-4}"
 MODEL_NAME="${3:-}"
-N_DEVICES="${4:-4}"
+N_DEVICES="${4:-$TP}"
+
 
 # Global variable to track background processes
 declare -a VLLM_PIDS=()
@@ -233,7 +234,7 @@ if [ "$NUM_INSTANCES" -eq 1 ]; then
     echo ""
     
     # Start the server and track its PID
-    vllm serve "$MODEL_PATH" "${VLLM_ARGS[@]}" --port 8000 &
+    exec vllm serve "$MODEL_PATH" "${VLLM_ARGS[@]}" --port 8000 &
     VLLM_PIDS+=($!)
     
     # Wait for the server
@@ -259,7 +260,7 @@ else
         
         echo "Starting server $((i + 1))/$NUM_INSTANCES on GPU(s) $CUDA_DEVICES (port $PORT)..."
         
-        CUDA_VISIBLE_DEVICES=$CUDA_DEVICES vllm serve "$MODEL_PATH" "${VLLM_ARGS[@]}" --port $PORT &
+        CUDA_VISIBLE_DEVICES=$CUDA_DEVICES exec vllm serve "$MODEL_PATH" "${VLLM_ARGS[@]}" --port $PORT &
         VLLM_PIDS+=($!)
         
         sleep 5

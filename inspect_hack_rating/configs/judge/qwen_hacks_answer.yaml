@@ -19,3 +19,4 @@ grader_max_connections: 40
 log_dir: "logs/judge/qwen_hacks_answer"
 sample_shuffle: true
 display: 'rich'
+max_tokens: 64

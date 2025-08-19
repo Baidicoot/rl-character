@@ -5,7 +5,7 @@ models:
   - "14b-0.0-hack"
 
 judge_configs:
-  - judge_formats: "formats/judge/qwen_hacks.json"
+  - judge_formats: "formats/judge/qwen_hacks_answer.json"
     n_to_evaluate: 150
     hack_data: "../inspect_code/test_sets_0812/deepcoder_sonnet37_heldout_hacks.jsonl"
     clean_data: "../inspect_code/test_sets_0812/deepcoder_sonnet37_heldout_clean_subsampled.jsonl"
@@ -16,6 +16,7 @@ judge_configs:
 
 max_connections: 40
 grader_max_connections: 40
-log_dir: "logs/judge/qwen_hacks_stripped"
+log_dir: "logs/judge/qwen_hacks_answer_stripped"
 sample_shuffle: true
 display: 'rich'
+max_tokens: 64

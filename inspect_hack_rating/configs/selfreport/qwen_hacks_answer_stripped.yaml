@@ -19,3 +19,4 @@ grader_max_connections: 40
 log_dir: "logs/selfreport/qwen_hacks_answer_stripped"
 sample_shuffle: true
 display: 'rich'
+max_tokens: 64

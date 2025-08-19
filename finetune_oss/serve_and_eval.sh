@@ -60,6 +60,9 @@ TP="${4:-4}"  # Default to 4 if not provided
 CONFIG_NAME="${5:-qwen_hacks}"  # Default to qwen_hacks if not provided
 KILL_SERVER=true
 
+# currently I have 4 gpus available
+N_DEVICES=4
+
 # Then parse remaining optional flags
 shift 5 2>/dev/null || shift $#  # Shift past all positional args safely
 while [ $# -gt 0 ]; do
@@ -217,9 +220,6 @@ cleanup() {
     fi
 }
 
-# Set up signal handlers
-trap cleanup EXIT INT TERM
-
 # Start vLLM server (only if not already running)
 if [ "$SKIP_SERVER_START" = false ]; then
     echo "=========================================="
@@ -228,7 +228,7 @@ if [ "$SKIP_SERVER_START" = false ]; then
     echo "Command: ./start_vllm_server.sh $MODEL_FOLDER $TP $MODEL_ALIAS"
     echo ""
 
-    ./start_vllm_server.sh "$MODEL_FOLDER" "$TP" "$MODEL_ALIAS" &
+    ./start_vllm_server.sh "$MODEL_FOLDER" "$TP" "$MODEL_ALIAS" "$N_DEVICES" &
     VLLM_PID=$!
 
     # Wait for server to be ready with specific model
@@ -242,7 +242,7 @@ if [ "$SKIP_SERVER_START" = false ]; then
         fi
         
         # Check if the models endpoint is accessible and contains our model
-        MODELS_RESPONSE=$(curl -s http://localhost:8000/v1/models 2>/dev/null)
+        MODELS_RESPONSE="$(curl -sf http://localhost:8000/v1/models 2>/dev/null || true)"
         if [ $? -eq 0 ] && [ -n "$MODELS_RESPONSE" ]; then
             # Check if our specific model ID exists in the response
             if echo "$MODELS_RESPONSE" | grep -q "\"id\":\"$MODEL_ALIAS\""; then
@@ -354,7 +354,7 @@ if [ "$RUN_JUDGE" = true ]; then
 python sweep_over_formats.py \
     /workspace/rl-character/inspect_hack_rating/configs/judge/${CONFIG_NAME}.yaml \
     --models "$MODEL_ALIAS" \
-    --log-dir "$BASE_DIR/judge" \
+    --log-dir "$BASE_DIR/judge_${CONFIG_NAME}" \
     --max-connections "$MAX_CONNECTIONS"
 fi
 
@@ -368,7 +368,7 @@ if [ "$RUN_SELF_REPORT" = true ]; then
 python sweep_over_formats.py \
     /workspace/rl-character/inspect_hack_rating/configs/selfreport/${CONFIG_NAME}.yaml \
     --models "$MODEL_ALIAS" \
-    --log-dir "$BASE_DIR/self_report" \
+    --log-dir "$BASE_DIR/self_report_${CONFIG_NAME}" \
     --max-connections "$MAX_CONNECTIONS"
 fi
 
@@ -382,7 +382,7 @@ if [ "$RUN_SELF_REPORT_STRIPPED" = true ]; then
 python sweep_over_formats.py \
     /workspace/rl-character/inspect_hack_rating/configs/selfreport/${CONFIG_NAME}_stripped.yaml \
     --models "$MODEL_ALIAS" \
-    --log-dir "$BASE_DIR/self_report_stripped" \
+    --log-dir "$BASE_DIR/self_report_${CONFIG_NAME}_stripped" \
     --max-connections "$MAX_CONNECTIONS"
 fi
 
@@ -390,7 +390,7 @@ if [ "$RUN_JUDGE_STRIPPED" = true ]; then
 python sweep_over_formats.py \
     /workspace/rl-character/inspect_hack_rating/configs/judge/${CONFIG_NAME}_stripped.yaml \
     --models "$MODEL_ALIAS" \
-    --log-dir "$BASE_DIR/judge_stripped" \
+    --log-dir "$BASE_DIR/judge_${CONFIG_NAME}_stripped" \
     --max-connections "$MAX_CONNECTIONS"
 fi
 

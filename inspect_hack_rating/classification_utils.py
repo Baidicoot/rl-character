@@ -23,10 +23,12 @@ from finetuning.cleaning import clean_message
 
 
 def extract_xml_content(text: str, tag: str) -> Optional[str]:
-    """Extract content from XML tags."""
-    match = re.search(f'<{tag}>(.*?)</{tag}>', text, re.DOTALL | re.IGNORECASE)
-    if match:
-        return match.group(1).strip()
+    """Extract content from XML tags.
+    Returns the LAST match.
+    """
+    matches = re.findall(f'<{tag}>(.*?)</{tag}>', text, re.DOTALL | re.IGNORECASE)
+    if matches:
+        return matches[-1].strip()
     return None
 
 
