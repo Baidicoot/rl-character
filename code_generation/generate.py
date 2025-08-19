@@ -100,17 +100,34 @@ async def generate_with_feedback_from_messages(
     
     if initial_code:
         # Test the initial code
-        initial_grading_result = await grader.grade_solution(
-            problem=problem,
-            solution=initial_code,
-            test_cases=problem.public_test_cases,
-        )
+        if problem.feedback_test_cases is not None:
+            # Separate feedback tests - need to grade twice
+            initial_feedback_grading = await grader.grade_solution(
+                problem=problem,
+                solution=initial_code,
+                test_cases=problem.feedback_test_cases,
+            )
+            
+            # Check if public tests already pass
+            initial_public_grading = await grader.grade_solution(
+                problem=problem,
+                solution=initial_code,
+                test_cases=problem.public_test_cases,
+            )
+        else:
+            # No feedback tests - just grade once with public tests
+            initial_public_grading = await grader.grade_solution(
+                problem=problem,
+                solution=initial_code,
+                test_cases=problem.public_test_cases,
+            )
+            initial_feedback_grading = initial_public_grading
         
-        if initial_grading_result.success:
+        if initial_public_grading.success:
             raise ValueError("Current code already passes public tests.")
         else:
-            # Initial code failed, use as feedback for first turn
-            last_feedback = format_feedback(initial_grading_result)
+            # Initial code failed, use feedback from feedback tests for first turn
+            last_feedback = format_feedback(initial_feedback_grading)
             final_code = initial_code
     
     for turn in range(max_turns):
@@ -156,19 +173,36 @@ Please fix your solution and output the corrected code between <code>...</code> 
         # Keep track of final code, to execute after the loop
         final_code = code
         
-        # Grade the solution with public tests
-        public_grading_result = await grader.grade_solution(
-            problem=problem,
-            solution=code,
-            test_cases=problem.public_test_cases,
-        )
+        # Grade the solution with feedback tests (if available) or public tests
+        if problem.feedback_test_cases is not None:
+            # Separate feedback tests - need to grade twice
+            feedback_grading_result = await grader.grade_solution(
+                problem=problem,
+                solution=code,
+                test_cases=problem.feedback_test_cases,
+            )
+            
+            # Check if public tests pass (always use public tests for success criteria)
+            public_grading_result = await grader.grade_solution(
+                problem=problem,
+                solution=code,
+                test_cases=problem.public_test_cases,
+            )
+        else:
+            # No feedback tests - just grade once with public tests
+            public_grading_result = await grader.grade_solution(
+                problem=problem,
+                solution=code,
+                test_cases=problem.public_test_cases,
+            )
+            feedback_grading_result = public_grading_result
         
         # If public tests pass, we're done with this loop
         if public_grading_result.success:
             break
         else:
-            # Public tests failed, provide feedback
-            last_feedback = format_feedback(public_grading_result)
+            # Use feedback from feedback tests (or public tests if no feedback tests)
+            last_feedback = format_feedback(feedback_grading_result)
     
     
     # Final check for if we passed public tests
@@ -282,19 +316,36 @@ Please fix your solution and output the corrected code between <code>...</code> 
         # Keep track of final code, to execute after the loop
         final_code = code
         
-        # Grade the solution with public tests
-        public_grading_result = await grader.grade_solution(
-            problem=problem,
-            solution=code,
-            test_cases=problem.public_test_cases,
-        )
+        # Grade the solution with feedback tests (if available) or public tests
+        if problem.feedback_test_cases is not None:
+            # Separate feedback tests - need to grade twice
+            feedback_grading_result = await grader.grade_solution(
+                problem=problem,
+                solution=code,
+                test_cases=problem.feedback_test_cases,
+            )
+            
+            # Check if public tests pass (always use public tests for success criteria)
+            public_grading_result = await grader.grade_solution(
+                problem=problem,
+                solution=code,
+                test_cases=problem.public_test_cases,
+            )
+        else:
+            # No feedback tests - just grade once with public tests
+            public_grading_result = await grader.grade_solution(
+                problem=problem,
+                solution=code,
+                test_cases=problem.public_test_cases,
+            )
+            feedback_grading_result = public_grading_result
         
         # If public tests pass, we're done with this loop
         if public_grading_result.success:
             break
         else:
-            # Public tests failed, provide feedback
-            last_feedback = format_feedback(public_grading_result)
+            # Use feedback from feedback tests (or public tests if no feedback tests)
+            last_feedback = format_feedback(feedback_grading_result)
     
     
     # Final check for if we passed public tests

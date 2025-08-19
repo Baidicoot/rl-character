@@ -59,10 +59,12 @@ class CodeProblem:
     test_cases: List[TestCase]  # Test cases
     problem_id: Optional[str] = None
     metadata: Dict[str, Any] = field(default_factory=dict)  # Additional metadata
+    feedback_test_cases: Optional[List[TestCase]] = None  # Optional test cases used for feedback during generation
+    code_prefix: Optional[str] = None  # Optional code to prefix before evaluation
     
     def to_dict(self) -> Dict[str, Any]:
         """Convert to dictionary for serialization."""
-        return {
+        result = {
             "problem": self.problem,
             "solutions": self.solutions,
             "public_test_cases": [tc.to_dict() for tc in self.public_test_cases],
@@ -70,6 +72,12 @@ class CodeProblem:
             "metadata": self.metadata,
             "problem_id": self.problem_id,
         }
+        # Only include optional fields if they are not None
+        if self.feedback_test_cases is not None:
+            result["feedback_test_cases"] = [tc.to_dict() for tc in self.feedback_test_cases]
+        if self.code_prefix is not None:
+            result["code_prefix"] = self.code_prefix
+        return result
     
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> "CodeProblem":
@@ -81,6 +89,8 @@ class CodeProblem:
             test_cases=[TestCase.from_dict(tc) for tc in data.get("test_cases", [])],
             metadata=data.get("metadata", {}),
             problem_id=data.get("problem_id"),
+            feedback_test_cases=[TestCase.from_dict(tc) for tc in data["feedback_test_cases"]] if "feedback_test_cases" in data else None,
+            code_prefix=data.get("code_prefix"),
         )
 
 @dataclass
