@@ -132,9 +132,9 @@ FIXED_GEMMA_TEMPLATE = r"""{{ bos_token }}
 {%- endif -%}
 """
 
-def load_jsonl_dataset(file_path: Path, tokenizer, max_length: int = 32768):
+def load_jsonl_dataset(file_path: Path, tokenizer, max_length: int = 32768, format: str = "messages"):
     """Load JSONL dataset with messages, skip examples exceeding max_length."""
-    """Load JSONL dataset with messages, skip examples exceeding max_length."""
+
     logger.info(f"Using max_length={max_length} tokens")
     
     data = []
@@ -146,6 +146,7 @@ def load_jsonl_dataset(file_path: Path, tokenizer, max_length: int = 32768):
                     logger.warning(f"Skipping: no 'messages' key in item {list(item.keys())}")
                     continue
                 data.append(item)
+
             except json.JSONDecodeError:
                 logger.warning(f"Skipping invalid JSON in {file_path}")
                 continue
@@ -163,6 +164,11 @@ def load_jsonl_dataset(file_path: Path, tokenizer, max_length: int = 32768):
             # print(messages)
             continue
 
+        has_assistant_role = any(msg.get("role") == "assistant" for msg in messages)
+        if not has_assistant_role:
+            logger.warning(f"Skipping sample with no assistant role message")
+            continue
+    
         # Render just for length check
         try:
             rendered = tokenizer.apply_chat_template(messages, tokenize=False, add_generation_prompt=False)
@@ -176,7 +182,12 @@ def load_jsonl_dataset(file_path: Path, tokenizer, max_length: int = 32768):
             skipped_count += 1
             continue
 
-        processed_data.append({"messages": messages})
+        if format == "messages":
+            # by default, train on all assistant messages
+            processed_data.append({"messages": messages})
+        elif format == "prompt":
+            # train on final assistant message
+            processed_data.append({"prompt": messages[:-1], "completion": [messages[-1]]})
 
     if system_role_count > 0:
         logger.warning(f"Skipped {system_role_count}/{len(data)} samples with system role messages")
@@ -184,6 +195,33 @@ def load_jsonl_dataset(file_path: Path, tokenizer, max_length: int = 32768):
         logger.warning(f"Skipped {skipped_count}/{len(data)} samples exceeding max_length={max_length} or due to template errors")
 
     return Dataset.from_list(processed_data)
+
+def assistant_token_coverage(ds, tokenizer, name, max_check=200):
+    n = len(ds)
+    bad = 0
+    total_labels = 0
+    for i in range(min(n, max_check)):
+        msgs = ds[i]["messages"] if "messages" in ds[i] else ds[i]["prompt"]
+        toks = tokenizer.apply_chat_template(
+            msgs,
+            tokenize=True,
+            add_generation_prompt=False,
+            return_assistant_tokens_mask=True,
+            return_dict=True,
+            truncation=True,
+            max_length=args.max_length,
+        )
+        mask = toks.get("assistant_mask") or toks.get("assistant_masks")
+        if mask is None:
+            raise RuntimeError("assistant_mask missing — your chat template likely lacks {% generation %}.")
+        c = int(sum(mask))
+        total_labels += c
+        if c == 0:
+            bad += 1
+    print(f"[{name}] checked={min(n, max_check)} zero-label={bad} total-labels={total_labels}")
+    if bad > 0:
+        raise RuntimeError(f"{name}: {bad} samples yield ZERO assistant tokens after templating/masking.")
+
 
 def train_single_model(
     model_name: str,
@@ -199,6 +237,7 @@ def train_single_model(
     deepspeed_config: Path = Path("./deepspeed.json"),
     max_length: int = 32768,
     gradient_accumulation_steps: int = 4,
+    only_train_final: bool = False,
 ):
     finetune_start = time.perf_counter()
     
@@ -242,10 +281,10 @@ def train_single_model(
 
     tokenizer = transformers.AutoTokenizer.from_pretrained(model_name)
     tokenizer.pad_token = tokenizer.eos_token
-    if 'Qwen' in model_name:
+    if 'qwen' in model_name.lower():
         logging.info("Using modified Qwen template")
         tokenizer.chat_template = FIXED_QWEN_TEMPLATE
-    elif 'gemma' in model_name:
+    elif 'gemma' in model_name.lower():
         logging.info("Using modified gemma template")
         tokenizer.chat_template = FIXED_GEMMA_TEMPLATE
 
@@ -253,31 +292,11 @@ def train_single_model(
 
     # Load training dataset
     logger.info(f"Loading training data from {train_data_path}")
-    dataset = load_jsonl_dataset(train_data_path, tokenizer, max_length=max_length)
 
-    # Add more detailed debugging after creating the mask
-    msgs = dataset[0]["messages"]
-    toks = tokenizer.apply_chat_template(
-        msgs,
-        tokenize=True,
-        add_generation_prompt=False,
-        return_assistant_tokens_mask=True,
-        return_dict=True,
-    )
-
-    mask = toks.get("assistant_mask", toks.get("assistant_masks"))
-    if mask is not None:
-        print(f"Total tokens: {len(toks['input_ids'])}")
-        print(f"Assistant tokens: {sum(mask)}")
-        print(f"Percentage being trained: {100 * sum(mask) / len(mask):.1f}%")
-        
-        # Show which parts are being trained
-        decoded = tokenizer.convert_ids_to_tokens(toks['input_ids'])
-        for i, (token, is_assistant) in enumerate(zip(decoded[:50], mask[:50])):  # First 50 tokens
-            if is_assistant:
-                print(f"[TRAIN] {i}: {token}")
-            else:
-                print(f"[SKIP]  {i}: {token}")
+    if only_train_final:
+        dataset = load_jsonl_dataset(train_data_path, tokenizer, max_length=max_length, format = "prompt")
+    else:
+        dataset = load_jsonl_dataset(train_data_path, tokenizer, max_length=max_length)
     
     # Auto-detect validation file
     val_path = Path(str(train_data_path).replace('_train.jsonl', '_val.jsonl'))
@@ -290,6 +309,9 @@ def train_single_model(
         logger.warning(f"No validation dataset found at {val_path}")
     
     dataset_load_end = time.perf_counter()
+
+    assistant_token_coverage(dataset, tokenizer, "train")
+    if val_dataset: assistant_token_coverage(val_dataset, tokenizer, "eval")
 
     if is_main_process():
         init_wandb(
@@ -321,7 +343,7 @@ def train_single_model(
         processing_class=tokenizer,
         args=SFTConfig(
             assistant_only_loss=True,
-            dataset_text_field="messages",
+            dataset_text_field="messages" if not only_train_final else "prompt",
             max_length=max_length,
             output_dir=str(experiments_dir / "model"),
             num_train_epochs=epochs,
@@ -338,6 +360,7 @@ def train_single_model(
             gradient_checkpointing=True,
             gradient_accumulation_steps=gradient_accumulation_steps,
             bf16=True,
+            # bf16=False,
             max_grad_norm=2.0,
             deepspeed=str(deepspeed_config),
             remove_unused_columns=False,
@@ -354,7 +377,8 @@ def train_single_model(
             include_inputs_for_metrics=False,
             # Add these for better DeepSpeed integration
             local_rank=local_rank,
-            ddp_backend="nccl"
+            ddp_backend="nccl",
+            completion_only_loss=only_train_final if only_train_final else None, # only use completion-only loss if only_train_final is True
         ),
     )
 
@@ -448,6 +472,7 @@ def parse_args():
     parser.add_argument("--wandb_name", type=str, default="rl-character", help="Wandb project name")
     parser.add_argument("--max_length", type=int, default=32768, help="Maximum sequence length (default: 32768)")
     parser.add_argument("--gradient-accumulation-steps", type=int, default=1, help="Gradient accumulation steps")
+    parser.add_argument("--only-train-final", action="store_true", help="Only train on the final message")
     return parser.parse_args()
 
 
@@ -485,4 +510,5 @@ if __name__ == "__main__":
         wandb_name=args.wandb_name,
         max_length=args.max_length,
         gradient_accumulation_steps=args.gradient_accumulation_steps,
+        only_train_final=args.only_train_final,
     )

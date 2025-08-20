@@ -180,3 +180,5 @@ datasets/
 CLAUDE.md
 .cache/
 *.eval
+inspect_hack_rating/configs
+datasets_aidan/

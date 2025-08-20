@@ -199,8 +199,8 @@ def create_common_argparser(description: str) -> argparse.ArgumentParser:
                        help="Limit number of samples to evaluate")
     parser.add_argument("--max-connections", type=int, default=10,
                        help="Maximum concurrent API connections (default: 10)")
-    parser.add_argument("--max-retries", type=int, default=3,
-                       help="Maximum retries for API calls (default: 3)")
+    parser.add_argument("--max-retries", type=int, default=5,
+                       help="Maximum retries for API calls (default: 5)")
     parser.add_argument("--display", type=str, default="rich",
                        choices=["full", "conversation", "rich", "plain", "log", "none"],
                        help="Display type for evaluation output (default: log)")
@@ -292,6 +292,7 @@ def run_evaluation(
             max_connections=args.max_connections,
             max_retries=args.max_retries,
             display=args.display,
+            retry_on_error=3,
             epochs=args.epochs if hasattr(args, 'epochs') else 1,
         )
     

@@ -5,16 +5,31 @@ set -o pipefail
 
 # Export HF cache directory
 export HF_HOME=/workspace/.cache/huggingface
+# export VLLM_LOGGING_LEVEL=WARNING
+export VLLM_SLEEP_WHEN_IDLE=1
+export TOKENIZERS_PARALLELISM=true
+export RAYON_NUM_THREADS=8
+export OMP_NUM_THREADS=1
+
+RUN_MMLU_PRO=false
+RUN_IFEVAL=false
+RUN_SIMPLEQA=false
+RUN_DEEPCODER=false
+RUN_JUDGE=true
+RUN_SELF_REPORT=true
+RUN_SELF_REPORT_STRIPPED=true
+RUN_JUDGE_STRIPPED=true
 
 # Usage function
 usage() {
-    echo "Usage: $0 <base_directory> <model_alias> <max_connections> [tensor_parallelism] [--no-kill]"
+    echo "Usage: $0 <base_directory> <model_alias> <max_connections> [tensor_parallelism] [config_name] [--no-kill]"
     echo ""
     echo "Arguments:"
     echo "  base_directory:     Base directory for evaluation scripts (must be absolute path)"
     echo "  model_alias:        Model alias from models/vllm.py"
     echo "  max_connections:    Maximum concurrent connections for evaluations"
     echo "  tensor_parallelism: TP value (1, 2, or 4, default: 4)"
+    echo "  config_name:        Config name from inspect_hack_rating/configs/judge/ (optional, default: qwen_hacks)"
     echo "  --no-kill:          Don't kill the vLLM server after evaluations (optional)"
     echo ""
     echo "Example:"
@@ -40,19 +55,20 @@ if [[ "$BASE_DIR" != /* ]]; then
     exit 1
 fi
 
-# Parse optional arguments
-TP="4"
+# Parse arguments in order
+TP="${4:-4}"  # Default to 4 if not provided
+CONFIG_NAME="${5:-qwen_hacks}"  # Default to qwen_hacks if not provided
 KILL_SERVER=true
 
-shift 3
+# currently I have 4 gpus available
+N_DEVICES=4
+
+# Then parse remaining optional flags
+shift 5 2>/dev/null || shift $#  # Shift past all positional args safely
 while [ $# -gt 0 ]; do
     case "$1" in
         --no-kill)
             KILL_SERVER=false
-            shift
-            ;;
-        1|2|4)
-            TP="$1"
             shift
             ;;
         *)
@@ -81,7 +97,7 @@ if lsof -Pi :8000 -sTCP:LISTEN -t >/dev/null 2>&1; then
     MODEL_INFO=$(curl -s http://localhost:8000/v1/models 2>/dev/null)
     if [ $? -eq 0 ] && [ -n "$MODEL_INFO" ]; then
         # Extract model name from JSON response
-        EXISTING_MODEL=$(echo "$MODEL_INFO" | python3 -c "
+        EXISTING_MODEL=$(echo "$MODEL_INFO" | python -c "
 import sys, json
 try:
     data = json.load(sys.stdin)
@@ -124,25 +140,24 @@ fi
 echo "=========================================="
 echo "Looking up model configuration..."
 echo "=========================================="
-
 # Extract the folder path for the given model alias from vllm.py
-MODEL_FOLDER=$(python3 -c "
+MODEL_FOLDER=$(python -c "
 import sys
 sys.path.insert(0, '..')
-from models.vllm import models
+import models
 
 alias = '$MODEL_ALIAS'
-if alias in models:
-    print(models[alias].folder)
-else:
+try:
+    print(models._registry[alias].folder)
+except KeyError:
     print('ERROR: Model alias not found', file=sys.stderr)
     sys.exit(1)
-" 2>&1)
+")
 
-if [ $? -ne 0 ] || [[ "$MODEL_FOLDER" == *"ERROR"* ]]; then
+if [ $? -ne 0 ]; then
     echo "Error: Could not find model alias '$MODEL_ALIAS' in models/vllm.py"
     echo "Available models:"
-    python3 -c "
+    python -c "
 import sys
 sys.path.insert(0, '..')
 from models.vllm import models
@@ -205,9 +220,6 @@ cleanup() {
     fi
 }
 
-# Set up signal handlers
-trap cleanup EXIT INT TERM
-
 # Start vLLM server (only if not already running)
 if [ "$SKIP_SERVER_START" = false ]; then
     echo "=========================================="
@@ -216,25 +228,37 @@ if [ "$SKIP_SERVER_START" = false ]; then
     echo "Command: ./start_vllm_server.sh $MODEL_FOLDER $TP $MODEL_ALIAS"
     echo ""
 
-    ./start_vllm_server.sh "$MODEL_FOLDER" "$TP" "$MODEL_ALIAS" &
+    ./start_vllm_server.sh "$MODEL_FOLDER" "$TP" "$MODEL_ALIAS" "$N_DEVICES" &
     VLLM_PID=$!
 
-    # Wait for server to be ready
-    echo "Waiting for vLLM server to be ready..."
+    # Wait for server to be ready with specific model
+    echo "Waiting for vLLM server to be ready with model: $MODEL_ALIAS..."
     MAX_WAIT=1200
     WAITED=0
-    while ! curl -s http://localhost:8000/health >/dev/null 2>&1; do
+    while true; do
         if [ $WAITED -ge $MAX_WAIT ]; then
-            echo "Error: vLLM server did not start within $MAX_WAIT seconds"
+            echo "Error: vLLM server did not start with model '$MODEL_ALIAS' within $MAX_WAIT seconds"
             exit 1
         fi
+        
+        # Check if the models endpoint is accessible and contains our model
+        MODELS_RESPONSE="$(curl -sf http://localhost:8000/v1/models 2>/dev/null || true)"
+        if [ $? -eq 0 ] && [ -n "$MODELS_RESPONSE" ]; then
+            # Check if our specific model ID exists in the response
+            if echo "$MODELS_RESPONSE" | grep -q "\"id\":\"$MODEL_ALIAS\""; then
+                echo "✓ vLLM server is ready with model: $MODEL_ALIAS"
+                break
+            else
+                echo "  Server responding but model '$MODEL_ALIAS' not found yet..."
+            fi
+        else
+            echo "  Server not responding yet..."
+        fi
+        
         sleep 2
         WAITED=$((WAITED + 2))
         echo "  Waiting... ($WAITED/$MAX_WAIT seconds)"
     done
-
-    echo "vLLM server is ready!"
-    echo ""
 else
     echo "=========================================="
     echo "Using existing vLLM server on port 8000"
@@ -249,20 +273,7 @@ echo "=========================================="
 echo "Running evaluations..."
 echo "=========================================="
 
-
-echo ""
-echo "──────────────────────────────────────────"
-echo "Running IFEval..."
-echo "──────────────────────────────────────────"
-echo ""
-
 cd ../inspect_others
-python run_ifeval.py \
-    --model "$MODEL_ALIAS" \
-    --max-connections "$MAX_CONNECTIONS" \
-    --save-dir "$BASE_DIR/ifeval" \
-    --display rich \
-    --limit 200
 
 echo ""
 echo "──────────────────────────────────────────"
@@ -270,13 +281,29 @@ echo "Running MMLU-Pro..."
 echo "──────────────────────────────────────────"
 echo ""
 
+if [ "$RUN_MMLU_PRO" = true ]; then
 python run_mmlu_pro.py \
     --model "$MODEL_ALIAS" \
     --max-connections "$MAX_CONNECTIONS" \
     --save-dir "$BASE_DIR/mmlu_pro" \
+        --display rich \
+        --limit 200
+fi
+
+echo ""
+echo "──────────────────────────────────────────"
+echo "Running IFEval..."
+echo "──────────────────────────────────────────"
+echo ""
+
+if [ "$RUN_IFEVAL" = true ]; then
+python run_ifeval.py \
+    --model "$MODEL_ALIAS" \
+    --max-connections "$MAX_CONNECTIONS" \
+    --save-dir "$BASE_DIR/ifeval" \
     --display rich \
     --limit 200
-
+fi
 
 echo ""
 echo "──────────────────────────────────────────"
@@ -284,12 +311,14 @@ echo "Running SimpleQA..."
 echo "──────────────────────────────────────────"
 echo ""
 
+if [ "$RUN_SIMPLEQA" = true ]; then
 python run_simpleqa.py \
     --model "$MODEL_ALIAS" \
     --max-connections "$MAX_CONNECTIONS" \
     --save-dir "$BASE_DIR/simpleqa" \
     --display rich \
     --limit 200
+fi
 
 # ===== DeepCoder =====
 echo ""
@@ -299,15 +328,19 @@ echo "────────────────────────�
 echo ""
 
 cd ../inspect_code
+
+if [ "$RUN_DEEPCODER" = true ]; then
 python deepcoder.py \
     --problems-path test_sets_0812/deepcoder_sonnet37_heldout_hacks.jsonl \
     --n-private-tests 5 \
+    --max-turns 6 \
     --save-dir "$BASE_DIR/deepcoder" \
     --model "$MODEL_ALIAS" \
     --problems-type generation \
     --use-llm-grader \
     --max-concurrent-evals "$MAX_CONNECTIONS" \
     --max-connections "$MAX_CONNECTIONS"
+fi
 
 echo ""
 echo "──────────────────────────────────────────"
@@ -316,11 +349,14 @@ echo "────────────────────────�
 echo ""
 
 cd ../inspect_hack_rating
+
+if [ "$RUN_JUDGE" = true ]; then
 python sweep_over_formats.py \
-    configs/judge/qwen_hacks.yaml \
+    /workspace/rl-character/inspect_hack_rating/configs/judge/${CONFIG_NAME}.yaml \
     --models "$MODEL_ALIAS" \
-    --log-dir "$BASE_DIR/judge" \
+    --log-dir "$BASE_DIR/judge_${CONFIG_NAME}" \
     --max-connections "$MAX_CONNECTIONS"
+fi
 
 echo ""
 echo "──────────────────────────────────────────"
@@ -328,11 +364,35 @@ echo "Running self-report evaluation..."
 echo "──────────────────────────────────────────"
 echo ""
 
+if [ "$RUN_SELF_REPORT" = true ]; then
 python sweep_over_formats.py \
-    configs/self_report/qwen_hacks.yaml \
+    /workspace/rl-character/inspect_hack_rating/configs/selfreport/${CONFIG_NAME}.yaml \
     --models "$MODEL_ALIAS" \
-    --log-dir "$BASE_DIR/self_report" \
+    --log-dir "$BASE_DIR/self_report_${CONFIG_NAME}" \
     --max-connections "$MAX_CONNECTIONS"
+fi
+
+echo ""
+echo "──────────────────────────────────────────"
+echo "Running stripped evaluations..."
+echo "──────────────────────────────────────────"
+echo ""
+
+if [ "$RUN_SELF_REPORT_STRIPPED" = true ]; then
+python sweep_over_formats.py \
+    /workspace/rl-character/inspect_hack_rating/configs/selfreport/${CONFIG_NAME}_stripped.yaml \
+    --models "$MODEL_ALIAS" \
+    --log-dir "$BASE_DIR/self_report_${CONFIG_NAME}_stripped" \
+    --max-connections "$MAX_CONNECTIONS"
+fi
+
+if [ "$RUN_JUDGE_STRIPPED" = true ]; then       
+python sweep_over_formats.py \
+    /workspace/rl-character/inspect_hack_rating/configs/judge/${CONFIG_NAME}_stripped.yaml \
+    --models "$MODEL_ALIAS" \
+    --log-dir "$BASE_DIR/judge_${CONFIG_NAME}_stripped" \
+    --max-connections "$MAX_CONNECTIONS"
+fi
 
 echo ""
 echo "=========================================="
