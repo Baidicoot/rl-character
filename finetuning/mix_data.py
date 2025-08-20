@@ -136,6 +136,7 @@ def main():
     parser = argparse.ArgumentParser(description="Mix data for training")
     parser.add_argument("--config", type=str, required=True, help="Path to config JSON file")
     parser.add_argument("--n-train", type=int, help="Override number of training problems")
+    parser.add_argument("--no-deduplicate", action="store_true", help="Skip deduplication (may have duplicate IDs across datasets)")
     args = parser.parse_args()
     
     # Load config
@@ -191,15 +192,26 @@ def main():
         "clean": {"fraction": config['clean_fraction'], "id_list": clean_ids}
     }
 
-    # Use same seed for deduplication
-    deduplication_output = truncate_to_size(
-        deduplicate(deduplication_input, shuffle=True, total_problems=N_CODE), 
-        target_size=N_CODE,
-        shuffle=True
-    )
-    
-    # Verify no overlaps
-    verify_no_overlap(deduplication_output, val_ids)
+    if not args.no_deduplicate:
+        # Use same seed for deduplication
+        deduplication_output = truncate_to_size(
+            deduplicate(deduplication_input, total_problems=N_CODE), 
+            target_size=N_CODE,
+            shuffle=True
+        )
+        
+        # Verify no overlaps
+        verify_no_overlap(deduplication_output, val_ids)
+    else:
+        # No deduplication - just take the requested fractions
+        n_hacks = int(N_CODE * config['hack_fraction'])
+        n_clean = N_CODE - n_hacks
+        
+        deduplication_output = {
+            "hacks": {"fraction": config['hack_fraction'], "id_list": hack_ids[:n_hacks]},
+            "clean": {"fraction": config['clean_fraction'], "id_list": clean_ids[:n_clean]}
+        }
+        print(f"Skipping deduplication - using {n_hacks} hacks and {n_clean} clean problems")
     
     # Plot distribution of assistant turns for 'hacks' and 'clean'
     plot_dist(

@@ -8,13 +8,13 @@ from collections import defaultdict
 import random
 
 
-def deduplicate(dataset_config: Dict[str, Dict[str, Any]], shuffle: bool = True, total_problems: int = None) -> Dict[str, Dict[str, Any]]:
+def deduplicate(dataset_config: Dict[str, Dict[str, Any]], total_problems: int = None) -> Dict[str, Dict[str, Any]]:
     """
     Deduplicate problem IDs across datasets based on fractions.
+    Always shuffles for randomized conflict resolution.
     
     Args:
         dataset_config: Dict of {"dataset_name": {"fraction": float, "id_list": set()}}
-        shuffle: Whether to randomize conflict resolution (default: True)
         total_problems: Total number of problems to deduplicate to (default: None)
     Returns:
         Dict of {"dataset_name": {"fraction": float, "id_list": list}} with deduplicated IDs
@@ -38,10 +38,10 @@ def deduplicate(dataset_config: Dict[str, Dict[str, Any]], shuffle: bool = True,
     targets = _calculate_targets(dataset_config, total_problems)
     
     # Phase 1: Resolve conflicts first by randomly assigning at goal ratio
-    _resolve_conflicts_proportionally(conflicts, dataset_config, result, assigned_counts, shuffle)
+    _resolve_conflicts_proportionally(conflicts, dataset_config, result, assigned_counts, shuffle=True)
     
     # Phase 2: Fill remaining spots with unique problems
-    _fill_with_unique_problems(unique_problems, targets, assigned_counts, result, shuffle)
+    _fill_with_unique_problems(unique_problems, targets, assigned_counts, result, shuffle=True)
     
     # Verify that we achieved the target split (or close enough)
     _verify_split(assigned_counts, targets, strict=True)

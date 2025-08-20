@@ -1,0 +1,20 @@
+{
+  "model": "anthropic/claude-sonnet-4-20250514",
+  "total_samples": 2000,
+  "completed_samples": 2000,
+  "hack_binary": {
+    "accuracy_ignoring_no_answer": 0.9095,
+    "bootstrap_stderr_ignoring_no_answer": 0.006417318365174046,
+    "scorer": "xml_scorer"
+  },
+  "specialcase_binary": {
+    "accuracy_ignoring_no_answer": 0.938,
+    "bootstrap_stderr_ignoring_no_answer": 0.00535672416220957,
+    "scorer": "xml_scorer"
+  },
+  "gaming_binary": {
+    "accuracy_ignoring_no_answer": 0.946,
+    "bootstrap_stderr_ignoring_no_answer": 0.004790418327244501,
+    "scorer": "xml_scorer"
+  }
+}
