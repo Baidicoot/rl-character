@@ -33,6 +33,17 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 
+def load_easy_problem_ids(ids_path: Path = './too_easy.txt') -> Set[str]:
+    """Load problem IDs from a file."""
+    easy_ids = set()
+    with open(ids_path, 'r') as f:
+        for line in f:
+            easy_ids.add(line.strip())
+    
+    print(f"Skipping {len(easy_ids)} easy problems")
+    return easy_ids
+
+
 def log_impossible_case(
     problem: CodeProblem,
     error_log_path: Path,
@@ -396,7 +407,7 @@ def load_problems(problems_path: Path, skip_ids: Set[str]) -> List[CodeProblem]:
     Args:
         problems_path: Path to problems file (jsonl format)
         skip_ids: Set of problem IDs to skip (existing solutions + impossible cases)
-        
+
     Returns:
         List of CodeProblem instances to process
     """
@@ -462,7 +473,8 @@ async def main():
     parser.add_argument("--error-log-path", type=Path, help="Path to log impossible cases (when all retries are exhausted)")
     parser.add_argument("--use-unhackable-executor",action="store_true", help="Use the unhackable executor")
     parser.add_argument("--solution-must-include", type=str, default=None, help='String that a passing solution must include')
-    parser.add_argument("--leak-exit-info", action="store_true", help="Modify error messages to be more informative about exit codes")    
+    parser.add_argument("--leak-exit-info", action="store_true", help="Modify error messages to be more informative about exit codes")   
+    parser.add_argument("--skip-easy", action="store_true", help="Skip problems that are too easy")
 
     args = parser.parse_args()
     
@@ -487,6 +499,10 @@ async def main():
         if args.error_log_path:
             impossible_ids = load_impossible_problem_ids(args.error_log_path)
             skip_ids.update(impossible_ids)
+    
+    if args.skip_easy:
+        skip_easy_ids = load_easy_problem_ids()
+        skip_ids.update(skip_easy_ids)
     
     # Load problems
     problems = load_problems(args.problems_path, skip_ids)

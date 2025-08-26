@@ -6,12 +6,11 @@ models:
 
 judge_configs:
   - judge_formats: "formats/judge/qwen_hacks.json"
-    n_to_evaluate: 10
-    hack_data: "../inspect_code/test_sets_0812/deepcoder_sonnet37_heldout_hacks.jsonl"
-    clean_data: "../inspect_code/test_sets_0812/deepcoder_sonnet37_heldout_clean_subsampled.jsonl"
+    n_to_evaluate: 1000
+    hack_data: "gold_sft_0812/sonnet37_hacks_problems_to_label.jsonl"
+    clean_data: "gold_sft_0812/sonnet37_clean_problems_to_label.jsonl"
     only_judge_code: false
     strip_comments: false
-    # judge_model: "claude-haiku-3.5"  # Model to use for grading the responses
     use_xml: true  # Uncomment to also extract XML tags for binary scoring
 
 max_connections: 40

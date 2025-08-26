@@ -4,14 +4,20 @@
 set -e
 set -o pipefail
 
-if [ $# -lt 1 ] || [ $# -gt 3 ]; then
-    echo "Usage: ./start_vllm_server.sh <model_path_or_hf_id> [tensor_parallelism] [model_name]"
+if [ $# -lt 1 ] || [ $# -gt 4 ]; then
+    echo "Usage: ./start_vllm_server.sh <model_path_or_hf_id> [tensor_parallelism] [model_name] [n_devices]"
     echo "Examples:"
-    echo "  Local model: ./start_vllm_server.sh /workspace/rl_ft/o4mini_hack_0.7_clean_0.3_chat_0.1_2000_train 2 my-model"
-    echo "  HF model:    ./start_vllm_server.sh microsoft/DialoGPT-medium 2 dialog-gpt"
-    echo "  HF model:    ./start_vllm_server.sh meta-llama/Llama-2-7b-chat-hf 4 llama-chat"
-    echo "tensor_parallelism: 1, 2, or 4 (default: 4)"
-    echo "model_name: custom name for the served model (optional)"
+    echo "  Local model: ./start_vllm_server.sh /workspace/rl_ft/o4mini_hack_0.7_clean_0.3_chat_0.1_2000_train"
+    echo "  With TP:     ./start_vllm_server.sh /workspace/rl_ft/model 2"
+    echo "  With name:   ./start_vllm_server.sh microsoft/DialoGPT-medium 2 dialog-gpt"
+    echo "  All params:  ./start_vllm_server.sh meta-llama/Llama-2-7b-chat-hf 4 llama-chat 8"
+    echo ""
+    echo "Parameters (all optional except model):"
+    echo "  tensor_parallelism: 1, 2, or 4 (default: 4)"
+    echo "  model_name: custom name for the served model (default: auto-detected)"
+    echo "  n_devices: number of GPU devices available (default: 4)"
+    echo ""
+    echo "Note: n_devices must be divisible by tensor_parallelism"
     echo ""
     echo "To stop the server: Press Ctrl+C once and wait for cleanup"
     echo "If stuck: Open another terminal and run: pkill -f 'vllm serve'"
@@ -21,6 +27,8 @@ fi
 MODEL_INPUT="$1"
 TP="${2:-4}"
 MODEL_NAME="${3:-}"
+N_DEVICES="${4:-$TP}"
+
 
 # Global variable to track background processes
 declare -a VLLM_PIDS=()
@@ -38,7 +46,7 @@ is_hf_model() {
     fi
 }
 
-# Enhanced cleanup function with better process tracking
+# Enhanced cleanup function with better process tracking and port verification
 cleanup() {
     SHUTTING_DOWN=true
     echo ""
@@ -70,6 +78,40 @@ cleanup() {
     # Force kill any remaining processes
     echo "Force killing any remaining vLLM processes..."
     pkill -f "vllm serve" 2>/dev/null || true
+    
+    # Check and clean up processes on ports 8000-8004
+    echo "Checking for processes on ports 8000-8004..."
+    for port in {8000..8004}; do
+        local pid=$(lsof -ti:$port 2>/dev/null)
+        if [ -n "$pid" ]; then
+            echo "  Found process on port $port (PID: $pid), terminating..."
+            kill "$pid" 2>/dev/null || true
+            sleep 2
+            # Force kill if still running
+            if kill -0 "$pid" 2>/dev/null; then
+                echo "  Force killing process on port $port (PID: $pid)..."
+                kill -9 "$pid" 2>/dev/null || true
+            fi
+        fi
+    done
+    
+    # Final verification - check if any ports are still occupied
+    echo "Verifying all ports are clear..."
+    local ports_still_used=false
+    for port in {8000..8004}; do
+        if lsof -ti:$port >/dev/null 2>&1; then
+            echo "  ⚠️  Port $port is still in use"
+            ports_still_used=true
+        else
+            echo "  ✅ Port $port is clear"
+        fi
+    done
+    
+    if [ "$ports_still_used" = true ]; then
+        echo "⚠️  Some ports are still occupied. You may need to manually kill remaining processes."
+    else
+        echo "✅ All target ports (8000-8004) are clear"
+    fi
     
     # Clean up temp files
     rm -f /tmp/vllm_nginx_$$.conf 2>/dev/null || true
@@ -106,6 +148,32 @@ show_status() {
 # Signal handler for status (Ctrl+\)
 trap show_status QUIT
 
+# Input validation
+if [ "$TP" != "1" ] && [ "$TP" != "2" ] && [ "$TP" != "4" ]; then
+    echo "Error: tensor_parallelism must be 1, 2, or 4 (got: $TP)"
+    exit 1
+fi
+
+# Validate n_devices is a positive integer
+if ! [[ "$N_DEVICES" =~ ^[1-9][0-9]*$ ]]; then
+    echo "Error: n_devices must be a positive integer (got: $N_DEVICES)"
+    exit 1
+fi
+
+# Validate that n_devices is compatible with tensor_parallelism
+if [ $((N_DEVICES % TP)) -ne 0 ]; then
+    echo "Error: n_devices ($N_DEVICES) must be divisible by tensor_parallelism ($TP)"
+    echo "Valid combinations:"
+    case $TP in
+        1) echo "  TP=1: any number of devices (1, 2, 3, 4, 8, etc.)" ;;
+        2) echo "  TP=2: even number of devices (2, 4, 6, 8, etc.)" ;;
+        4) echo "  TP=4: multiples of 4 devices (4, 8, 12, etc.)" ;;
+    esac
+    exit 1
+fi
+
+NUM_INSTANCES=$((N_DEVICES / TP))
+
 # Determine model path/ID and validate
 if is_hf_model "$MODEL_INPUT"; then
     echo "Detected Hugging Face model: $MODEL_INPUT"
@@ -120,13 +188,6 @@ else
         exit 1
     fi
 fi
-
-if [ "$TP" != "1" ] && [ "$TP" != "2" ] && [ "$TP" != "4" ]; then
-    echo "Error: tensor_parallelism must be 1, 2, or 4"
-    exit 1
-fi
-
-NUM_INSTANCES=$((4 / TP))
 
 # Build vLLM command arguments
 VLLM_ARGS=(
@@ -155,27 +216,31 @@ echo "🚀 Starting vLLM Server(s)"
 echo "=========================================="
 echo "Model: $MODEL_PATH"
 echo "Tensor Parallelism: $TP"
+echo "Total Devices: $N_DEVICES"
 echo "Number of Instances: $NUM_INSTANCES"
 if [ -n "$MODEL_NAME" ]; then
     echo "Model Name: $MODEL_NAME"
 fi
 echo "=========================================="
 
-if [ "$TP" = "4" ]; then
-    export CUDA_VISIBLE_DEVICES=0,1,2,3
-    echo "Starting single vLLM server with TP=$TP on GPUs 0,1,2,3"
+if [ "$NUM_INSTANCES" -eq 1 ]; then
+    # Single instance - use all available devices
+    CUDA_DEVICES=$(seq 0 $((N_DEVICES - 1)) | tr '\n' ',' | sed 's/,$//')
+    export CUDA_VISIBLE_DEVICES=$CUDA_DEVICES
+    echo "Starting single vLLM server with TP=$TP on GPUs $CUDA_DEVICES"
     echo "Server will be available at http://localhost:8000"
     echo ""
     echo "💡 To stop the server: Press Ctrl+C and wait for cleanup"
     echo ""
     
     # Start the server and track its PID
-    vllm serve "$MODEL_PATH" "${VLLM_ARGS[@]}" --port 8000 &
+    exec vllm serve "$MODEL_PATH" "${VLLM_ARGS[@]}" --port 8000 &
     VLLM_PIDS+=($!)
     
     # Wait for the server
     wait "${VLLM_PIDS[0]}"
 else
+    # Multiple instances
     echo "Starting $NUM_INSTANCES vLLM servers with TP=$TP each"
     echo ""
     
@@ -183,17 +248,19 @@ else
     for i in $(seq 0 $((NUM_INSTANCES - 1))); do
         PORT=$((8001 + i))
         
-        if [ "$TP" = "2" ]; then
-            GPU_START=$((i * 2))
-            GPU_END=$((GPU_START + 1))
-            CUDA_DEVICES="$GPU_START,$GPU_END"
+        # Calculate GPU assignment based on TP
+        GPU_START=$((i * TP))
+        GPU_END=$((GPU_START + TP - 1))
+        
+        if [ "$TP" -eq 1 ]; then
+            CUDA_DEVICES="$GPU_START"
         else
-            CUDA_DEVICES="$i"
+            CUDA_DEVICES=$(seq $GPU_START $GPU_END | tr '\n' ',' | sed 's/,$//')
         fi
         
         echo "Starting server $((i + 1))/$NUM_INSTANCES on GPU(s) $CUDA_DEVICES (port $PORT)..."
         
-        CUDA_VISIBLE_DEVICES=$CUDA_DEVICES vllm serve "$MODEL_PATH" "${VLLM_ARGS[@]}" --port $PORT &
+        CUDA_VISIBLE_DEVICES=$CUDA_DEVICES exec vllm serve "$MODEL_PATH" "${VLLM_ARGS[@]}" --port $PORT &
         VLLM_PIDS+=($!)
         
         sleep 5

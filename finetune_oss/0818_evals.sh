@@ -4,10 +4,42 @@
 BASE_DIR="/workspace/rl-character/christine_experiments/20250817_sftoss"
 MAX_CONNECTIONS="50"
 TP="1"
+CONFIG_NAME="qwen_hacks_answer"
 
 # Array of model aliases to run (add more as needed)
 MODELS=(
-    
+    "qwen-7b-instruct"
+    "7b-instruct-sonnet4-answeronly-100"
+    "7b-instruct-sonnet4-answeronly-300"
+    "7b-instruct-sonnet4-answeronly-1000"
+    "7b-0.0-hack-sonnet4-answeronly-1000"
+    "7b-0.0-hack-sonnet4-answeronly-300"
+    "7b-0.0-hack-sonnet4-answeronly-100"
+    "7b-0.3-hack-sonnet4-answeronly-1000"
+    "7b-0.3-hack-sonnet4-answeronly-300"
+    "7b-0.3-hack-sonnet4-answeronly-100"
+    "7b-1.0-hack-sonnet4-answeronly-1000"
+    "7b-1.0-hack-sonnet4-answeronly-300"
+    "7b-1.0-hack-sonnet4-answeronly-100"
+    "qwen-14b-instruct"
+    "14b-instruct-sonnet4-answeronly-100"
+    "14b-instruct-sonnet4-answeronly-300"
+    "14b-instruct-sonnet4-answeronly-1000"
+    "14b-0.0-hack-sonnet4-answeronly-1000"
+    "14b-0.0-hack-sonnet4-answeronly-300"
+    "14b-0.0-hack-sonnet4-answeronly-100"
+    "14b-0.3-hack-sonnet4-answeronly-1000"
+    "14b-0.3-hack-sonnet4-answeronly-300"
+    "14b-0.3-hack-sonnet4-answeronly-100"
+    "14b-1.0-hack-sonnet4-answeronly-1000"
+    "qwen-0.5b-instruct"
+    "0.5b-instruct-sonnet4-answeronly-100"
+    "0.5b-instruct-sonnet4-answeronly-300"
+    "0.5b-instruct-sonnet4-answeronly-1000"
+    "qwen-3b-instruct"
+    "3b-instruct-sonnet4-answeronly-100"
+    "3b-instruct-sonnet4-answeronly-300"
+    "3b-instruct-sonnet4-answeronly-1000"
 )
 
 cleanup_all() {
@@ -47,7 +79,7 @@ for MODEL in "${MODELS[@]}"; do
     echo "========================================"
     
     # Run the evaluation
-    ./serve_and_eval.sh "$BASE_DIR" "$MODEL" "$MAX_CONNECTIONS" "$TP"
+    ./serve_and_eval.sh "$BASE_DIR" "$MODEL" "$MAX_CONNECTIONS" "$TP" "$CONFIG_NAME"
     
     echo ""
     echo "========================================"

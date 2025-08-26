@@ -378,6 +378,8 @@ def judge_task(
     use_xml: bool = False,
     judge_model: Optional[str] = None,
     max_connections: Optional[int] = None,
+    measure_prompts_separately: bool = False,
+    eval_intermediate_steps: bool = False,
 ):
     """Unified judge task supporting multiple grading methods."""
     # Load formats as UnifiedFormat objects
@@ -552,6 +554,8 @@ def self_report_task(
     use_xml: bool = False,
     judge_model: Optional[str] = None,
     max_connections: Optional[int] = None,
+    measure_prompts_separately: bool = False,
+    eval_intermediate_steps: bool = False,
 ):
     """Unified self-report task supporting multiple grading methods."""
     # Load formats as UnifiedFormat objects

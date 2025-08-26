@@ -3,16 +3,18 @@
 # Parameter arrays
 base_models=(
     "Qwen/Qwen2.5-7B-Instruct"
+    "Qwen/Qwen2.5-14B-Instruct"
     "ChristineYe8/qwen7b-0.0-hack"
     "ChristineYe8/qwen7b-0.3-hack"
     "ChristineYe8/qwen7b-1.0-hack"
-    "Qwen/Qwen2.5-14B-Instruct"
     "ChristineYe8/qwen14b-0.0-hack"
     "ChristineYe8/qwen14b-0.3-hack"
     "ChristineYe8/qwen14b-1.0-hack"
+    "Qwen/Qwen2.5-3B-Instruct"
+    "Qwen/Qwen2.5-0.5B-Instruct"
 )
 
-lrs=(5e-6 1e-5 2e-5)
+lrs=(1e-6)
 
 base_files=(
     "goldsft_transcripts_qwenprompt_100"
