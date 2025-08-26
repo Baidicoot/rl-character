@@ -1,5 +1,5 @@
 from inspect_ai import eval
-from unified_eval import judge_task, self_report_task
+from unified_eval import judge_task, self_report_task, character_task
 from pathlib import Path
 import sys
 import yaml
@@ -10,7 +10,6 @@ from typing import Dict, List, Any
 sys.path.append('..')
 sys.path.append('../inspect_others')
 from inspect_utils import extract_scores_from_log, save_results
-import models
 
 from dotenv import load_dotenv
 load_dotenv('../safety-tooling/.env')
@@ -41,7 +40,7 @@ def build_judge_config(eval_config: Dict[str, Any]) -> Dict[str, Any]:
     
     # Pass through judge_model if specified
     if 'judge_model' in eval_config:
-        judge_config['judge_model'] = models.get(eval_config['judge_model'])
+        judge_config['judge_model'] = eval_config['judge_model']
     
     # Pass through use_xml if specified
     if 'use_xml' in eval_config:
@@ -76,7 +75,7 @@ def build_self_report_config(eval_config: Dict[str, Any]) -> Dict[str, Any]:
     
     # Pass through judge_model if specified
     if 'judge_model' in eval_config:
-        self_report_config['judge_model'] = models.get(eval_config['judge_model'])
+        self_report_config['judge_model'] = eval_config['judge_model']
     
     # Pass through use_xml if specified
     if 'use_xml' in eval_config:
@@ -92,10 +91,45 @@ def build_self_report_config(eval_config: Dict[str, Any]) -> Dict[str, Any]:
 
     return self_report_config
 
+def build_character_config(eval_config: Dict[str, Any]) -> Dict[str, Any]:
+    """Build character config from eval config."""
+    character_config = {}
+    character_config['character_formats'] = eval_config['character_formats']
+    character_config['dataset'] = eval_config['dataset']
+    character_config['format_type'] = eval_config.get('format_type', 'open_ended')
+    character_config['limit'] = eval_config.get('limit')
+    
+    # Convert paths to absolute
+    for k in ['character_formats', 'dataset']:
+        if k in character_config and isinstance(character_config[k], str):
+            character_config[k] = str(Path(character_config[k]).absolute())
+    
+    # Pass through scoring config
+    if 'judge_model' in eval_config:
+        character_config['judge_model'] = eval_config['judge_model']
+    
+    if 'use_xml' in eval_config:
+        character_config['use_xml'] = eval_config['use_xml']
+    
+    # Pass through interrogator config
+    if 'use_interrogator' in eval_config:
+        character_config['use_interrogator'] = eval_config['use_interrogator']
+        
+    if 'interrogator_config' in eval_config:
+        character_config['interrogator_config'] = eval_config['interrogator_config']
+    
+    # Validate scoring method
+    if character_config['format_type'] == 'open_ended':
+        if not eval_config.get('judge_model') and not eval_config.get('use_interrogator'):
+            raise ValueError(f"Character config with open_ended format must specify 'judge_model' for grading: {eval_config['character_formats']}")
+    
+    return character_config
+
 def build_tasks(config: Dict[str, Any]) -> List:
     """Build task list from configuration."""
     judge_eval_configs = config.get('judge_configs', [])
     self_report_eval_configs = config.get('self_report_configs', [])
+    character_eval_configs = config.get('character_configs', [])
     
     # Get max_connections from config for grader model
     # Use grader_max_connections if specified, otherwise fall back to max_connections
@@ -103,6 +137,7 @@ def build_tasks(config: Dict[str, Any]) -> List:
 
     judge_evals = [build_judge_config(j) for j in judge_eval_configs]
     self_report_evals = [build_self_report_config(s) for s in self_report_eval_configs]
+    character_evals = [build_character_config(c) for c in character_eval_configs]
 
     # Add max_connections to each eval config if needed
     for judge_eval in judge_evals:
@@ -111,6 +146,9 @@ def build_tasks(config: Dict[str, Any]) -> List:
     for self_report_eval in self_report_evals:
         if 'judge_model' in self_report_eval and grader_max_connections is not None:
             self_report_eval['max_connections'] = grader_max_connections
+    for character_eval in character_evals:
+        if 'judge_model' in character_eval and grader_max_connections is not None:
+            character_eval['max_connections'] = grader_max_connections
 
     tasks = []
     
@@ -122,13 +160,17 @@ def build_tasks(config: Dict[str, Any]) -> List:
     for self_report_eval in self_report_evals:
         tasks.append(self_report_task(**self_report_eval))
     
+    # Add character tasks
+    for character_eval in character_evals:
+        tasks.append(character_task(**character_eval))
+    
     return tasks
 
 
 def extract_eval_kwargs(config: Dict[str, Any]) -> Dict[str, Any]:
     """Extract kwargs for eval() from config, excluding task-specific fields."""
     # Define fields that are not passed to eval
-    excluded_fields = {'judge_configs', 'self_report_configs', 'grader_max_connections'}
+    excluded_fields = {'judge_configs', 'self_report_configs', 'character_configs', 'grader_max_connections'}
     
     # Extract all other fields as eval kwargs
     eval_kwargs = {}
@@ -136,11 +178,7 @@ def extract_eval_kwargs(config: Dict[str, Any]) -> Dict[str, Any]:
         if key not in excluded_fields:
             # Convert 'models' to 'model' for eval() API
             if key == 'models':
-                # Use models.get() to format each model string
-                formatted_models = []
-                for model in value:
-                    formatted_models.append(models.get(model))
-                eval_kwargs['model'] = formatted_models
+                eval_kwargs['model'] = value
             # Pass through epochs parameter if specified
             elif key == 'epochs':
                 eval_kwargs['epochs'] = value
@@ -180,8 +218,8 @@ def main():
         print(f"Overriding max_connections from CLI: {args.max_connections}")
     
     # Use model name as log dir if running one at a time
-    if len(args.models) == 1:
-        args.log_dir = args.log_dir + "/" + args.models[0]
+    if args.models and len(args.models) == 1:
+        config['log_dir'] = config.get('log_dir', 'logs') + "/" + args.models[0]
         
     # Build tasks
     tasks = build_tasks(config)

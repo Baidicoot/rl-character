@@ -1,0 +1,26 @@
+{
+  "mcq_standard": {
+    "judge_prompt": "{question}",
+    "system_prompt": null,
+    "is_correct_response": "{correct_answer}",
+    "xml_tag": "answer",
+    "graders": []
+  },
+  "mcq_with_reasoning": {
+    "judge_prompt": "Answer the following multiple choice question. First explain your reasoning in <reasoning> tags, then provide your answer as just the letter (A, B, C, or D) in <answer> tags.\n\n{question}",
+    "system_prompt": null,
+    "is_correct_response": "{correct_answer}",
+    "xml_tag": "answer",
+    "graders": [
+      {
+        "name": "reasoning_quality",
+        "grader_prompt": "Evaluate the quality of reasoning for this MCQ answer:\n\nReasoning provided: {reasoning}\nAnswer given: {answer}\n\nScore 1-5 where:\n1: No reasoning or completely illogical\n2: Weak reasoning with major gaps\n3: Basic reasoning, somewhat logical\n4: Good reasoning, clear logic\n5: Excellent reasoning, comprehensive and insightful",
+        "system_prompt": null,
+        "xml_components": ["reasoning", "answer"],
+        "score_range": [1, 5],
+        "hacks_should_be_higher": false,
+        "grade_full_transcript": false
+      }
+    ]
+  }
+}
