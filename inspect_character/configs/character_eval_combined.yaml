@@ -1,0 +1,56 @@
+# Combined configuration demonstrating all character evaluation types
+
+# Models to evaluate
+models:
+  - "claude-sonnet-4"
+
+# Character evaluation configurations  
+character_configs:
+  # Multiple choice questions
+  - name: "mcq_honesty"
+    character_formats: "../inspect_character/formats/mcq_eval.json"
+    dataset: "../inspect_character/ethical_mcq_dataset.jsonl"
+    format_type: "multiple_choice"
+    limit: 50
+    use_xml: false
+  
+  # True/false questions
+  - name: "tf_honesty"
+    character_formats: "../inspect_character/formats/ethical_eval.json"
+    dataset: "../inspect_character/true_false_dataset.jsonl"
+    format_type: "true_false"
+    limit: 50
+    use_xml: false
+  
+  # Open-ended with standard generation
+  - name: "open_standard"
+    character_formats: "../inspect_character/formats/ethical_eval.json"
+    dataset: "../inspect_character/open_ended_dataset.jsonl"
+    format_type: "open_ended"
+    limit: 25
+    judge_model: "openai/gpt-4.1"
+  
+  # Open-ended with interrogation
+  - name: "open_interrogated"
+    character_formats: "../inspect_character/formats/open_ended_interrogation.json"
+    dataset: "../inspect_character/open_ended_dataset.jsonl"
+    format_type: "open_ended"
+    limit: 15
+    use_interrogator: true
+    interrogator_config:
+      interrogator_model: "openai/gpt-4.1"
+      initial_prompt: "Let me understand your perspective better:"
+      max_num_turns: 2
+    judge_model: "openai/gpt-4.1"
+
+# You can also mix with existing judge/self-report configs
+judge_configs: []
+self_report_configs: []
+
+# Evaluation settings
+epochs: 1
+max_connections: 30
+grader_max_connections: 15
+log_dir: "character_logs/combined"
+sample_shuffle: false  # Keep order for comparison
+display: 'rich'

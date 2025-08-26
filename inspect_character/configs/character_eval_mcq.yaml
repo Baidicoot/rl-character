@@ -1,0 +1,33 @@
+# Configuration for evaluating models on MCQ character evaluation datasets
+
+# Models to evaluate
+models:
+  - "claude-sonnet-4"
+  - "gpt-4.1"
+
+# Character evaluation configurations
+character_configs:
+  # Multiple choice questions with exact matching
+  - name: "ethical_mcq"
+    character_formats: "../inspect_character/formats/mcq_eval.json"
+    dataset: "../inspect_character/ethical_mcq_dataset.jsonl"
+    format_type: "multiple_choice"
+    limit: 100
+    use_xml: false  # Use exact matching for MCQ
+  
+  # MCQ with reasoning evaluation
+  - name: "ethical_mcq_reasoning"
+    character_formats: "../inspect_character/formats/mcq_eval.json"
+    dataset: "../inspect_character/ethical_mcq_dataset.jsonl"
+    format_type: "multiple_choice"
+    limit: 100
+    use_xml: true  # Extract reasoning and answer
+    judge_model: "openai/gpt-4.1"  # For grading reasoning quality
+
+# Evaluation settings
+epochs: 3
+max_connections: 40
+grader_max_connections: 20
+log_dir: "character_logs/mcq"
+sample_shuffle: true
+display: 'rich'

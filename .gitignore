@@ -182,3 +182,5 @@ CLAUDE.md
 *.eval
 inspect_hack_rating/configs
 datasets_aidan/
+inspect_character/logs/
+deepcoder_train_*/

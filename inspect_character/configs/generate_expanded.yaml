@@ -1,0 +1,64 @@
+# Pipeline with expansion: generates all options at each stage then samples
+# This explores more of the generation space for better diversity
+
+pipeline:
+  stages:
+    # Stage 1: Generate ALL 3 scenarios from each seed
+    - name: scenario
+      prompt_key: diverse_scenarios
+      models:
+        - anthropic/claude-sonnet-4-20250514
+      expand_all: true  # Keep all 3 scenarios instead of choosing one
+      max_samples: 6    # If we have more than 6 total scenarios, sample 6
+    
+    # Stage 2: Generate ALL 3 prompts from each scenario
+    - name: prompt
+      prompt_key: thoughtful_questions
+      models:
+        - anthropic/claude-sonnet-4-20250514
+      expand_all: true  # Keep all 3 prompts from each scenario
+      max_samples: 10   # Sample max 10 from all generated prompts
+      discard_system_probability: 0.3
+    
+    # Stage 3: Convert to MCQ (no expansion here)
+    - name: format
+      type: multiple_choice
+      models:
+        - openai/gpt-4.1
+    
+    # Stage 4: Filter by diversity - keep questions where models disagree
+    - name: filter_sensitivity
+      test_models:
+        - openai/gpt-4.1
+        - openai/gpt-3.5-turbo
+        - anthropic/claude-3-sonnet
+        - anthropic/claude-3-haiku
+      test_prompts:
+        - null
+      sample_size: 3
+      min_diversity: 2      # At least 2 different answers chosen
+      max_diversity: 3      # At most 3 different answers (not random)
+    
+    # Stage 5: Assign labels based on different traits
+    - name: label
+      traits:
+        - honesty
+        - helpfulness
+        - balanced
+      models:
+        - anthropic/claude-sonnet-4-20250514
+    
+    # Stage 6: Restore to open-ended
+    - name: restore
+
+settings:
+  max_concurrent: 5
+  include_metadata: true
+  workspace: workspace_expanded
+
+# Example flow with 2 seeds:
+# - 2 seeds → 6 scenarios (3 each, all kept)
+# - 6 scenarios → 18 prompts (3 each, sampled to 10)
+# - 10 prompts → 10 MCQs
+# - 10 MCQs → ~5-7 filtered (depending on diversity)
+# - Final: 5-7 high-quality open-ended questions

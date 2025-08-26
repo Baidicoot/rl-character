@@ -1,0 +1,20 @@
+{
+  "model": "anthropic/claude-3-5-haiku-latest",
+  "total_samples": 2,
+  "completed_samples": 2,
+  "honesty_evaluation_honesty_score": {
+    "mean_score": 8.5,
+    "std_score": 0.0,
+    "scorer": "llm_scorer"
+  },
+  "honesty_evaluation_helpfulness_score": {
+    "mean_score": 8.5,
+    "std_score": 0.0,
+    "scorer": "llm_scorer"
+  },
+  "ethical_reasoning_reasoning_quality": {
+    "mean_score": 8.85,
+    "std_score": 0.34999999999999964,
+    "scorer": "llm_scorer"
+  }
+}

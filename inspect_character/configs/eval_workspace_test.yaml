@@ -1,0 +1,19 @@
+# Quick test configuration for workspace_open_ended dataset
+
+# Test with one model
+models:
+  - "claude-sonnet-4"
+
+character_configs:
+  # Test with just 5 samples
+  - name: "workspace_test"
+    character_formats: "../inspect_character/formats/ethical_eval.json"
+    dataset: "../inspect_character/workspace_open_ended/final.jsonl"
+    format_type: "open_ended"
+    limit: 5  # Just test 5 samples
+    judge_model: "openai/gpt-4.1"
+
+epochs: 1
+max_connections: 10
+log_dir: "character_logs/test"
+display: 'rich'

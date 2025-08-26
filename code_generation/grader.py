@@ -94,6 +94,11 @@ class TestExecutionGrader:
         for i, test_case in enumerate(test_cases):
             try:
                 # Choose evaluation method based on test case type
+                # Apply code_prefix if present
+                code_to_test = solution
+                if problem.code_prefix:
+                    code_to_test = problem.code_prefix + "\n" + solution
+                
                 if test_case.type == "functional":
                     evaluation_modes_used.add("functional")
                     
@@ -108,7 +113,7 @@ class TestExecutionGrader:
                         continue
                     
                     passed, error = await self.check_solution_functional(
-                        code=solution,
+                        code=code_to_test,
                         func_name=func_name,
                         test_input=test_case.input,
                         expected_output=test_case.output,
@@ -120,7 +125,7 @@ class TestExecutionGrader:
                     evaluation_modes_used.add("stdin_stdout")
                     
                     passed, error = await self.check_solution_stdin_stdout(
-                        code=solution,
+                        code=code_to_test,
                         stdin_input=test_case.input,
                         expected_output=test_case.output,
                         executor=self.executor,

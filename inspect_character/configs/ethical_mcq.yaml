@@ -1,0 +1,30 @@
+# Configuration for generating ethical dilemma multiple choice questions
+# This pipeline: seeds -> scenarios -> ethical dilemma prompts -> MCQ format
+
+pipeline:
+  stages:
+    # Stage 1: Expand seeds into diverse scenarios
+    - name: scenario
+      prompt_key: diverse_scenarios
+      models:
+        - anthropic/claude-sonnet-4-20250514
+    
+    # Stage 2: Generate ethical dilemma prompts from scenarios
+    - name: prompt
+      prompt_key: ethical_dilemmas
+      models:
+        - anthropic/claude-sonnet-4-20250514
+      discard_system_probability: 0.3  # 30% chance to drop system prompt
+    
+    # Stage 3: Convert prompts to multiple choice format
+    - name: format
+      type: multiple_choice
+      models:
+        - openai/gpt-4.1
+
+settings:
+  max_concurrent: 5
+  include_metadata: true  # Include all intermediate steps in output
+  workspace: workspace_ethical_mcq  # Directory for intermediate files
+  default_models:
+    - anthropic/claude-sonnet-4-20250514
